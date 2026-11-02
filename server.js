@@ -2075,13 +2075,13 @@ wss.on('connection', (ws, req) => {
           role: user.role,
           isHost: isRoomHostOrAdmin(user, room),
           seatId: user.seatId,
-          text: (text || (sticker ? `[${sticker.isMeme ? 'Meme' : 'Sticker'}: ${sticker.name}]` : '')).substring(0, 300),
+          text: text || (sticker ? `[${sticker.isMeme ? 'Meme' : 'Sticker'}: ${sticker.name}]` : ''),
           sticker: sticker || undefined,
           time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         };
 
         room.messages.push(chatObj);
-        if (room.messages.length > 80) room.messages.shift();
+        if (room.messages.length > 5000) room.messages.shift();
 
         broadcastToRoom(room, 'chat-message', chatObj);
         break;

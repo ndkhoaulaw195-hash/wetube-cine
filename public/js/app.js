@@ -2721,15 +2721,6 @@ class CinemaApp {
       this.toggleChat();
     });
 
-    // PiP Button in Settings
-    document.getElementById('setting-btn-pip')?.addEventListener('click', async () => {
-      const ok = await this.player.togglePictureInPicture();
-      this.closeModal('modal-settings');
-      if (ok) {
-        this.showToast('🖼️ Đang bật Cửa sổ PiP! Bạn có thể chuyển tab thoải mái.', 'info');
-      }
-    });
-
     // Cinema Lights in Settings
     document.getElementById('setting-btn-lights')?.addEventListener('click', () => {
       const nextLightsOff = !(this.cinema && this.cinema.lightsOff);

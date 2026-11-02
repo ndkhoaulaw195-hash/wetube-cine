@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261102_v19">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v20">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -325,12 +325,6 @@
         <span id="hud-room-pass-tag" class="room-pass-chip hidden">Pass: 1234</span>
       </div>
 
-      <!-- Back to Lobby / Out Room Button -->
-      <button id="btn-back-lobby" class="hud-pill-lobby" title="Out khỏi phòng này và quay về Sảnh Chờ" style="background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5;">
-        <i data-lucide="log-out" style="width: 13px; height: 13px;"></i>
-        <span>Out</span>
-      </button>
-
       <div class="hud-now-playing" id="hud-now-playing" title="Bài đang chiếu">
         <span class="pulse-indicator"></span>
         <i data-lucide="disc-3" class="spin-icon"></i>
@@ -351,12 +345,6 @@
       <button id="btn-hud-admin" class="hud-btn admin-hud-btn hidden" title="Mở Trung Tâm Quản Trị Admin">
         <i data-lucide="shield-check"></i>
         <span class="hud-btn-label">Admin</span>
-      </button>
-
-      <!-- Quick Voice Mic Button in Top HUD -->
-      <button id="btn-hud-mic" class="hud-btn mic-hud-btn" title="Bật/Tắt Mic đàm thoại trong phòng (Phím M)">
-        <i data-lucide="mic-off" id="hud-mic-icon"></i>
-        <span class="hud-btn-label" id="hud-mic-label">Bật Mic</span>
       </button>
 
       <!-- Sao chép link + pass mời bạn bè -->
@@ -481,20 +469,9 @@
         <span>Danh sách phát</span>
       </button>
 
-      <button id="btn-skip-vote" class="action-btn" title="Chuyển tiếp sang video kế tiếp trong hàng chờ (Chỉ Chủ phòng)">
-        <i data-lucide="skip-forward"></i>
-        <span id="skip-vote-text">Chuyển tiếp</span>
-      </button>
-
       <button id="btn-open-photo" class="action-btn" title="Chiếu ảnh lên màn rạp (Chỉ Chủ phòng)">
         <i data-lucide="image-plus"></i>
         <span>Chiếu ảnh</span>
-      </button>
-
-      <!-- Mini-Game & Dự đoán bình chọn (Chỉ Host/Admin) -->
-      <button id="btn-open-poll-maker" class="action-btn host-only-action hidden" title="Tạo mini-game bình chọn / dự đoán phim cho cả rạp (Chỉ Chủ phòng)">
-        <i data-lucide="bar-chart-2"></i>
-        <span>Bình chọn</span>
       </button>
 
       <!-- Quà tặng ảo cho Chủ phòng -->
@@ -551,7 +528,7 @@
       <button type="button" id="btn-chat-sticker" class="chat-tool-btn" title="Gửi nhãn dán / ảnh chế Meme">
         <i data-lucide="smile"></i>
       </button>
-      <input type="text" id="chat-input" placeholder="Nói gì với cả rạp đi…" maxlength="200" autocomplete="off" />
+      <input type="text" id="chat-input" placeholder="Nói gì với cả rạp đi…" autocomplete="off" />
       <button type="submit" class="chat-send-btn" title="Gửi tin nhắn">
         <i data-lucide="send"></i>
       </button>
@@ -1260,18 +1237,6 @@
             </button>
           </div>
 
-          <!-- Cửa sổ thu nhỏ PiP -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Cửa sổ thu nhỏ (PiP)</span>
-              <span class="settings-sub">Xem phim đồng bộ khi duyệt các tab khác trên máy tính</span>
-            </div>
-            <button type="button" id="setting-btn-pip" class="settings-action-btn">
-              <i data-lucide="picture-in-picture-2"></i>
-              <span>Mở PiP</span>
-            </button>
-          </div>
-
           <!-- Tắt đèn rạp -->
           <div class="settings-row">
             <div class="settings-info">
@@ -1398,9 +1363,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261102_v19"></script>
-  <script src="/js/cinema.js?v=20261102_v19"></script>
-  <script src="/js/player.js?v=20261102_v19"></script>
-  <script src="/js/app.js?v=20261102_v19"></script>
+  <script src="/js/avatars.js?v=20261103_v20"></script>
+  <script src="/js/cinema.js?v=20261103_v20"></script>
+  <script src="/js/player.js?v=20261103_v20"></script>
+  <script src="/js/app.js?v=20261103_v20"></script>
 </body>
 </html>
