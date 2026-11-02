@@ -28,29 +28,30 @@ class CinemaApp {
     this.activeStickerTab = 'stickers';
 
     this.stickersCatalog = [
-      { id: 'stk_popcorn', name: 'Bắp rang bơ', url: 'https://media.giphy.com/media/tFK82Y8fMZCcE/giphy.gif' },
-      { id: 'stk_shock', name: 'Quá sốc', url: 'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif' },
-      { id: 'stk_cry', name: 'Khóc ròng', url: 'https://media.giphy.com/media/OPU6wzx8JrHna/giphy.gif' },
-      { id: 'stk_laugh', name: 'Cười xỉu', url: 'https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif' },
-      { id: 'stk_fire', name: 'Cháy quá', url: 'https://media.giphy.com/media/QMHoU66sBXCAU/giphy.gif' },
-      { id: 'stk_clap', name: 'Vỗ tay', url: 'https://media.giphy.com/media/nbvFVPiEiJH6JOGIok/giphy.gif' },
-      { id: 'stk_cat_cheer', name: 'Mèo quẩy', url: 'https://media.giphy.com/media/jpbnoe3UIa8TU8LM13/giphy.gif' },
-      { id: 'stk_dance', name: 'Nhảy sung', url: 'https://media.giphy.com/media/blSTtZehjAZ8I/giphy.gif' },
-      { id: 'stk_scared', name: 'Sợ hãi', url: 'https://media.giphy.com/media/12Rfz4s8m77JkY/giphy.gif' },
-      { id: 'stk_heart', name: 'Thả tim', url: 'https://media.giphy.com/media/M90mJvfWfd5mbUuFUh/giphy.gif' },
-      { id: 'stk_king', name: 'Đỉnh nóc', url: 'https://media.giphy.com/media/TNb3Ihssb6T5ECUCYB/giphy.gif' },
-      { id: 'stk_pizza', name: 'Ăn pizza', url: 'https://media.giphy.com/media/1108D2tVaUN3eo/giphy.gif' }
+      { id: 'stk_popcorn', name: 'Bắp rang bơ', url: '/stickers/popcorn.png' },
+      { id: 'stk_fire', name: 'Cháy quá', url: '/stickers/fire.png' },
+      { id: 'stk_laugh', name: 'Cười xỉu', url: '/stickers/laugh.png' },
+      { id: 'stk_cry', name: 'Khóc ròng', url: '/stickers/cry.png' },
+      { id: 'stk_heart', name: 'Thả tim', url: '/stickers/heart.png' },
+      { id: 'stk_clap', name: 'Vỗ tay', url: '/stickers/clap.png' },
+      { id: 'stk_party', name: 'Tiệc tùng', url: '/stickers/party.png' },
+      { id: 'stk_shock', name: 'Quá sốc', url: '/stickers/shock.png' },
+      { id: 'stk_cat', name: 'Mèo cưng', url: '/stickers/cat.png' },
+      { id: 'stk_pizza', name: 'Ăn pizza', url: '/stickers/pizza.png' },
+      { id: 'stk_crown', name: 'Vương miện', url: '/stickers/crown.png' },
+      { id: 'stk_cool', name: 'Kính ngầu', url: '/stickers/cool.png' },
+      { id: 'stk_mindblown', name: 'Bùng nổ não', url: '/stickers/mindblown.png' },
+      { id: 'stk_sleepy', name: 'Buồn ngủ', url: '/stickers/sleepy.png' }
     ];
 
     this.memesCatalog = [
-      { id: 'meme_doge', name: 'Doge xem phim', url: 'https://media.giphy.com/media/9C1nyePmmaysU/giphy.gif' },
-      { id: 'meme_pepe', name: 'Ếch bất ngờ', url: 'https://media.giphy.com/media/ISOckXUybVfQ4/giphy.gif' },
-      { id: 'meme_cool', name: 'Kính ngầu', url: 'https://media.giphy.com/media/yA5Y3B4Ip13Xy/giphy.gif' },
-      { id: 'meme_mindblown', name: 'Bùng nổ não', url: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif' },
-      { id: 'meme_drama', name: 'Hóng drama', url: 'https://media.giphy.com/media/gl0mkIZOW6Nwc/giphy.gif' },
-      { id: 'meme_sleep', name: 'Buồn ngủ ghê', url: 'https://media.giphy.com/media/mguPrVJAnEHIY/giphy.gif' },
-      { id: 'meme_cheers', name: 'Cụng ly', url: 'https://media.giphy.com/media/GCLlQnV7dXZ2E/giphy.gif' },
-      { id: 'meme_confused', name: 'Khó hiểu', url: 'https://media.giphy.com/media/g01ZnwAUvutuK8GIQn/giphy.gif' }
+      { id: 'meme_cool', name: 'Kính ngầu chất', url: '/memes/cool.png' },
+      { id: 'meme_mindblown', name: 'Bùng nổ não bộ', url: '/memes/mindblown.png' },
+      { id: 'meme_popcorn', name: 'Ăn bắp hóng drama', url: '/memes/popcorn.png' },
+      { id: 'meme_cat', name: 'Mèo bối rối', url: '/memes/cat.png' },
+      { id: 'meme_shock', name: 'Sốc toàn tập', url: '/memes/shock.png' },
+      { id: 'meme_sleepy', name: 'Buồn ngủ ghê', url: '/memes/sleepy.png' },
+      { id: 'meme_pepe', name: 'Ếch Pepe khóc', url: '/memes/pepe.png' }
     ];
 
     this.virtualGifts = [
@@ -139,7 +140,49 @@ class CinemaApp {
     this.renderAvatarPickerGrids();
     this.initWebSocket();
     this.bindUIEvents();
+    this.initHudAutoIdle();
     this.refreshIcons();
+  }
+
+  initHudAutoIdle() {
+    let idleTimer = null;
+    const hideDelay = 2800; // 2.8 giây không di chuột sẽ tự động ẩn mượt các thanh điều khiển
+
+    const wakeHud = () => {
+      document.body.classList.remove('hud-autohide');
+      clearTimeout(idleTimer);
+      if (this.currentRoomId && !this.isHudHidden) {
+        const isModalOpen = document.querySelector('.modal-backdrop:not(.hidden)');
+        const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+        if (!isModalOpen && !isTyping) {
+          idleTimer = setTimeout(() => {
+            document.body.classList.add('hud-autohide');
+          }, hideDelay);
+        }
+      }
+    };
+
+    window.addEventListener('mousemove', wakeHud, { passive: true });
+    window.addEventListener('mousedown', wakeHud, { passive: true });
+    window.addEventListener('touchstart', wakeHud, { passive: true });
+    window.addEventListener('keydown', wakeHud, { passive: true });
+
+    const keepVisible = () => {
+      document.body.classList.remove('hud-autohide');
+      clearTimeout(idleTimer);
+    };
+
+    ['cinema-playback-bar', 'chat-drawer', 'theater-floating-controls', 'utilities-popover'].forEach(id => {
+      const el = document.getElementById(id);
+      el?.addEventListener('mouseenter', keepVisible);
+      el?.addEventListener('mouseleave', wakeHud);
+    });
+
+    ['hud-bottom', 'hud-top'].forEach(cls => {
+      const el = document.querySelector(`.${cls}`);
+      el?.addEventListener('mouseenter', keepVisible);
+      el?.addEventListener('mouseleave', wakeHud);
+    });
   }
 
   refreshIcons() {
@@ -1139,25 +1182,89 @@ class CinemaApp {
 
   // --- UI Event Bindings ---
   bindUIEvents() {
-    // 1. Camera Mode Buttons
+    // 1. Camera Mode Buttons (Toàn cảnh, Màn hình, Khán giả, Khép góc)
     document.querySelectorAll('.cam-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
+        const mode = btn.getAttribute('data-camera');
+        if (mode === 'theater') {
+          this.toggleTheaterMode();
+          return;
+        }
+        if (this.isTheaterMode) {
+          this.toggleTheaterMode(false);
+        }
         document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const mode = btn.getAttribute('data-camera');
-        this.cinema.setCameraMode(mode, this.you ? this.you.seatId : null);
+        if (this.cinema) {
+          this.cinema.setCameraMode(mode, this.you ? this.you.seatId : null);
+        }
       });
     });
 
-    // 2. Theater 2D / 3D Mode Toggle
-    const btnTheater = document.getElementById('btn-theater-mode');
-    if (btnTheater) {
-      btnTheater.addEventListener('click', () => {
-        const is2D = this.cinema.toggleTheater2DMode();
-        const label = document.getElementById('theater-mode-label');
-        if (label) label.textContent = is2D ? 'Toàn Cảnh 3D' : 'Màn hình';
-      });
-    }
+    // 2. Tiện ích Menu Dropdown (Gom Chiếu ảnh, Tặng quà, Bình chọn, Đèn, Tiết kiệm 4G, Ẩn giao diện)
+    const btnUtil = document.getElementById('btn-toggle-utilities');
+    const utilPopover = document.getElementById('utilities-popover');
+    btnUtil?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      utilPopover?.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (utilPopover && !utilPopover.contains(e.target) && e.target !== btnUtil && !btnUtil?.contains(e.target)) {
+        utilPopover.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('btn-util-photo')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được chiếu ảnh lên màn hình!', 'error');
+        return;
+      }
+      this.openModal('modal-photo');
+    });
+
+    document.getElementById('btn-util-gifts')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openGiftModal();
+    });
+
+    document.getElementById('btn-util-poll')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openPollModal();
+    });
+
+    document.getElementById('btn-util-lights')?.addEventListener('click', () => {
+      const nextLightsOff = !(this.cinema && this.cinema.lightsOff);
+      if (this.cinema) this.cinema.setLightsOff(nextLightsOff);
+      this.updateLightsModeUI(nextLightsOff);
+      if (this.canControlRoom()) this.send('toggle-lights');
+      const lbl = document.getElementById('label-util-lights');
+      if (lbl) lbl.textContent = nextLightsOff ? 'Bật đèn' : 'Tắt đèn';
+    });
+
+    document.getElementById('btn-util-party')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được bật/tắt đèn tiệc!', 'error');
+        return;
+      }
+      this.send('toggle-party');
+    });
+
+    document.getElementById('btn-util-data-saver')?.addEventListener('click', () => {
+      this.toggleDataSaver();
+      const lbl = document.getElementById('label-util-saver');
+      if (lbl) lbl.textContent = this.isDataSaver ? 'Tắt 4G Saver' : 'Tiết kiệm 4G';
+    });
+
+    document.getElementById('btn-util-clean-hud')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.toggleHudVisibility();
+    });
+
+    document.getElementById('btn-util-settings')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openModal('modal-settings');
+    });
 
     // 3. Screen Click to Unmute
     const screenIdle = document.getElementById('screen-idle');
@@ -2349,14 +2456,25 @@ class CinemaApp {
     if (msg.isVip) badges.push('💎 VIP');
 
     let bodyContent = this.escapeHTML(msg.text);
-    if (msg.sticker && msg.sticker.url) {
+    if (msg.sticker && (msg.sticker.url || msg.sticker.id)) {
+      // Normalize URL: nếu URL cũ từ Giphy bị chặn hoặc khớp catalog, tự động chuyển sang file PNG nội bộ siêu nét
+      let finalStickerUrl = msg.sticker.url || '';
+      const matched = [...this.stickersCatalog, ...this.memesCatalog].find(
+        item => item.id === msg.sticker.id || item.name === msg.sticker.name || (finalStickerUrl && finalStickerUrl.includes(item.id.replace('stk_', '').replace('meme_', '')))
+      );
+      if (matched) {
+        finalStickerUrl = matched.url;
+      } else if (!finalStickerUrl || finalStickerUrl.includes('giphy.com')) {
+        finalStickerUrl = '/stickers/popcorn.png';
+      }
+
       if (this.isDataSaver) {
-        bodyContent = `<div style="font-size:12px; color:#38bdf8; font-style:italic;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name)}]</div>`;
+        bodyContent = `<div style="font-size:12px; color:#38bdf8; font-style:italic;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name || 'Nhãn dán')}]</div>`;
       } else {
         bodyContent = `
           <div class="chat-sticker-bubble">
-            <img src="${this.escapeHTML(msg.sticker.url)}" alt="${this.escapeHTML(msg.sticker.name || 'sticker')}" class="chat-sticker-img" loading="lazy" />
-            <span class="chat-sticker-label" style="font-size:11px; color:#9ca3af; margin-top:2px;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name)}]</span>
+            <img src="${this.escapeHTML(finalStickerUrl)}" alt="${this.escapeHTML(msg.sticker.name || 'sticker')}" class="chat-sticker-img" loading="lazy" />
+            <span class="chat-sticker-label" style="font-size:11px; color:#9ca3af; margin-top:2px;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name || '')}]</span>
           </div>
         `;
       }
@@ -2821,14 +2939,32 @@ class CinemaApp {
   toggleTheaterMode(forceState = null) {
     this.isTheaterMode = forceState !== null ? forceState : !this.isTheaterMode;
     document.body.classList.toggle('theater-mode', this.isTheaterMode);
-    document.getElementById('theater-floating-controls')?.classList.toggle('hidden', !this.isTheaterMode);
+    
+    // Gọi chế độ Theater 2D trên Cinema engine (tắt 3D WebGL, đưa màn hình ra phẳng 2D không góc nghiêng)
+    if (this.cinema) {
+      this.cinema.toggleTheater2DMode(this.isTheaterMode);
+    }
+
+    const floatControls = document.getElementById('theater-floating-controls');
+    if (floatControls) {
+      floatControls.classList.toggle('hidden', !this.isTheaterMode);
+    }
+
+    // Đồng bộ nút chọn góc nhìn ở thanh điều khiển dưới đáy
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      const c = btn.getAttribute('data-camera');
+      if (this.isTheaterMode) {
+        btn.classList.toggle('active', c === 'theater');
+      } else {
+        const curMode = this.cinema?.cameraMode || 'overview';
+        btn.classList.toggle('active', c === curMode);
+      }
+    });
 
     if (this.isTheaterMode) {
-      if (this.cinema) this.cinema.setCameraMode('screen');
-      this.toggleChat(true);
-      this.showToast('🎭 Đã bật Khép góc: Mở rộng màn hình & thu nhỏ chat.', 'info');
+      this.showToast('🎭 Đã bật Khép góc: Màn chiếu 2D toàn cảnh, không gian tối ưu.', 'info');
     } else {
-      this.showToast('🎬 Đã thoát chế độ Khép góc.', 'info');
+      this.showToast('🎬 Đã quay lại rạp chiếu 3D.', 'info');
     }
     this.syncSettingsUI();
   }

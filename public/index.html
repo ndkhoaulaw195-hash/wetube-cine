@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v20">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v21">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -443,13 +443,17 @@
         <i data-lucide="layout-grid"></i>
         <span>Toàn cảnh</span>
       </button>
-      <button class="cam-btn" data-camera="screen" title="Xem cận cảnh màn hình">
+      <button class="cam-btn" data-camera="screen" title="Xem cận cảnh màn hình (3D)">
         <i data-lucide="tv"></i>
         <span>Màn hình</span>
       </button>
       <button class="cam-btn" data-camera="audience" title="Quay nhìn khán giả">
         <i data-lucide="users"></i>
         <span>Khán giả</span>
+      </button>
+      <button class="cam-btn" data-camera="theater" title="Khép góc: Rạp chiếu 2D toàn cảnh không góc nghiêng (Phím T)">
+        <i data-lucide="sparkles"></i>
+        <span>Khép góc</span>
       </button>
     </div>
 
@@ -469,16 +473,57 @@
         <span>Danh sách phát</span>
       </button>
 
-      <button id="btn-open-photo" class="action-btn" title="Chiếu ảnh lên màn rạp (Chỉ Chủ phòng)">
-        <i data-lucide="image-plus"></i>
-        <span>Chiếu ảnh</span>
-      </button>
+      <!-- TIỆN ÍCH DROPDOWN (Gom Chiếu ảnh, Tặng quà, Tạo bình chọn, Tắt đèn, Đèn tiệc, Tiết kiệm 4G) -->
+      <div class="utility-dropdown-wrap">
+        <button id="btn-toggle-utilities" class="action-btn" title="Menu Tiện ích rạp phim">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Tiện ích ▾</span>
+        </button>
 
-      <!-- Quà tặng ảo cho Chủ phòng -->
-      <button id="btn-open-gifts" class="action-btn gift-btn" title="Tặng quà ảo cho Chủ phòng (Hoa hồng, Trà sữa, Tên lửa, Siêu xe...)">
-        <i data-lucide="gift"></i>
-        <span>Tặng quà</span>
-      </button>
+        <div id="utilities-popover" class="utilities-popover hidden">
+          <div class="popover-header">
+            <span>✨ Tiện ích Rạp Phim</span>
+          </div>
+          <div class="popover-grid">
+            <button id="btn-util-photo" class="popover-item-btn" title="Chiếu ảnh kỷ niệm lên màn rạp">
+              <i data-lucide="image-plus"></i>
+              <span>Chiếu ảnh</span>
+            </button>
+            <button id="btn-util-gifts" class="popover-item-btn" title="Tặng quà ảo cho Chủ phòng">
+              <i data-lucide="gift"></i>
+              <span>Tặng quà</span>
+            </button>
+            <button id="btn-util-poll" class="popover-item-btn" title="Tạo bình chọn & mini-game">
+              <i data-lucide="vote"></i>
+              <span>Bình chọn</span>
+            </button>
+            <button id="btn-util-lights" class="popover-item-btn" title="Bật / Tắt đèn trần rạp phim">
+              <i data-lucide="lamp"></i>
+              <span id="label-util-lights">Tắt đèn</span>
+            </button>
+            <button id="btn-util-party" class="popover-item-btn" title="Đèn tiệc & Quả cầu Disco (Chỉ Host)">
+              <i data-lucide="disc"></i>
+              <span>Đèn Disco</span>
+            </button>
+            <button id="btn-util-data-saver" class="popover-item-btn" title="Tiết kiệm dữ liệu 4G">
+              <i data-lucide="signal-low"></i>
+              <span id="label-util-saver">Tiết kiệm 4G</span>
+            </button>
+            <button id="btn-util-clean-hud" class="popover-item-btn" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
+              <i data-lucide="eye-off"></i>
+              <span>Ẩn giao diện</span>
+            </button>
+            <button id="btn-util-settings" class="popover-item-btn" title="Cài đặt chi tiết âm thanh & rạp">
+              <i data-lucide="settings"></i>
+              <span>Cài đặt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Giữ các nút ẩn để backwards compatibility -->
+      <button id="btn-open-photo" class="hidden" style="display:none;"></button>
+      <button id="btn-open-gifts" class="hidden" style="display:none;"></button>
 
       <button id="btn-open-profile" class="action-btn" title="Tài khoản & Đổi nhân vật Pixel Chibi">
         <img id="hud-user-avatar-img" class="pixel-avatar-hud" src="" alt="Avatar" />
@@ -1363,9 +1408,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v20"></script>
-  <script src="/js/cinema.js?v=20261103_v20"></script>
-  <script src="/js/player.js?v=20261103_v20"></script>
-  <script src="/js/app.js?v=20261103_v20"></script>
+  <script src="/js/avatars.js?v=20261103_v21"></script>
+  <script src="/js/cinema.js?v=20261103_v21"></script>
+  <script src="/js/player.js?v=20261103_v21"></script>
+  <script src="/js/app.js?v=20261103_v21"></script>
 </body>
 </html>

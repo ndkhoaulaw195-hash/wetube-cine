@@ -790,7 +790,14 @@ class CinemaScene {
     }
   }
 
-  setCameraMode(mode) {
+  isTheater2DActive() {
+    return !!document.getElementById('cinema-viewport')?.classList.contains('theater-2d-mode');
+  }
+
+  setCameraMode(mode, seatId = null) {
+    if (this.isTheater2DActive()) {
+      this.toggleTheater2DMode(false);
+    }
     if (this.cameraMode === mode) return;
     const prevMode = this.cameraMode;
     this.cameraMode = mode;
@@ -808,8 +815,11 @@ class CinemaScene {
         break;
 
       case 'screen':
-        targetPos = new THREE.Vector3(0, 5.2, -1.2);
-        targetLook = new THREE.Vector3(0, 5.2, -9.0);
+        // Căn chỉnh góc nhìn Màn hình: Camera lùi ra vừa vặn (z=2.0) và nâng cao (y=6.1)
+        // nhìn hơi chếch xuống (look Y=5.3) để màn chiếu 16:9 lọt gọn 100% trong khung hình,
+        // không bao giờ bị thanh điều khiển hoặc thanh dưới đáy che khuất phụ đề/nội dung.
+        targetPos = new THREE.Vector3(0, 6.1, 2.0);
+        targetLook = new THREE.Vector3(0, 5.3, -9.6);
         break;
 
       case 'audience':
@@ -865,9 +875,11 @@ class CinemaScene {
     const is2D = forceState !== null ? forceState : !viewport.classList.contains('theater-2d-mode');
     if (is2D) {
       viewport.classList.add('theater-2d-mode');
+      document.body.classList.add('theater-mode');
       this.pause();
     } else {
       viewport.classList.remove('theater-2d-mode');
+      document.body.classList.remove('theater-mode');
       this.resume();
     }
     return is2D;
