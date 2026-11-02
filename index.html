@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mua Hàng Hoàn Tiền - Nền tảng Hoàn tiền Shopee, Lazada, TikTok Shop số 1 Việt Nam</title>
+  <meta name="description" content="Nền tảng mua sắm hoàn tiền thông minh. Mua sắm Shopee, Lazada, TikTok Shop nhận lại tiền hoàn đến 30% vào tài khoản ngân hàng. Tổng hợp mã giảm giá, sale 1k, 9k mỗi ngày.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- TOP ANNOUNCEMENT BANNER -->
+  <div class="top-announcement">
+    <div class="container announcement-content">
+      <div class="announcement-badge">🔥 Siêu Sale 11.11</div>
+      <div class="announcement-ticker" id="announcementTicker">
+        <span>🎉 Chúc mừng <strong>Tueha1***</strong> vừa rút thành công <strong>1.112.280đ</strong> về Vietcombank!</span>
+      </div>
+      <div class="top-nav-links">
+        <a href="#guide-section" class="top-link" onclick="switchTab('guide')">Hướng dẫn sử dụng</a>
+        <a href="#faq-section" class="top-link" onclick="switchTab('guide')">Hỏi & Đáp</a>
+        <a href="#support-channels" class="top-link">Nhóm Săn Sale Zalo</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN NAVIGATION HEADER -->
+  <header class="main-header" id="mainHeader">
+    <div class="container header-container">
+      <!-- Logo & Slogan -->
+      <a href="#" class="brand-logo" onclick="switchTab('home'); return false;">
+        <div class="logo-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">MuaHang<span class="highlight">HoanTien</span><span class="tld">.vn</span></span>
+          <span class="brand-sub">Mua Sắm & Nhận Lại Tiền Thật</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav Menu -->
+      <nav class="desktop-nav">
+        <button class="nav-item active" id="nav-btn-home" onclick="switchTab('home')">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          Trang chủ
+        </button>
+        <button class="nav-item" id="nav-btn-deals" onclick="switchTab('deals')">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          Săn Sale 1k - 9k
+        </button>
+        <button class="nav-item" id="nav-btn-leaderboard" onclick="switchTab('leaderboard')">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34c3.08-.63 5.43-3.23 5.43-6.66H4.57c0 3.43 2.35 6.03 5.43 6.66z"></path></svg>
+          Bảng Vàng
+        </button>
+        <button class="nav-item" id="nav-btn-wallet" onclick="switchTab('wallet')">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+          Ví Tiền Của Tôi
+        </button>
+        <button class="nav-item" id="nav-btn-guide" onclick="switchTab('guide')">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          Hướng Dẫn
+        </button>
+      </nav>
+
+      <!-- User Account & Wallet Capsule -->
+      <div class="header-actions">
+        <div class="wallet-badge" onclick="switchTab('wallet')" title="Bấm để xem chi tiết ví">
+          <div class="wallet-icon">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+            </svg>
+          </div>
+          <div class="wallet-info">
+            <span class="wallet-label">Số dư hoàn tiền</span>
+            <span class="wallet-amount" id="headerWalletBalance">128.500 đ</span>
+          </div>
+        </div>
+
+        <button class="btn-primary-action" onclick="openWithdrawModal()">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+          Rút Tiền
+        </button>
+
+        <button class="user-profile-btn" onclick="openUserModal()" title="Tài khoản cá nhân">
+          <div class="avatar-circle">
+            <span id="userInitial">TN</span>
+          </div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- APP CONTENT CONTAINER -->
+  <main class="app-main">
+    
+    <!-- ==================== TAB 1: HOME PAGE ==================== -->
+    <section id="tab-home" class="page-tab active">
+      
+      <!-- HERO CONVERTER SECTION -->
+      <div class="hero-converter-section">
+        <div class="container hero-grid">
+          
+          <div class="hero-text-block">
+            <div class="platform-chips">
+              <span class="chip-item shopee">
+                <span class="dot-indicator shopee"></span> Shopee hoàn đến 20%
+              </span>
+              <span class="chip-item lazada">
+                <span class="dot-indicator lazada"></span> Lazada hoàn đến 15%
+              </span>
+              <span class="chip-item tiktok">
+                <span class="dot-indicator tiktok"></span> TikTok Shop hoàn đến 18%
+              </span>
+            </div>
+            
+            <h1 class="hero-title">
+              Dán Link Sản Phẩm,<br>
+              <span class="gradient-text">Nhận Hoàn Tiền Thật Về Ngân Hàng</span>
+            </h1>
+            <p class="hero-subtitle">
+              Không đổi voucher ảo! Mua hàng trên sàn Shopee, Lazada, TikTok như bình thường, nhận lại từ <strong>5% – 30% hoa hồng trực tiếp</strong> vào tài khoản ngân hàng ATM của bạn.
+            </p>
+
+            <!-- CORE CONVERTER TOOL BOX -->
+            <div class="converter-box card-shadow" id="converterContainer">
+              <div class="converter-input-wrapper">
+                <span class="input-icon">
+                  <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                </span>
+                <input 
+                  type="text" 
+                  id="linkInput" 
+                  placeholder="Dán link sản phẩm Shopee, Lazada hoặc TikTok Shop tại đây..." 
+                  autocomplete="off"
+                >
+                <button class="btn-paste" onclick="pasteFromClipboard()" title="Dán nhanh">
+                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+                  Dán link
+                </button>
+              </div>
+
+              <!-- Action buttons row -->
+              <div class="converter-actions-row">
+                <div class="sample-links-quick">
+                  <span class="quick-label">Bấm thử link mẫu:</span>
+                  <button type="button" class="btn-sample-link" onclick="fillSampleLink('shopee')">Shopee Tai Nghe</button>
+                  <button type="button" class="btn-sample-link" onclick="fillSampleLink('lazada')">Lazada Nồi Chiên</button>
+                  <button type="button" class="btn-sample-link" onclick="fillSampleLink('tiktok')">TikTok Áo Polo</button>
+                </div>
+                <button class="btn-submit-convert" id="btnConvert" onclick="handleConvertLink()">
+                  <span class="btn-content" id="btnConvertContent">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Tạo Link Hoàn Tiền
+                  </span>
+                </button>
+              </div>
+
+              <!-- RESULT CARD (Populated dynamically) -->
+              <div class="convert-result-card" id="convertResultCard" style="display: none;">
+                <div class="result-badge-row">
+                  <span class="platform-tag" id="resPlatformTag">Shopee Mall</span>
+                  <span class="rate-tag" id="resRateTag">Hoàn 8.5% (Ước tính 38.250đ)</span>
+                </div>
+                
+                <div class="result-product-meta">
+                  <img id="resProductImg" src="" alt="Product Thumbnail" class="res-thumb">
+                  <div class="res-info">
+                    <h4 class="res-product-name" id="resProductName">Tai nghe Bluetooth Hoco W35 Pin 40 Giờ</h4>
+                    <div class="res-price-row">
+                      <span class="res-price" id="resPrice">450.000 đ</span>
+                      <span class="res-cashback-badge" id="resCashbackVal">+38.250 đ về ví</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="generated-link-box">
+                  <label>Đường link mua hàng nhận hoàn tiền của bạn:</label>
+                  <div class="copy-input-group">
+                    <input type="text" id="finalGeneratedLink" readonly>
+                    <button class="btn-copy" id="btnCopyLink" onclick="copyCashbackLink()">
+                      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                      Sao chép
+                    </button>
+                  </div>
+                </div>
+
+                <div class="link-action-buttons">
+                  <a href="#" target="_blank" id="btnOpenLink" class="btn-open-app">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    Mở ứng dụng & Mua ngay
+                  </a>
+                  <button class="btn-simulate-order" onclick="simulateOrderCheckout()" title="Chạy thử nghiệm hệ thống ghi nhận hoa hồng">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    [Thử nghiệm] Giả lập Mua Thành Công để cộng tiền
+                  </button>
+                </div>
+
+                <!-- Anti-loss checklist -->
+                <div class="anti-drop-notice">
+                  <div class="notice-title">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    Lưu ý quan trọng để không bị mất tiền hoàn (rớt đơn):
+                  </div>
+                  <ul>
+                    <li>Không bấm vào link của bất kỳ bên nào khác (KOL, hội nhóm Facebook) sau khi bấm link hoàn tiền.</li>
+                    <li>Hoàn tất thanh toán trong vòng 20 - 30 phút sau khi mở ứng dụng.</li>
+                    <li>Không áp dụng link khi đang xem video / livestream có gắn giỏ hàng trực tiếp.</li>
+                  </ul>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Hero Right: Quick Stats & Banner Cards -->
+          <div class="hero-stats-block">
+            <!-- Card 1: Today's Summary -->
+            <div class="stat-card gold-border">
+              <div class="stat-header">
+                <span class="stat-title">Tổng hoàn tiền toàn hệ thống</span>
+                <span class="live-pulse">Trực tiếp</span>
+              </div>
+              <div class="stat-number" id="systemCashbackTotal">4.829.450.000 đ</div>
+              <p class="stat-desc">Đã chi trả thành công cho hơn 142.000 thành viên qua chuyển khoản ngân hàng 24/7.</p>
+              
+              <div class="recent-payout-list" id="recentPayoutList">
+                <!-- Dynamically populated stream of withdrawals -->
+              </div>
+            </div>
+
+            <!-- Card 2: 3-step workflow -->
+            <div class="stat-card">
+              <h3 class="card-heading">3 Bước Nhận Hoàn Tiền</h3>
+              <div class="steps-mini">
+                <div class="step-mini-item">
+                  <div class="step-num">1</div>
+                  <div class="step-text"><strong>Dán link:</strong> Dán link Shopee, Lazada bạn muốn mua vào ô bên cạnh.</div>
+                </div>
+                <div class="step-mini-item">
+                  <div class="step-num">2</div>
+                  <div class="step-text"><strong>Mua hàng:</strong> Bấm link hoàn tiền đã tạo để mở app và thanh toán.</div>
+                </div>
+                <div class="step-mini-item">
+                  <div class="step-num">3</div>
+                  <div class="step-text"><strong>Rút tiền:</strong> Tiền hoàn về ví sau khi nhận hàng, rút về ngân hàng bất kỳ lúc nào.</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PLATFORM SELECTION BARS -->
+      <section class="container platforms-row">
+        <h2 class="section-title text-center">Đối Tác Hoàn Tiền Hàng Đầu</h2>
+        <div class="platforms-grid">
+          <div class="platform-card" onclick="quickFillPlatform('Shopee')">
+            <div class="platform-logo-box shopee-bg">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg" alt="Shopee">
+            </div>
+            <div class="platform-meta">
+              <h4>Shopee Việt Nam</h4>
+              <p>Hoàn tiền đến <strong>20.5%</strong></p>
+              <span class="badge-tag">Hơn 50.000 Shop</span>
+            </div>
+          </div>
+
+          <div class="platform-card" onclick="quickFillPlatform('Lazada')">
+            <div class="platform-logo-box lazada-bg">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Lazada.png" alt="Lazada">
+            </div>
+            <div class="platform-meta">
+              <h4>Lazada Mall</h4>
+              <p>Hoàn tiền đến <strong>15.0%</strong></p>
+              <span class="badge-tag">Chính Hãng 100%</span>
+            </div>
+          </div>
+
+          <div class="platform-card" onclick="quickFillPlatform('TikTok')">
+            <div class="platform-logo-box tiktok-bg">
+              <img src="https://upload.wikimedia.org/wikipedia/en/a/a9/TikTok_logo.svg" alt="TikTok">
+            </div>
+            <div class="platform-meta">
+              <h4>TikTok Shop</h4>
+              <p>Hoàn tiền đến <strong>18.0%</strong></p>
+              <span class="badge-tag">Hot Trend Giới Trẻ</span>
+            </div>
+          </div>
+
+          <div class="platform-card" onclick="quickFillPlatform('Tiki')">
+            <div class="platform-logo-box tiki-bg">
+              <img src="https://salt.tikicdn.com/ts/upload/e8/aa/f6/4eed0b5220c460d3d5268c2275b5b034.png" alt="Tiki">
+            </div>
+            <div class="platform-meta">
+              <h4>Tiki Trading</h4>
+              <p>Hoàn tiền đến <strong>8.5%</strong></p>
+              <span class="badge-tag">Giao Siêu Tốc 2H</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HOT DEALS & SALE 1K/9K/29K SECTION -->
+      <section class="container deals-section" id="deals-hub">
+        <div class="section-header-row">
+          <div>
+            <h2 class="section-title">Săn Deal Hot & Mã Giảm Giá Độc Quyền</h2>
+            <p class="section-sub">Được hệ thống tự động kiểm tra và cập nhật liên tục</p>
+          </div>
+          
+          <!-- Category Tabs -->
+          <div class="deal-filter-pills" id="dealFilterPills">
+            <button class="filter-pill active" onclick="filterDeals('all')">Tất cả</button>
+            <button class="filter-pill" onclick="filterDeals('sale1k')">🔥 Sale 1k - 9k</button>
+            <button class="filter-pill" onclick="filterDeals('shopee')">Shopee</button>
+            <button class="filter-pill" onclick="filterDeals('lazada')">Lazada</button>
+            <button class="filter-pill" onclick="filterDeals('tech')">Công nghệ</button>
+            <button class="filter-pill" onclick="filterDeals('beauty')">Mỹ phẩm</button>
+          </div>
+        </div>
+
+        <!-- Deals Grid -->
+        <div class="deals-grid" id="dealsGrid">
+          <!-- Populated by app.js -->
+        </div>
+      </section>
+
+      <!-- TOP LEADERBOARD PREVIEW ON HOMEPAGE -->
+      <section class="container leaderboard-preview">
+        <div class="card-shadow preview-box">
+          <div class="leaderboard-header">
+            <div>
+              <h3 class="leaderboard-title">🏆 Bảng Vàng Hoàn Tiền Cao Nhất Tháng 11</h3>
+              <p class="leaderboard-sub">Vinh danh các thành viên có tổng số tiền hoàn cao nhất trong tháng</p>
+            </div>
+            <button class="btn-outline" onclick="switchTab('leaderboard')">Xem tất cả bảng xếp hạng →</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Hạng</th>
+                  <th>ID Người Dùng</th>
+                  <th>Tài khoản</th>
+                  <th>Số đơn đã mua</th>
+                  <th>Tiền hoàn trong tháng</th>
+                  <th>Thưởng xếp hạng</th>
+                </tr>
+              </thead>
+              <tbody id="homeLeaderboardBody">
+                <!-- Injected via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- GUIDANCE & WHY CHOOSE US -->
+      <section class="container features-section">
+        <h2 class="section-title text-center">Tại Sao Nên Sử Dụng MuaHangHoanTien.vn?</h2>
+        <div class="features-grid">
+          <div class="feature-item">
+            <div class="feature-icon icon-green">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h4>Hoàn tiền mặt 100%</h4>
+            <p>Không dùng xu ảo, không đổi điểm thưởng rắc rối. Tiền hoàn được rút thẳng về tài khoản ngân hàng ATM của bạn.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon icon-orange">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <h4>Ghi nhận siêu nhanh</h4>
+            <p>Hệ thống tự động đồng bộ đơn hàng chỉ từ 5 – 15 phút sau khi bạn đặt hàng trên sàn Shopee, Lazada hay TikTok.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon icon-blue">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <h4>An toàn & Bảo mật</h4>
+            <p>Bạn vẫn đăng nhập và thanh toán trên ứng dụng chính thức của sàn. Chúng tôi không lưu mật khẩu hay thông tin nhạy cảm.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon icon-purple">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <h4>Hoa hồng trích lại cao nhất</h4>
+            <p>Trích trả lại lên đến 70% số tiền hoa hồng mà sàn tiếp thị liên kết trả cho nền tảng nhằm đem lại lợi ích tối đa cho bạn.</p>
+          </div>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ==================== TAB 2: DEALS & FLASH SALE ==================== -->
+    <section id="tab-deals" class="page-tab">
+      <div class="container section-padded">
+        <div class="deals-page-banner">
+          <div class="banner-badge">Săn Deal Chớp Nhoáng</div>
+          <h1>Tổng Hợp Mã Giảm Giá & Deal 1K, 9K Hôm Nay</h1>
+          <p>Bấm "Lấy Mã & Mua" để nhận link có tích hợp mã hoàn tiền cao nhất</p>
+        </div>
+
+        <div class="deal-categories-chips">
+          <button class="chip-filter active" onclick="filterDealsTab('all')">Tất cả deal</button>
+          <button class="chip-filter" onclick="filterDealsTab('1k')">Sản phẩm 1.000đ</button>
+          <button class="chip-filter" onclick="filterDealsTab('9k')">Sản phẩm 9.000đ</button>
+          <button class="chip-filter" onclick="filterDealsTab('freeship')">Voucher Freeship 0đ</button>
+          <button class="chip-filter" onclick="filterDealsTab('voucher50')">Giảm 50% Shopee Live</button>
+        </div>
+
+        <div class="deals-grid" id="fullDealsGrid">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: LEADERBOARD ==================== -->
+    <section id="tab-leaderboard" class="page-tab">
+      <div class="container section-padded">
+        <div class="leaderboard-hero">
+          <div class="badge-trophy">🏆 Bảng Vinh Danh</div>
+          <h1>Top Hoàn Tiền Tháng 11</h1>
+          <p>Cơ cấu giải thưởng: Hạng 1 nhận ngay <strong>1.000.000đ</strong> | Hạng 2 nhận <strong>500.000đ</strong> | Hạng 3 nhận <strong>300.000đ</strong></p>
+        </div>
+
+        <!-- Podium Top 3 -->
+        <div class="podium-row">
+          <!-- Rank 2 -->
+          <div class="podium-card rank-2">
+            <div class="medal-icon">🥈</div>
+            <div class="avatar-podium">H1</div>
+            <div class="podium-user">Hang1***</div>
+            <div class="podium-amount">107.738 đ</div>
+            <div class="podium-badge">+500.000đ Thưởng</div>
+            <div class="podium-stand stand-2">2</div>
+          </div>
+
+          <!-- Rank 1 -->
+          <div class="podium-card rank-1">
+            <div class="crown-icon">👑</div>
+            <div class="medal-icon">🥇</div>
+            <div class="avatar-podium gold">TH</div>
+            <div class="podium-user">Tueha1***</div>
+            <div class="podium-amount">1.112.280 đ</div>
+            <div class="podium-badge top-award">+1.000.000đ Thưởng</div>
+            <div class="podium-stand stand-1">1</div>
+          </div>
+
+          <!-- Rank 3 -->
+          <div class="podium-card rank-3">
+            <div class="medal-icon">🥉</div>
+            <div class="avatar-podium">CV</div>
+            <div class="podium-user">Congvan***</div>
+            <div class="podium-amount">67.339 đ</div>
+            <div class="podium-badge">+300.000đ Thưởng</div>
+            <div class="podium-stand stand-3">3</div>
+          </div>
+        </div>
+
+        <!-- Full Leaderboard Table -->
+        <div class="card-shadow full-leaderboard-box">
+          <table class="leaderboard-table">
+            <thead>
+              <tr>
+                <th>Hạng</th>
+                <th>ID Thành viên</th>
+                <th>Tên tài khoản</th>
+                <th>Số đơn tích lũy</th>
+                <th>Tiền hoàn trong tháng</th>
+                <th>Thưởng xếp hạng</th>
+              </tr>
+            </thead>
+            <tbody id="fullLeaderboardBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: WALLET & ORDER HISTORY ==================== -->
+    <section id="tab-wallet" class="page-tab">
+      <div class="container section-padded">
+        
+        <!-- Wallet Overview Cards -->
+        <div class="wallet-overview-grid">
+          <div class="wallet-stat-card available-card">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+            </div>
+            <div class="card-content">
+              <span class="card-label">Số dư khả dụng (Có thể rút)</span>
+              <h2 class="card-val" id="walletAvailableBalance">128.500 đ</h2>
+              <span class="subtext">Tối thiểu rút: 20.000 đ (Miễn phí 100%)</span>
+            </div>
+            <button class="btn-wallet-action" onclick="openWithdrawModal()">Rút Tiền Ngay</button>
+          </div>
+
+          <div class="wallet-stat-card pending-card">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </div>
+            <div class="card-content">
+              <span class="card-label">Số dư chờ duyệt (Đang đối soát)</span>
+              <h2 class="card-val" id="walletPendingBalance">64.200 đ</h2>
+              <span class="subtext">Sẽ khả dụng sau khi sàn hoàn tất đối soát đơn</span>
+            </div>
+          </div>
+
+          <div class="wallet-stat-card withdrawn-card">
+            <div class="card-icon">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <div class="card-content">
+              <span class="card-label">Tổng tiền đã rút về ATM</span>
+              <h2 class="card-val" id="walletTotalWithdrawn">450.000 đ</h2>
+              <span class="subtext">Đã chuyển thành công về tài khoản</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Orders Table & Withdrawal History Tabs -->
+        <div class="wallet-tabs-container card-shadow">
+          <div class="wallet-tabs-nav">
+            <button class="wallet-nav-tab active" id="btnTabOrders" onclick="toggleWalletSubTab('orders')">
+              Lịch Sử Đơn Hàng Hoàn Tiền (<span id="ordersCount">4</span>)
+            </button>
+            <button class="wallet-nav-tab" id="btnTabWithdrawals" onclick="toggleWalletSubTab('withdrawals')">
+              Lịch Sử Yêu Cầu Rút Tiền (<span id="withdrawalsCount">2</span>)
+            </button>
+          </div>
+
+          <!-- Subtab 1: Orders -->
+          <div id="subtab-orders" class="wallet-subtab-content active">
+            <div class="table-actions-bar">
+              <input type="text" id="orderSearchInput" placeholder="Tìm kiếm theo mã đơn, sản phẩm..." oninput="filterOrdersTable()">
+              <select id="orderStatusFilter" onchange="filterOrdersTable()">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chờ đối soát</option>
+                <option value="approved">Đã duyệt (Đã cộng)</option>
+                <option value="cancelled">Đã hủy / Đổi trả</option>
+              </select>
+            </div>
+
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mã Đơn</th>
+                    <th>Sàn</th>
+                    <th>Sản Phẩm</th>
+                    <th>Giá Trị Đơn</th>
+                    <th>Tiền Hoàn</th>
+                    <th>Thời Gian</th>
+                    <th>Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Subtab 2: Withdrawals -->
+          <div id="subtab-withdrawals" class="wallet-subtab-content">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Mã Giao Dịch</th>
+                    <th>Ngân Hàng</th>
+                    <th>Số Tài Khoản</th>
+                    <th>Tên Chủ Tài Khoản</th>
+                    <th>Số Tiền Rút</th>
+                    <th>Thời Gian</th>
+                    <th>Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="withdrawalsTableBody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: GUIDE & FAQ ==================== -->
+    <section id="tab-guide" class="page-tab">
+      <div class="container section-padded">
+        
+        <div class="guide-header text-center" id="guide-section">
+          <h1>Cẩm Nang Mua Hàng Hoàn Tiền</h1>
+          <p>Nắm rõ quy tắc để đảm bảo 100% đơn hàng mua sắm đều được ghi nhận hoàn tiền</p>
+        </div>
+
+        <div class="guide-accordion-group" id="faq-section">
+          <!-- Guide 1 -->
+          <div class="accordion-card open">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              <div class="accordion-title">
+                <span class="icon-circle">1</span>
+                <span>Quy trình 4 bước nhận tiền hoàn đơn giản nhất</span>
+              </div>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-body">
+              <ol class="step-guide-list">
+                <li><strong>Bước 1:</strong> Tìm sản phẩm bạn muốn mua trên ứng dụng Shopee, Lazada hoặc TikTok Shop.</li>
+                <li><strong>Bước 2:</strong> Bấm biểu tượng <strong>Chia sẻ</strong> (Share) trên trang sản phẩm và chọn <strong>Sao chép liên kết</strong>.</li>
+                <li><strong>Bước 3:</strong> Mở website <strong>MuaHangHoanTien.vn</strong>, dán link vào ô tìm kiếm và bấm <strong>Tạo Link Hoàn Tiền</strong>.</li>
+                <li><strong>Bước 4:</strong> Bấm nút <strong>Mở ứng dụng & Mua ngay</strong> để hoàn tất thanh toán trên app của sàn.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Guide 2 -->
+          <div class="accordion-card">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              <div class="accordion-title">
+                <span class="icon-circle">2</span>
+                <span>Vì sao đơn hàng bị hủy hoặc hoàn tiền 0đ?</span>
+              </div>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-body">
+              <p>Một số trường hợp phổ biến khiến đơn hàng không được sàn công nhận hoàn tiền:</p>
+              <ul>
+                <li><strong>Dính link đè:</strong> Bạn bấm link hoàn tiền xong, nhưng trước khi thanh toán lại bấm vào link một hội nhóm săn sale, link Facebook hoặc YouTuber khác. Khi đó hoa hồng bị ghi đè cho người khác.</li>
+                <li><strong>Đơn hàng bị trả hàng / hoàn tiền:</strong> Nếu bạn hủy đơn hoặc khiếu nại trả hàng trên Shopee/Lazada, khoản hoàn tiền cũng sẽ bị hủy.</li>
+                <li><strong>Mua hàng từ Shopee Live:</strong> Một số mã Shopee Live ghi đè mã tiếp thị liên kết tiêu chuẩn. Hãy dán link trước khi cho vào giỏ hàng.</li>
+                <li><strong>Thời gian thanh toán quá lâu:</strong> Quá 30 phút kể từ lúc bấm link hoàn tiền mới thanh toán. Hãy thao tác lại để lấy link mới nhất.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Guide 3 -->
+          <div class="accordion-card">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              <div class="accordion-title">
+                <span class="icon-circle">3</span>
+                <span>Khi nào tôi có thể rút tiền về tài khoản ngân hàng?</span>
+              </div>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-body">
+              <p>Sàn thương mại điện tử cần thời gian từ <strong>25 - 45 ngày</strong> để xác nhận đơn hàng thành công (hết thời hạn khiếu nại đổi trả của người mua). Sau khi sàn đối soát xong:</p>
+              <ul>
+                <li>Số dư sẽ tự động chuyển từ <strong>Chờ duyệt</strong> sang <strong>Khả dụng</strong>.</li>
+                <li>Chỉ cần số dư khả dụng đạt tối thiểu <strong>20.000 VNĐ</strong>, bạn có thể tạo lệnh rút về bất kỳ ngân hàng Việt Nam nào (Vietcombank, MB, Techcombank, MoMo,...).</li>
+                <li>Hệ thống xử lý duyệt chi trả tự động trong vòng 24 giờ. Hoàn toàn miễn phí rút tiền!</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Guide 4 -->
+          <div class="accordion-card">
+            <div class="accordion-head" onclick="toggleAccordion(this)">
+              <div class="accordion-title">
+                <span class="icon-circle">4</span>
+                <span>Website hoạt động dựa trên cơ chế nào? Tiền hoàn từ đâu ra?</span>
+              </div>
+              <span class="chevron">▼</span>
+            </div>
+            <div class="accordion-body">
+              <p>MuaHangHoanTien.vn là đối tác tiếp thị liên kết (Affiliate Marketing) chính thức của các sàn Shopee, Lazada và TikTok Shop. Khi giới thiệu khách hàng mua sắm thành công, sàn sẽ trả hoa hồng tiếp thị cho website. Chúng tôi <strong>trích lại phần lớn số tiền hoa hồng này (lên đến 70%)</strong> để hoàn trả lại cho chính bạn. Đây là mô hình Win - Win - Win giúp người tiêu dùng mua hàng thông minh và tiết kiệm nhất.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== WITHDRAWAL MODAL ==================== -->
+  <div class="modal-overlay" id="withdrawModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Yêu Cầu Rút Tiền Về Ngân Hàng</h3>
+        <button class="btn-close-modal" onclick="closeWithdrawModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="withdraw-balance-banner">
+          <span>Số dư khả dụng hiện tại:</span>
+          <strong id="modalAvailableAmount">128.500 đ</strong>
+        </div>
+
+        <form id="withdrawForm" onsubmit="handleWithdrawSubmit(event)">
+          <div class="form-group">
+            <label>Ngân hàng thụ hưởng</label>
+            <select id="bankSelect" required>
+              <option value="">-- Chọn ngân hàng --</option>
+              <option value="Vietcombank">Vietcombank - Ngân hàng Ngoại Thương</option>
+              <option value="MBBank">MBBank - Ngân hàng Quân Đội</option>
+              <option value="Techcombank">Techcombank - Ngân hàng Kỹ Thương</option>
+              <option value="VPBank">VPBank - Ngân hàng Việt Nam Thịnh Vượng</option>
+              <option value="ACB">ACB - Ngân hàng Á Châu</option>
+              <option value="BIDV">BIDV - Ngân hàng Đầu Tư & Phát Triển</option>
+              <option value="VietinBank">VietinBank - Ngân hàng Công Thương</option>
+              <option value="TPBank">TPBank - Ngân hàng Tiên Phong</option>
+              <option value="MoMo">Ví điện tử MoMo</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Số tài khoản / Số ví MoMo</label>
+            <input type="text" id="bankAccountNumber" placeholder="Nhập số tài khoản ngân hàng của bạn" required>
+          </div>
+
+          <div class="form-group">
+            <label>Tên chủ tài khoản (In hoa không dấu)</label>
+            <input type="text" id="bankAccountName" placeholder="VÍ DỤ: NGUYEN VAN A" style="text-transform: uppercase;" required>
+          </div>
+
+          <div class="form-group">
+            <label>Số tiền muốn rút (VNĐ)</label>
+            <input type="number" id="withdrawAmount" min="20000" placeholder="Tối thiểu 20.000đ" required>
+            <div class="quick-amounts">
+              <button type="button" onclick="setQuickWithdraw(50000)">50.000đ</button>
+              <button type="button" onclick="setQuickWithdraw(100000)">100.000đ</button>
+              <button type="button" onclick="setQuickWithdrawAll()">Rút toàn bộ</button>
+            </div>
+          </div>
+
+          <div class="modal-footer-action">
+            <button type="button" class="btn-cancel" onclick="closeWithdrawModal()">Hủy bỏ</button>
+            <button type="submit" class="btn-confirm-withdraw">Xác nhận rút tiền</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== USER PROFILE MODAL ==================== -->
+  <div class="modal-overlay" id="userModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Thông Tin Tài Khoản</h3>
+        <button class="btn-close-modal" onclick="closeUserModal()">✕</button>
+      </div>
+      <div class="modal-body user-profile-body">
+        <div class="profile-header-meta">
+          <div class="profile-large-avatar">TN</div>
+          <div>
+            <h4 id="userProfileName">Trần Ngọc Nam</h4>
+            <span class="user-sub-id">ID Thành viên: #98421</span>
+            <span class="badge-vip">Thành viên Thân thiết (Hạng Bạc)</span>
+          </div>
+        </div>
+
+        <div class="profile-summary-stats">
+          <div class="p-stat">
+            <span class="p-val" id="userTotalOrdersCount">12</span>
+            <span class="p-label">Đơn hàng hoàn</span>
+          </div>
+          <div class="p-stat">
+            <span class="p-val" id="userLifeEarnings">578.500 đ</span>
+            <span class="p-label">Tổng tiền đã hoàn</span>
+          </div>
+          <div class="p-stat">
+            <span class="p-val">0đ</span>
+            <span class="p-label">Phí dịch vụ</span>
+          </div>
+        </div>
+
+        <div class="profile-settings-links">
+          <button class="p-action-btn" onclick="switchTab('wallet'); closeUserModal();">
+            <span>Ví tiền & Lịch sử nhận hoàn tiền</span>
+            <span>→</span>
+          </button>
+          <button class="p-action-btn" onclick="resetDemoData(); closeUserModal();">
+            <span>Khôi phục dữ liệu Demo gốc</span>
+            <span>↺</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING COMMUNITY & SUPPORT BUTTONS -->
+  <div class="floating-support" id="support-channels">
+    <a href="https://zalo.me" target="_blank" rel="noopener noreferrer" class="float-btn zalo-btn" title="Tham gia nhóm Zalo Săn Sale">
+      <div class="float-tooltip">Nhóm Zalo Săn Sale 1k</div>
+      <span class="float-icon">Zalo</span>
+    </a>
+    <a href="https://m.me" target="_blank" rel="noopener noreferrer" class="float-btn fb-btn" title="Chat hỗ trợ Messenger 24/7">
+      <div class="float-tooltip">Hỗ trợ 24/7</div>
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="white">
+        <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.42 3.16 7.15V22l3.03-1.66c1.18.33 2.45.51 3.81.51 5.64 0 10-4.13 10-9.15S17.64 2 12 2zm1.09 12.33l-2.61-2.79-5.1 2.79 5.61-5.96 2.67 2.79 5.04-2.79-5.61 5.96z"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- MOBILE BOTTOM APP BAR -->
+  <div class="mobile-bottom-nav">
+    <button class="mob-nav-btn active" id="mobNavHome" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+      <span>Trang chủ</span>
+    </button>
+    <button class="mob-nav-btn" id="mobNavDeals" onclick="switchTab('deals')">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+      <span>Săn Sale</span>
+    </button>
+    <button class="mob-nav-btn highlight-middle" onclick="scrollToConverter()">
+      <div class="middle-icon">
+        <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      </div>
+      <span>Lấy Link</span>
+    </button>
+    <button class="mob-nav-btn" id="mobNavWallet" onclick="switchTab('wallet')">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+      <span>Ví Tiền</span>
+    </button>
+    <button class="mob-nav-btn" id="mobNavLeaderboard" onclick="switchTab('leaderboard')">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H7v4h10v-4h-2c-.55 0-1-.45-1-1v-2.34c3.08-.63 5.43-3.23 5.43-6.66H4.57c0 3.43 2.35 6.03 5.43 6.66z"></path></svg>
+      <span>Bảng Vàng</span>
+    </button>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- FOOTER -->
+  <footer class="main-footer">
+    <div class="container footer-grid">
+      <div class="footer-col brand-col">
+        <div class="brand-text">
+          <span class="brand-title text-white">MuaHang<span class="highlight">HoanTien</span>.vn</span>
+        </div>
+        <p class="footer-bio">
+          Cổng thông tin mua sắm hoàn tiền uy tín và minh bạch hàng đầu Việt Nam. Liên kết trực tiếp hệ thống API Shopee Affiliate, Lazada Open Platform và TikTok Shop Creator.
+        </p>
+        <p class="copyright-text">© 2026 MuaHangHoanTien.vn - Nền tảng tiếp thị hoàn tiền.</p>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="col-title">Sàn Liên Kết</h4>
+        <ul class="footer-links">
+          <li><a href="#" onclick="quickFillPlatform('Shopee')">Hoàn tiền Shopee Mall</a></li>
+          <li><a href="#" onclick="quickFillPlatform('Lazada')">Hoàn tiền Lazada LazMall</a></li>
+          <li><a href="#" onclick="quickFillPlatform('TikTok')">Hoàn tiền TikTok Shop</a></li>
+          <li><a href="#" onclick="quickFillPlatform('Tiki')">Hoàn tiền Tiki Trading</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="col-title">Hỗ Trợ Khách Hàng</h4>
+        <ul class="footer-links">
+          <li><a href="#" onclick="switchTab('guide')">Hướng dẫn lấy link hoàn tiền</a></li>
+          <li><a href="#" onclick="switchTab('guide')">Lý do bị huỷ hoàn tiền 0đ</a></li>
+          <li><a href="#" onclick="switchTab('guide')">Chu kỳ đối soát tiền về tài khoản</a></li>
+          <li><a href="#" onclick="openWithdrawModal()">Quy định rút tiền ngân hàng</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4 class="col-title">Cộng Đồng Tiết Kiệm</h4>
+        <div class="community-badges">
+          <div class="community-box">
+            <span class="c-title">Nhóm Facebook</span>
+            <span class="c-count">48.200 thành viên</span>
+          </div>
+          <div class="community-box">
+            <span class="c-title">Nhóm Zalo Báo Mã</span>
+            <span class="c-count">Full 1.000 member/nhóm</span>
+          </div>
+          <div class="community-box">
+            <span class="c-title">Kênh Telegram Flash Sale</span>
+            <span class="c-count">@muahanghoantien_vn</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

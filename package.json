@@ -1,0 +1,22 @@
+{
+  "name": "wetube-cine-mini",
+  "version": "1.0.0",
+  "description": "Rạp chiếu phim 3D ảo thu nhỏ cho 10 người - Xem YouTube, nghe nhạc, trò chuyện cùng nhau",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "virtual-cinema",
+    "threejs",
+    "youtube-sync",
+    "watch-together"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}
