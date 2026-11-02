@@ -1636,6 +1636,15 @@ wss.on('connection', (ws, req) => {
         const seatId = parseInt(payload.seatId, 10);
         if (isNaN(seatId) || seatId < 0 || seatId >= 10) return;
 
+        // Đặc quyền VIP: Hàng ghế B (B01 -> B05, seatId >= 5) bọc nhung đỏ sang trọng dành riêng cho VIP/Admin
+        if (seatId >= 5 && !user.isVip && user.role !== 'admin') {
+          send(ws, 'notification', {
+            message: `👑 Ghế ${SEAT_LABELS[seatId]} là Ghế VIP Nhung Đỏ (Hàng B). Hãy kích hoạt VIP để ngồi vị trí đẹp nhất rạp!`,
+            type: 'error'
+          });
+          return;
+        }
+
         const currentOccupant = room.seats[seatId];
         if (currentOccupant && currentOccupant.userId !== user.id) {
           send(ws, 'notification', { message: `Ghế ${SEAT_LABELS[seatId]} đã có ${currentOccupant.name} ngồi rồi!`, type: 'error' });
@@ -1755,6 +1764,17 @@ wss.on('connection', (ws, req) => {
             type: 'error'
           });
           return;
+        }
+
+        if (payload.movieId) {
+          const matchedMovie = db.movies.find(m => m.id === payload.movieId);
+          if (matchedMovie && matchedMovie.isVipOnly && !user.isVip && user.role !== 'admin') {
+            send(ws, 'notification', {
+              message: `👑 Phim "${matchedMovie.title}" là nội dung Độc Quyền VIP! Hãy kích hoạt VIP để phát phim này lên rạp!`,
+              type: 'error'
+            });
+            return;
+          }
         }
 
         const parsed = await resolveExternalMedia(payload.url || payload.id, payload.title);
@@ -2054,12 +2074,25 @@ wss.on('connection', (ws, req) => {
       case 'chat': {
         if (!room) return;
         const text = (payload.text || '').trim();
-        const sticker = payload.sticker && typeof payload.sticker === 'object' ? {
-          id: String(payload.sticker.id || ''),
-          name: String(payload.sticker.name || '').substring(0, 30),
-          url: String(payload.sticker.url || '').substring(0, 500),
-          isMeme: !!payload.sticker.isMeme
-        } : null;
+        let sticker = null;
+        if (payload.sticker && typeof payload.sticker === 'object') {
+          const rawId = String(payload.sticker.id || '');
+          const rawName = String(payload.sticker.name || '').substring(0, 30);
+          const isMeme = !!payload.sticker.isMeme;
+
+          // Chuẩn hóa đường dẫn Sticker/Meme nội bộ an toàn 100%, không bao giờ phụ thuộc bên thứ 3
+          const key = rawId.replace('stk_', '').replace('meme_', '').toLowerCase();
+          const validKeys = ['popcorn', 'fire', 'laugh', 'cry', 'heart', 'clap', 'party', 'shock', 'cat', 'pizza', 'crown', 'cool', 'mindblown', 'sleepy', 'pepe'];
+          const matchedKey = validKeys.find(k => key.includes(k) || rawName.toLowerCase().includes(k)) || 'popcorn';
+          const cleanUrl = isMeme ? `/memes/${matchedKey}.png` : `/stickers/${matchedKey}.png`;
+
+          sticker = {
+            id: rawId || (isMeme ? `meme_${matchedKey}` : `stk_${matchedKey}`),
+            name: rawName || matchedKey,
+            url: cleanUrl,
+            isMeme
+          };
+        }
 
         if (!text && !sticker) return;
 
@@ -2095,6 +2128,7 @@ wss.on('connection', (ws, req) => {
           emoji,
           userId: user.id,
           seatId: user.seatId,
+          isVip: !!user.isVip,
           isOnStage: room.stageUser === user.id
         });
         break;
@@ -2259,7 +2293,7 @@ wss.on('connection', (ws, req) => {
 
       case 'claim-coins': {
         if (typeof user.coins !== 'number') user.coins = 1000;
-        const bonus = 500;
+        const bonus = user.isVip ? 2000 : 500;
         user.coins += bonus;
         if (user.accountId) {
           const acc = db.accounts.find(a => a.id === user.accountId);
@@ -2269,7 +2303,53 @@ wss.on('connection', (ws, req) => {
           }
         }
         send(ws, 'coins-updated', { coins: user.coins });
-        send(ws, 'notification', { message: `🎉 Bạn đã nhận thành công +${bonus} Xu thưởng rạp phim!`, type: 'success' });
+        send(ws, 'notification', {
+          message: user.isVip
+            ? `👑 Đặc quyền VIP: Bạn đã nhận +${bonus} Xu thưởng hoàng gia!`
+            : `🎉 Bạn đã nhận thành công +${bonus} Xu thưởng rạp phim!`,
+          type: 'success'
+        });
+        break;
+      }
+
+      case 'claim-vip': {
+        user.isVip = true;
+        user.tier = user.role === 'admin' ? '🛡️ Admin Tối Cao' : '👑 Thành Viên VIP';
+        if (user.accountId) {
+          const acc = db.accounts.find(a => a.id === user.accountId);
+          if (acc) {
+            acc.isVip = true;
+            acc.tier = user.tier;
+            saveDB();
+          }
+        }
+        send(ws, 'user-info', {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          avatarId: user.avatarId,
+          role: user.role,
+          tier: user.tier,
+          isVip: user.isVip,
+          coins: user.coins
+        });
+        send(ws, 'notification', { message: '👑 Chúc mừng! Bạn đã mở khóa thành công Đặc Quyền VIP Hoàng Gia!', type: 'success' });
+        if (room) {
+          if (user.seatId !== null && room.seats[user.seatId]) {
+            room.seats[user.seatId].isVip = true;
+            room.seats[user.seatId].tier = user.tier;
+          }
+          broadcastToRoom(room, 'seat-state', { seats: room.seats, user });
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_vip_' + Date.now(),
+            userId: 'system',
+            name: 'Hệ Thống Rạp',
+            color: '#f59e0b',
+            role: 'system',
+            text: `✨ Chúc mừng ${user.name} đã gia nhập hàng ngũ 👑 THÀNH VIÊN VIP! Hãy cùng chúc mừng nào!`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+        }
         break;
       }
 

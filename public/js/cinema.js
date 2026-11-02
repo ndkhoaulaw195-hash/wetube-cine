@@ -726,9 +726,9 @@ class CinemaScene {
     }, 5000);
   }
 
-  spawnEmojiReaction(emoji, seatId, isOnStage) {
+  spawnEmojiReaction(emoji, seatId, isOnStage, isVip = false) {
     // 1. DOM floating animation overlay (luôn hiển thị rõ nét trên màn hình)
-    this.spawnDomFloatingEmoji(emoji);
+    this.spawnDomFloatingEmoji(emoji, isVip);
 
     // 2. 3D WebGL floating sprite (nếu có WebGL)
     if (!this.hasWebGL) return;
@@ -742,16 +742,21 @@ class CinemaScene {
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    ctx.font = '72px sans-serif';
+    ctx.font = isVip ? 'bold 68px sans-serif' : '72px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    if (isVip) {
+      ctx.shadowColor = 'rgba(245, 158, 11, 0.9)';
+      ctx.shadowBlur = 16;
+    }
     ctx.fillText(emoji, 64, 64);
 
     const texture = new THREE.CanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
     const sprite = new THREE.Sprite(spriteMat);
     sprite.position.copy(startPos);
-    sprite.scale.set(0.9, 0.9, 1);
+    const scale = isVip ? 1.35 : 0.9;
+    sprite.scale.set(scale, scale, 1);
 
     this.scene.add(sprite);
 
@@ -763,17 +768,13 @@ class CinemaScene {
     });
   }
 
-  spawnDomFloatingEmoji(emoji) {
-    if (this.isDataSaver && Math.random() > 0.35) {
-      // In Data Saver mode, limit floating emoji particles to save CPU/GPU
-      return;
-    }
+  spawnDomFloatingEmoji(emoji, isVip = false) {
     const el = document.createElement('div');
-    el.className = 'dom-floating-emoji';
-    el.textContent = emoji;
+    el.className = 'dom-floating-emoji' + (isVip ? ' vip-emoji' : '');
+    el.textContent = isVip ? `✨${emoji}` : emoji;
     const rightDock = 15 + Math.random() * 65;
     const bottomDock = 60 + Math.random() * 80;
-    const size = 26 + Math.floor(Math.random() * 16);
+    const size = isVip ? (36 + Math.floor(Math.random() * 14)) : (26 + Math.floor(Math.random() * 16));
     el.style.fontSize = `${size}px`;
     el.style.right = `${rightDock}px`;
     el.style.bottom = `${bottomDock}px`;
@@ -790,14 +791,7 @@ class CinemaScene {
     }
   }
 
-  isTheater2DActive() {
-    return !!document.getElementById('cinema-viewport')?.classList.contains('theater-2d-mode');
-  }
-
   setCameraMode(mode, seatId = null) {
-    if (this.isTheater2DActive()) {
-      this.toggleTheater2DMode(false);
-    }
     if (this.cameraMode === mode) return;
     const prevMode = this.cameraMode;
     this.cameraMode = mode;
@@ -815,11 +809,10 @@ class CinemaScene {
         break;
 
       case 'screen':
-        // Căn chỉnh góc nhìn Màn hình: Camera lùi ra vừa vặn (z=2.0) và nâng cao (y=6.1)
-        // nhìn hơi chếch xuống (look Y=5.3) để màn chiếu 16:9 lọt gọn 100% trong khung hình,
-        // không bao giờ bị thanh điều khiển hoặc thanh dưới đáy che khuất phụ đề/nội dung.
-        targetPos = new THREE.Vector3(0, 6.1, 2.0);
-        targetLook = new THREE.Vector3(0, 5.3, -9.6);
+        // Chế độ Màn hình: Camera tiến sát đến z = -2.1, trực diện tâm màn chiếu (y = 5.65)
+        // Màn chiếu 16:9 mở rộng tràn 100% full viền toàn màn hình, không còn bị nhỏ hay góc chéo.
+        targetPos = new THREE.Vector3(0, 5.65, -2.1);
+        targetLook = new THREE.Vector3(0, 5.65, -9.6);
         break;
 
       case 'audience':
@@ -867,22 +860,6 @@ class CinemaScene {
 
   markActive() {
     this.lastActiveTime = performance.now();
-  }
-
-  toggleTheater2DMode(forceState = null) {
-    const viewport = document.getElementById('cinema-viewport');
-    if (!viewport) return false;
-    const is2D = forceState !== null ? forceState : !viewport.classList.contains('theater-2d-mode');
-    if (is2D) {
-      viewport.classList.add('theater-2d-mode');
-      document.body.classList.add('theater-mode');
-      this.pause();
-    } else {
-      viewport.classList.remove('theater-2d-mode');
-      document.body.classList.remove('theater-mode');
-      this.resume();
-    }
-    return is2D;
   }
 
   pause() {

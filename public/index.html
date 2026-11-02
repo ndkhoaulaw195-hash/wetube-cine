@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v21">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v22">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -273,24 +273,6 @@
     </div>
   </div>
 
-  <!-- Theater Mode Floating Controls (Ẩn/Hiện Chat & Thoát Khép Góc) -->
-  <div id="theater-floating-controls" class="theater-floating-controls hidden">
-    <button id="btn-theater-toggle-chat" class="theater-chat-toggle-btn" title="Ẩn / Hiện khung trò chuyện">
-      <i data-lucide="message-square"></i>
-      <span id="theater-chat-toggle-text">Ẩn Chat</span>
-    </button>
-    <button id="btn-exit-theater" class="exit-theater-btn" title="Thoát chế độ Khép góc (Phím T)">
-      <i data-lucide="minimize-2"></i>
-      <span>✕ Thoát Khép Góc</span>
-    </button>
-  </div>
-
-  <!-- Data Saver Status Pill -->
-  <div id="data-saver-pill" class="data-saver-pill hidden">
-    <i data-lucide="gauge" style="width: 14px; height: 14px;"></i>
-    <span>Tiết kiệm 4G (360p / Text thuần)</span>
-  </div>
-
   <!-- Audio Unmute Overlay (Browser policy) -->
   <div id="audio-blocked-overlay" class="hidden">
     <button id="btn-unmute-audio" class="unmute-banner">
@@ -353,13 +335,18 @@
         <span class="hud-btn-label">Mời</span>
       </button>
 
-      <!-- Cài Đặt Rạp Phim (Gom toàn bộ tính năng: Khép góc, PiP, Tiết kiệm 4G, Đèn, Volume, Ẩn nút...) -->
-      <button id="btn-open-settings" class="hud-btn settings-btn" title="Cài Đặt Rạp Phim (Khép góc, PiP, Tiết kiệm 4G, Tắt đèn, Đèn tiệc, Âm lượng...)">
-        <i data-lucide="settings"></i>
-        <span class="hud-btn-label">Cài đặt</span>
-      </button>
+      <!-- Icon Loa Nhỏ Gọn Kèm Thanh Kéo Âm Lượng -->
+      <div class="volume-control-wrap" id="volume-control-wrap">
+        <button id="btn-volume" class="hud-btn volume-hud-btn" title="Âm lượng rạp phim (Bấm để bật/tắt tiếng)">
+          <i data-lucide="volume-2" id="icon-volume"></i>
+        </button>
+        <div class="volume-slider-popover" id="volume-popover">
+          <input type="range" id="volume-slider" min="0" max="100" value="80" title="Kéo để chỉnh âm lượng" />
+          <span id="volume-val">80%</span>
+        </div>
+      </div>
 
-      <button id="btn-fullscreen" class="hud-btn" title="Toàn màn hình">
+      <button id="btn-fullscreen" class="hud-btn" title="Toàn màn hình (Phím F)">
         <i data-lucide="maximize"></i>
       </button>
     </div>
@@ -386,9 +373,8 @@
   <div id="cinema-playback-bar" class="cinema-playback-bar">
     <div class="playback-controls-row">
       <div class="playback-buttons-left" id="host-playback-btns">
-        <button id="btn-play-pause" class="playback-btn primary" title="Tạm dừng / Phát tiếp (Chỉ Chủ phòng)">
+        <button id="btn-play-pause" class="playback-btn primary icon-only" title="Tạm dừng / Phát tiếp (Chỉ Chủ phòng)">
           <i data-lucide="pause" id="icon-play-pause"></i>
-          <span id="label-play-pause">Tạm dừng</span>
         </button>
         <button id="btn-rewind" class="playback-btn" title="Tua lùi 10 giây (Chỉ Chủ phòng)">
           <i data-lucide="rotate-ccw"></i>
@@ -398,13 +384,11 @@
           <i data-lucide="rotate-cw"></i>
           <span>+10s</span>
         </button>
-        <button id="btn-bar-next" class="playback-btn next-btn" title="Chuyển sang bài tiếp theo trong hàng chờ (Chỉ Chủ phòng)">
+        <button id="btn-bar-next" class="playback-btn next-btn icon-only" title="Chuyển sang bài tiếp theo trong hàng chờ (Chỉ Chủ phòng)">
           <i data-lucide="skip-forward"></i>
-          <span>Chuyển tiếp</span>
         </button>
-        <button id="btn-bar-stop" class="playback-btn" title="Tắt video đang chiếu trên màn hình (Chỉ Chủ phòng)" style="background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.45); color: #fca5a5;">
+        <button id="btn-bar-stop" class="playback-btn icon-only" title="Tắt video đang chiếu trên màn hình (Chỉ Chủ phòng)" style="background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.45); color: #fca5a5;">
           <i data-lucide="square"></i>
-          <span>Tắt chiếu</span>
         </button>
       </div>
 
@@ -420,11 +404,10 @@
 
       <div class="playback-buttons-right">
         <span id="playback-host-notice" class="host-lock-pill hidden" title="Chỉ chủ phòng mới có quyền điều khiển màn chiếu">
-          🔒 Host điều khiển
+          🔒
         </span>
-        <button id="btn-hud-quick-toggle" class="playback-btn" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
+        <button id="btn-hud-quick-toggle" class="playback-btn icon-only" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
           <i data-lucide="eye-off"></i>
-          <span>Ẩn giao diện</span>
         </button>
       </div>
     </div>
@@ -443,17 +426,13 @@
         <i data-lucide="layout-grid"></i>
         <span>Toàn cảnh</span>
       </button>
-      <button class="cam-btn" data-camera="screen" title="Xem cận cảnh màn hình (3D)">
+      <button class="cam-btn" data-camera="screen" title="Xem full toàn màn hình tràn viền (Phím F)">
         <i data-lucide="tv"></i>
         <span>Màn hình</span>
       </button>
       <button class="cam-btn" data-camera="audience" title="Quay nhìn khán giả">
         <i data-lucide="users"></i>
         <span>Khán giả</span>
-      </button>
-      <button class="cam-btn" data-camera="theater" title="Khép góc: Rạp chiếu 2D toàn cảnh không góc nghiêng (Phím T)">
-        <i data-lucide="sparkles"></i>
-        <span>Khép góc</span>
       </button>
     </div>
 
@@ -505,17 +484,13 @@
               <i data-lucide="disc"></i>
               <span>Đèn Disco</span>
             </button>
-            <button id="btn-util-data-saver" class="popover-item-btn" title="Tiết kiệm dữ liệu 4G">
-              <i data-lucide="signal-low"></i>
-              <span id="label-util-saver">Tiết kiệm 4G</span>
-            </button>
             <button id="btn-util-clean-hud" class="popover-item-btn" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
               <i data-lucide="eye-off"></i>
               <span>Ẩn giao diện</span>
             </button>
-            <button id="btn-util-settings" class="popover-item-btn" title="Cài đặt chi tiết âm thanh & rạp">
-              <i data-lucide="settings"></i>
-              <span>Cài đặt</span>
+            <button id="btn-util-help" class="popover-item-btn" title="Hướng dẫn sử dụng & quy tắc rạp">
+              <i data-lucide="help-circle"></i>
+              <span>Hướng dẫn</span>
             </button>
           </div>
         </div>
@@ -658,6 +633,50 @@
               <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
               <span>Đăng xuất</span>
             </button>
+          </div>
+
+          <!-- VIP Privileges & Perks Card -->
+          <div class="vip-perks-card" id="vip-perks-card">
+            <div class="vip-perks-header">
+              <div class="vip-perks-title">
+                <i data-lucide="crown"></i>
+                <span id="vip-card-heading">Đặc Quyền Thành Viên VIP</span>
+              </div>
+              <button type="button" id="btn-claim-vip-status" class="btn-claim-vip" title="Kích hoạt đặc quyền VIP ngay">
+                <i data-lucide="sparkles"></i>
+                <span id="btn-claim-vip-label">👑 Mở Khóa VIP Ngay</span>
+              </button>
+            </div>
+            <div class="vip-perks-grid">
+              <div class="vip-perk-item">
+                <span class="vip-perk-icon">👑</span>
+                <div class="vip-perk-info">
+                  <strong>Tên & Huy Hiệu VIP Dát Vàng</strong>
+                  <small>Nổi bật nhất phòng chat & danh sách rạp</small>
+                </div>
+              </div>
+              <div class="vip-perk-item">
+                <span class="vip-perk-icon">🎬</span>
+                <div class="vip-perk-info">
+                  <strong>Kho Phim VIP Độc Quyền</strong>
+                  <small>Toàn quyền chiếu & xem phim 4K độc quyền</small>
+                </div>
+              </div>
+              <div class="vip-perk-item">
+                <span class="vip-perk-icon">🪙</span>
+                <div class="vip-perk-info">
+                  <strong>+2,000 Xu Thưởng VIP</strong>
+                  <small>Gấp 4 lần thành viên thường mỗi ngày</small>
+                </div>
+              </div>
+              <div class="vip-perk-item">
+                <span class="vip-perk-icon">✨</span>
+                <div class="vip-perk-info">
+                  <strong>Khung Chat & Biểu Cảm Cực Đại</strong>
+                  <small>Khung viền mạ vàng, emoji bay kèm pháo hoa</small>
+                </div>
+              </div>
+            </div>
           </div>
 
           <form id="form-profile">
@@ -1237,144 +1256,6 @@
     </div>
   </div>
 
-  <!-- Modal: Cài Đặt Rạp Phim (Gom toàn bộ tính năng ẩn: Khép góc, PiP, Tiết kiệm 4G, Đèn, Volume, Ẩn giao diện) -->
-  <div class="modal-backdrop hidden" id="modal-settings">
-    <div class="modal-card modal-md">
-      <div class="modal-header">
-        <div class="modal-title">
-          <i data-lucide="settings"></i>
-          <span>Cài Đặt Rạp Phim</span>
-        </div>
-        <button class="modal-close" data-close="modal-settings"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body settings-modal-body">
-        
-        <!-- SECTION 1: ÂM THANH RẠP CHIẾU -->
-        <div class="settings-group">
-          <h4 class="settings-group-title">🔊 Âm Lượng Rạp</h4>
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Mức âm thanh</span>
-              <span class="settings-sub" id="settings-volume-sub">Hiện tại: 80%</span>
-            </div>
-            <div class="settings-slider-wrap">
-              <button type="button" id="setting-btn-mute" class="settings-icon-btn" title="Bật/Tắt tiếng">
-                <i data-lucide="volume-2" id="setting-vol-icon"></i>
-              </button>
-              <input type="range" id="settings-volume-slider" min="0" max="100" value="80" class="settings-slider" />
-              <span id="settings-volume-val" class="settings-badge">80%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- SECTION 2: CHẾ ĐỘ XEM & HIỂN THỊ -->
-        <div class="settings-group">
-          <h4 class="settings-group-title">🎬 Chế Độ Xem Phim</h4>
-
-          <!-- Khép góc / Theater Mode -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Khép góc (Theater Mode)</span>
-              <span class="settings-sub">Làm mờ xung quanh, mở rộng màn chiếu, thu nhỏ chat (Phím T)</span>
-            </div>
-            <button type="button" id="setting-btn-theater" class="settings-toggle-btn">
-              <span class="toggle-state-text" id="setting-theater-state">Tắt</span>
-            </button>
-          </div>
-
-          <!-- Tắt đèn rạp -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Tắt đèn rạp</span>
-              <span class="settings-sub">Tắt đèn chiếu sáng rạp phim (Có thể bật cùng Đèn tiệc)</span>
-            </div>
-            <button type="button" id="setting-btn-lights" class="settings-toggle-btn">
-              <span class="toggle-state-text" id="setting-lights-state">Tắt</span>
-            </button>
-          </div>
-
-          <!-- Đèn tiệc disco (Host / Admin) -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Đèn tiệc & Quả cầu Disco</span>
-              <span class="settings-sub">Bật quả cầu disco & hiệu ứng laser vũ trường (Chỉ Host/Admin)</span>
-            </div>
-            <button type="button" id="setting-btn-party" class="settings-toggle-btn">
-              <span class="toggle-state-text" id="setting-party-state">Tắt</span>
-            </button>
-          </div>
-
-          <!-- Ẩn thanh điều khiển HUD -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Ẩn giao diện xem phim (Clean View)</span>
-              <span class="settings-sub">Ẩn toàn bộ nút để thưởng thức trọn vẹn màn hình (Phím H)</span>
-            </div>
-            <button type="button" id="setting-btn-hide-hud" class="settings-action-btn">
-              <i data-lucide="eye-off"></i>
-              <span>Ẩn giao diện</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- SECTION 3: MẠNG & TIẾT KIỆM DỮ LIỆU -->
-        <div class="settings-group">
-          <h4 class="settings-group-title">📶 Mạng & Hiệu Năng</h4>
-
-          <!-- Data Saver Mode -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Tiết kiệm dữ liệu (4G/5G)</span>
-              <span class="settings-sub">Hạ độ phân giải 360p, chuyển chat về text thuần, giảm tải đường truyền</span>
-            </div>
-            <button type="button" id="setting-btn-data-saver" class="settings-toggle-btn">
-              <span class="toggle-state-text" id="setting-datasaver-state">Tắt</span>
-            </button>
-          </div>
-
-          <!-- Adaptive FPS -->
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Adaptive FPS (Tối ưu GPU)</span>
-              <span class="settings-sub">Tự động giảm tải card đồ họa khi đứng yên xem phim</span>
-            </div>
-            <span class="settings-badge active" style="color: #10b981; background: rgba(16, 185, 129, 0.15); font-weight:700;">Đang bật</span>
-          </div>
-        </div>
-
-        <!-- SECTION 4: MINI-GAME / BÌNH CHỌN (HOST/ADMIN) -->
-        <div class="settings-group" id="settings-host-section">
-          <h4 class="settings-group-title">👑 Tiện Ích Chủ Phòng</h4>
-          <div class="settings-row">
-            <div class="settings-info">
-              <span class="settings-label">Mini-Game & Bình chọn rạp</span>
-              <span class="settings-sub">Tạo câu hỏi bình chọn / dự đoán nhanh cho cả rạp</span>
-            </div>
-            <button type="button" id="setting-btn-open-poll" class="settings-action-btn primary">
-              <i data-lucide="bar-chart-2"></i>
-              <span>Tạo bình chọn</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- SECTION 5: HƯỚNG DẪN SỬ DỤNG -->
-        <div class="settings-group">
-          <div class="settings-row" style="border: none; padding-bottom: 0;">
-            <div class="settings-info">
-              <span class="settings-label">Hướng dẫn sử dụng</span>
-              <span class="settings-sub">Quy tắc phòng chiếu, phím tắt và mẹo thưởng thức</span>
-            </div>
-            <button type="button" id="setting-btn-open-help" class="settings-action-btn">
-              <i data-lucide="help-circle"></i>
-              <span>Xem hướng dẫn</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
   <!-- Modal: Hướng dẫn sử dụng (Giữ phần giải thích tại đây) -->
   <div class="modal-backdrop hidden" id="modal-help">
     <div class="modal-card">
@@ -1400,6 +1281,46 @@
 
         <h4>3. Danh sách phát</h4>
         <p>Hỗ trợ dán link YouTube, các trang web phim, Google Drive, Facebook, TikTok, MP4/M3U8. Bấm <strong>Chuyển tiếp</strong> khi muốn qua bài kế tiếp.</p>
+
+        <h4>4. 👑 Đặc Quyền VIP & Thành Viên Thường</h4>
+        <div class="vip-vs-normal-table-wrap">
+          <table class="vip-compare-table">
+            <thead>
+              <tr>
+                <th>Tính năng</th>
+                <th>👤 Thành Viên Thường</th>
+                <th>👑 Thành Viên VIP</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Xem & Yêu cầu phim</strong></td>
+                <td>Toàn bộ kho phim thường miễn phí</td>
+                <td><span style="color:#f2cf78; font-weight:700;">Kho VIP Độc Quyền + Phim 4K</span></td>
+              </tr>
+              <tr>
+                <td><strong>Huy hiệu & Tên hiển thị</strong></td>
+                <td>Màu sắc tiêu chuẩn</td>
+                <td><span style="color:#f2cf78; font-weight:700;">👑 Huy hiệu dát vàng + Tên Neon lấp lánh</span></td>
+              </tr>
+              <tr>
+                <td><strong>Xu thưởng mỗi ngày</strong></td>
+                <td>+500 Xu thưởng</td>
+                <td><span style="color:#f2cf78; font-weight:700;">+2,000 Xu VIP (Gấp 4 lần)</span></td>
+              </tr>
+              <tr>
+                <td><strong>Khung Chat & Cảm xúc</strong></td>
+                <td>Tiêu chuẩn</td>
+                <td><span style="color:#f2cf78; font-weight:700;">Viền mạ vàng + Emoji bay siêu to sao rơi</span></td>
+              </tr>
+              <tr>
+                <td><strong>Hàng ghế ngồi</strong></td>
+                <td>Tự do chọn ghế hàng A</td>
+                <td><span style="color:#f2cf78; font-weight:700;">Ưu tiên Hàng ghế B bọc nhung dát vàng</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1408,9 +1329,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v21"></script>
-  <script src="/js/cinema.js?v=20261103_v21"></script>
-  <script src="/js/player.js?v=20261103_v21"></script>
-  <script src="/js/app.js?v=20261103_v21"></script>
+  <script src="/js/avatars.js?v=20261103_v22"></script>
+  <script src="/js/cinema.js?v=20261103_v22"></script>
+  <script src="/js/player.js?v=20261103_v22"></script>
+  <script src="/js/app.js?v=20261103_v22"></script>
 </body>
 </html>

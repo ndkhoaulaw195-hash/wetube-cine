@@ -255,53 +255,6 @@ body, html {
   transform: scale(1.05);
 }
 
-/* Theater 2D Mode Overlay (100% full screen video without UI obstruction) */
-#cinema-viewport.theater-2d-mode {
-  background: #000 !important;
-}
-
-#cinema-viewport.theater-2d-mode #canvas-container {
-  display: none !important;
-}
-
-#cinema-viewport.theater-2d-mode #css3d-container {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  pointer-events: auto !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  background: #000 !important;
-}
-
-#cinema-viewport.theater-2d-mode #screen-surface {
-  position: relative !important;
-  transform: none !important;
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  border: none !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  z-index: 10 !important;
-  transition: all 0.3s ease;
-}
-
-#cinema-viewport.theater-2d-mode .youtube-screen,
-#cinema-viewport.theater-2d-mode .youtube-host,
-#cinema-viewport.theater-2d-mode #yt-player-wrapper,
-#cinema-viewport.theater-2d-mode #yt-player,
-#cinema-viewport.theater-2d-mode .screen-idle {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-#cinema-viewport.theater-2d-mode .cinema-playback-bar {
-  bottom: 30px !important;
-  width: min(92vw, 900px) !important;
-}
-
 /* Cinema Playback Control Bar */
 .cinema-playback-bar {
   position: absolute;
@@ -340,12 +293,25 @@ body, html {
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #f3f4f6;
   border-radius: 10px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.playback-btn.icon-only {
+  width: 36px;
+  height: 36px;
+  padding: 0 !important;
+  justify-content: center;
+}
+
+.playback-btn.icon-only i,
+.playback-btn.icon-only svg {
+  width: 17px;
+  height: 17px;
 }
 
 .playback-btn:hover {
@@ -3647,12 +3613,6 @@ body.lights-off .reaction-dock:hover {
   font-weight: 700;
 }
 
-#cinema-viewport.theater-2d-mode .html5-video-host,
-#cinema-viewport.theater-2d-mode .embed-iframe-host {
-  width: 100% !important;
-  height: 100% !important;
-}
-
 /* ==========================================================================
    INTERACTIVE SUITE: RICH CHAT, THEATER MODE, PiP, POLLS, GIFTS, DATA SAVER
    ========================================================================== */
@@ -3849,130 +3809,6 @@ body.lights-off .reaction-dock:hover {
     transform: translate(6px, -300px) scale(0.9) rotate(2deg);
     opacity: 0;
   }
-}
-
-/* 2. THEATER MODE ("KHÉP GÓC") */
-body.theater-mode #cinema-viewport {
-  background: radial-gradient(circle at center, #000000 35%, #050608 100%) !important;
-}
-
-body.theater-mode .hud-top,
-body.theater-mode .hud-bottom,
-body.theater-mode .reaction-dock,
-body.theater-mode #cinema-playback-bar {
-  opacity: 0.2;
-  transition: opacity 0.3s ease;
-}
-
-body.theater-mode .hud-top:hover,
-body.theater-mode .hud-bottom:hover,
-body.theater-mode .reaction-dock:hover,
-body.theater-mode #cinema-playback-bar:hover {
-  opacity: 1;
-}
-
-body.theater-mode #chat-drawer {
-  position: fixed !important;
-  bottom: 84px !important;
-  top: auto !important;
-  right: 18px !important;
-  width: 310px !important;
-  height: 360px !important;
-  background: rgba(10, 12, 16, 0.52) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
-  z-index: 95 !important;
-  transform: translateX(350px) !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease !important;
-}
-
-body.theater-mode #chat-drawer.open {
-  transform: translateX(0) !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-
-body.theater-mode #chat-drawer .chat-feed {
-  background: transparent !important;
-}
-
-body.theater-mode #chat-drawer .chat-message {
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
-}
-
-.theater-floating-controls {
-  position: fixed;
-  top: 12px;
-  right: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  z-index: 110;
-}
-
-.theater-chat-toggle-btn {
-  background: rgba(20, 24, 34, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #f2cf78;
-  border: 1px solid rgba(242, 207, 120, 0.45);
-  padding: 7px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-  transition: all 0.2s ease;
-}
-
-.theater-chat-toggle-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.theater-chat-toggle-btn:hover {
-  background: rgba(242, 207, 120, 0.2);
-  transform: scale(1.04);
-}
-
-.theater-chat-toggle-btn.chat-hidden {
-  background: rgba(16, 185, 129, 0.88);
-  border-color: rgba(52, 211, 153, 0.6);
-  color: #ffffff;
-}
-
-.exit-theater-btn {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  border: none;
-  padding: 7px 16px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  box-shadow: 0 4px 18px rgba(239, 68, 68, 0.5);
-  transition: all 0.2s ease;
-}
-
-.exit-theater-btn svg {
-  width: 14px;
-  height: 14px;
-}
-
-.exit-theater-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 6px 24px rgba(239, 68, 68, 0.7);
 }
 
 /* 3. MINI-GAME & POLLS OVERLAY */
@@ -4557,4 +4393,170 @@ body.data-saver-mode .chat-feed.data-saver-chat .chat-sticker-img {
   border-color: var(--gold-primary);
   color: #fff;
   box-shadow: 0 0 14px rgba(242, 207, 120, 0.4);
+}
+
+/* ==================== VIP & NORMAL PRIVILEGES STYLING ==================== */
+.vip-perks-card {
+  margin: 14px 0;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(242, 207, 120, 0.12), rgba(15, 17, 23, 0.85));
+  border: 1px solid rgba(242, 207, 120, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 18px rgba(242, 207, 120, 0.1);
+}
+
+.vip-perks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(242, 207, 120, 0.2);
+}
+
+.vip-perks-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gold-primary, #f2cf78);
+  text-shadow: 0 0 10px rgba(242, 207, 120, 0.5);
+}
+
+.vip-perks-title i,
+.vip-perks-title svg {
+  width: 18px;
+  height: 18px;
+  color: #f59e0b;
+}
+
+.btn-claim-vip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-claim-vip:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+}
+
+.btn-claim-vip.is-active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #34d399;
+  cursor: default;
+}
+
+.vip-perks-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.vip-perk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.vip-perk-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vip-perk-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.vip-perk-info strong {
+  font-size: 12px;
+  color: #f3f4f6;
+}
+
+.vip-perk-info small {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 1px;
+}
+
+/* Compare Table in Help Modal */
+.vip-vs-normal-table-wrap {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.vip-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.vip-compare-table th,
+.vip-compare-table td {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.vip-compare-table th {
+  background: rgba(242, 207, 120, 0.12);
+  color: var(--gold-primary, #f2cf78);
+  font-weight: 700;
+}
+
+.vip-compare-table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* VIP Special Message Styling in Chat */
+.chat-msg.is-vip-user,
+.chat-message.is-vip-user {
+  background: linear-gradient(90deg, rgba(242, 207, 120, 0.12), rgba(242, 207, 120, 0.02)) !important;
+  border-left: 3px solid #f59e0b !important;
+  padding-left: 8px !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.05);
+}
+
+/* VIP Velvet Red & Gold Seat Styling */
+.seat-item.vip-seat {
+  background: linear-gradient(135deg, rgba(153, 27, 27, 0.45) 0%, rgba(88, 28, 28, 0.65) 100%) !important;
+  border: 1px solid rgba(245, 158, 11, 0.6) !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.seat-item.vip-seat .seat-code {
+  color: #fbbf24 !important;
+  font-weight: 800;
+}
+
+.seat-item.vip-seat.vacant:hover {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.6) 0%, rgba(153, 27, 27, 0.8) 100%) !important;
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.5);
+}
+
+/* VIP Big Floating Emoji */
+.dom-floating-emoji.vip-emoji {
+  transform-origin: center;
+  filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.8)) !important;
 }

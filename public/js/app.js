@@ -20,8 +20,7 @@ class CinemaApp {
     this.isChatOpen = false;
     this.isHudHidden = false;
 
-    // Interactive Suite: Theater Mode, Data Saver, Polls, Stickers & Gifts
-    this.isTheaterMode = false;
+    // Interactive Suite: Data Saver, Polls, Stickers & Gifts
     this.isDataSaver = false;
     this.currentPoll = null;
     this.myVotedOption = null;
@@ -172,7 +171,7 @@ class CinemaApp {
       clearTimeout(idleTimer);
     };
 
-    ['cinema-playback-bar', 'chat-drawer', 'theater-floating-controls', 'utilities-popover'].forEach(id => {
+    ['cinema-playback-bar', 'chat-drawer', 'utilities-popover'].forEach(id => {
       const el = document.getElementById(id);
       el?.addEventListener('mouseenter', keepVisible);
       el?.addEventListener('mouseleave', wakeHud);
@@ -552,7 +551,7 @@ class CinemaApp {
       }
 
       case 'emoji-reaction': {
-        this.cinema.spawnEmojiReaction(payload.emoji, payload.seatId, payload.isOnStage);
+        this.cinema.spawnEmojiReaction(payload.emoji, payload.seatId, payload.isOnStage, payload.isVip);
         this.playPopSound();
         break;
       }
@@ -1173,6 +1172,26 @@ class CinemaApp {
         }
       }
 
+      // Update VIP Perks Card Status
+      const vipBtn = document.getElementById('btn-claim-vip-status');
+      const vipLabel = document.getElementById('btn-claim-vip-label');
+      const vipHeading = document.getElementById('vip-card-heading');
+      if (this.you.isVip || this.you.role === 'admin') {
+        if (vipLabel) vipLabel.textContent = '✅ Đang Là VIP Hoàng Gia';
+        if (vipHeading) vipHeading.textContent = '👑 Đặc Quyền VIP (Đang Kích Hoạt)';
+        if (vipBtn) {
+          vipBtn.classList.add('is-active');
+          vipBtn.disabled = true;
+        }
+      } else {
+        if (vipLabel) vipLabel.textContent = '👑 Mở Khóa VIP Ngay';
+        if (vipHeading) vipHeading.textContent = '🌟 Nâng Cấp Thành Viên VIP';
+        if (vipBtn) {
+          vipBtn.classList.remove('is-active');
+          vipBtn.disabled = false;
+        }
+      }
+
       this.renderAvatarPickerGrids();
     } else {
       if (guestSec) guestSec.classList.remove('hidden');
@@ -1182,19 +1201,12 @@ class CinemaApp {
 
   // --- UI Event Bindings ---
   bindUIEvents() {
-    // 1. Camera Mode Buttons (Toàn cảnh, Màn hình, Khán giả, Khép góc)
+    // 1. Camera Mode Buttons (Toàn cảnh, Màn hình, Khán giả)
     document.querySelectorAll('.cam-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const mode = btn.getAttribute('data-camera');
-        if (mode === 'theater') {
-          this.toggleTheaterMode();
-          return;
-        }
-        if (this.isTheaterMode) {
-          this.toggleTheaterMode(false);
-        }
         document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        const mode = btn.getAttribute('data-camera');
         if (this.cinema) {
           this.cinema.setCameraMode(mode, this.you ? this.you.seatId : null);
         }
@@ -1250,20 +1262,18 @@ class CinemaApp {
       this.send('toggle-party');
     });
 
-    document.getElementById('btn-util-data-saver')?.addEventListener('click', () => {
-      this.toggleDataSaver();
-      const lbl = document.getElementById('label-util-saver');
-      if (lbl) lbl.textContent = this.isDataSaver ? 'Tắt 4G Saver' : 'Tiết kiệm 4G';
-    });
-
     document.getElementById('btn-util-clean-hud')?.addEventListener('click', () => {
       utilPopover?.classList.add('hidden');
       this.toggleHudVisibility();
     });
 
-    document.getElementById('btn-util-settings')?.addEventListener('click', () => {
+    document.getElementById('btn-util-help')?.addEventListener('click', () => {
       utilPopover?.classList.add('hidden');
-      this.openModal('modal-settings');
+      this.openModal('modal-help');
+    });
+
+    document.getElementById('btn-claim-vip-status')?.addEventListener('click', () => {
+      this.send('claim-vip');
     });
 
     // 3. Screen Click to Unmute
@@ -1720,8 +1730,14 @@ class CinemaApp {
     });
 
     document.getElementById('btn-fullscreen')?.addEventListener('click', () => {
-      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-      else document.exitFullscreen().catch(() => {});
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        if (this.cinema) this.cinema.setCameraMode('screen');
+        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.cam-btn[data-camera="screen"]')?.classList.add('active');
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
     });
 
     document.getElementById('btn-unmute-audio')?.addEventListener('click', () => this.player.unmuteWithGesture());
@@ -1782,9 +1798,6 @@ class CinemaApp {
       }
     });
 
-    // 16. Cinema Settings Modal (Gom tính năng ẩn gọn gàng)
-    this.initSettingsModal();
-
     // 17. Stickers & Memes Drawer
     this.initStickerDrawer();
 
@@ -1794,22 +1807,18 @@ class CinemaApp {
     // 19. Virtual Gifts
     this.initGiftHandlers();
 
-    // 20. Global Keyboard Shortcuts
+    // 20. Global Keyboard Shortcuts (F: Toàn màn hình, H: Ẩn/Hiện điều khiển, M: Bật/Tắt Mic)
     window.addEventListener('keydown', (e) => {
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-      if (e.key === 't' || e.key === 'T') {
-        this.toggleTheaterMode();
+      if (e.key === 'f' || e.key === 'F') {
+        const btnFs = document.getElementById('btn-fullscreen');
+        btnFs?.click();
       } else if (e.key === 'h' || e.key === 'H') {
         this.toggleHudVisibility();
       } else if (e.key === 'm' || e.key === 'M') {
         this.toggleVoiceMic();
       }
     });
-
-    // 21. Auto-detect Slow / Mobile Network for Data Saver
-    if (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === '2g' || navigator.connection.effectiveType === '3g')) {
-      this.toggleDataSaver(true);
-    }
   }
 
   // --- Admin Panel Forms & Actions ---
@@ -2276,7 +2285,7 @@ class CinemaApp {
   }
 
   updateVolumeIcon(vol) {
-    const icon = document.getElementById('volume-icon');
+    const icon = document.getElementById('icon-volume') || document.getElementById('volume-icon');
     if (!icon) return;
     icon.setAttribute('data-lucide', vol === 0 ? 'volume-x' : (vol < 50 ? 'volume-1' : 'volume-2'));
     this.refreshIcons();
@@ -2294,21 +2303,28 @@ class CinemaApp {
 
     this.room.seats.forEach((occupant, index) => {
       const label = this.room.seatLabels ? this.room.seatLabels[index] : `G${index + 1}`;
+      const isVipSeat = index >= 5;
       const isMine = occupant && occupant.userId === this.you.id;
       const isOccupied = occupant && !isMine;
 
       const btn = document.createElement('button');
-      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}`;
+      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}`;
       const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
 
       btn.innerHTML = `
-        <span class="seat-code">${label}</span>
+        <span class="seat-code">${label}${isVipSeat ? ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>' : ''}</span>
         ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
-        <span class="seat-occupant">${occupant ? occupant.name : 'Trống'}</span>
+        <span class="seat-occupant">${occupant ? occupant.name : (isVipSeat ? 'Ghế VIP' : 'Trống')}</span>
       `;
 
       if (!isOccupied) {
-        btn.addEventListener('click', () => this.handleSeatSelection(index));
+        btn.addEventListener('click', () => {
+          if (isVipSeat && !this.you.isVip && this.you.role !== 'admin') {
+            this.showToast('👑 Hàng ghế B là Ghế VIP Nhung Đỏ! Hãy bấm "Mở Khóa VIP" trong Tài khoản để ngồi!', 'warning');
+            return;
+          }
+          this.handleSeatSelection(index);
+        });
       } else {
         btn.disabled = true;
       }
@@ -2430,15 +2446,6 @@ class CinemaApp {
       this.unreadChatCount = 0;
       badge.classList.add('hidden');
     }
-
-    const theaterChatText = document.getElementById('theater-chat-toggle-text');
-    const theaterChatBtn = document.getElementById('btn-theater-toggle-chat');
-    if (theaterChatText) {
-      theaterChatText.textContent = this.isChatOpen ? 'Ẩn Chat' : 'Hiện Chat';
-    }
-    if (theaterChatBtn) {
-      theaterChatBtn.classList.toggle('chat-hidden', !this.isChatOpen);
-    }
   }
 
   appendChatMessage(msg, isNew = true) {
@@ -2446,7 +2453,7 @@ class CinemaApp {
     if (!feed) return;
 
     const div = document.createElement('div');
-    div.className = 'chat-msg';
+    div.className = 'chat-msg' + (msg.isVip ? ' is-vip-user' : '');
     div.setAttribute('data-chat-id', msg.id);
 
     const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(msg.avatarId || 'pixel_nerd', 2) : '';
@@ -2456,28 +2463,39 @@ class CinemaApp {
     if (msg.isVip) badges.push('💎 VIP');
 
     let bodyContent = this.escapeHTML(msg.text);
-    if (msg.sticker && (msg.sticker.url || msg.sticker.id)) {
-      // Normalize URL: nếu URL cũ từ Giphy bị chặn hoặc khớp catalog, tự động chuyển sang file PNG nội bộ siêu nét
+    if (msg.sticker && (msg.sticker.url || msg.sticker.id || msg.sticker.name)) {
+      // Normalize URL: luôn đảm bảo dùng file PNG nội bộ siêu nét, loại bỏ triệt để Giphy/Tenor
       let finalStickerUrl = msg.sticker.url || '';
+      if (!finalStickerUrl || finalStickerUrl.includes('giphy.com') || finalStickerUrl.includes('tenor.com')) {
+        finalStickerUrl = '';
+      }
       const matched = [...this.stickersCatalog, ...this.memesCatalog].find(
-        item => item.id === msg.sticker.id || item.name === msg.sticker.name || (finalStickerUrl && finalStickerUrl.includes(item.id.replace('stk_', '').replace('meme_', '')))
+        item => (msg.sticker.id && item.id === msg.sticker.id) ||
+                (msg.sticker.name && item.name.toLowerCase() === msg.sticker.name.toLowerCase()) ||
+                (finalStickerUrl && finalStickerUrl.includes(item.id.replace('stk_', '').replace('meme_', '')))
       );
       if (matched) {
         finalStickerUrl = matched.url;
-      } else if (!finalStickerUrl || finalStickerUrl.includes('giphy.com')) {
-        finalStickerUrl = '/stickers/popcorn.png';
+      } else {
+        const sName = (msg.sticker.name || '').toLowerCase();
+        if (sName.includes('cháy') || sName.includes('fire')) finalStickerUrl = '/stickers/fire.png';
+        else if (sName.includes('cười') || sName.includes('laugh')) finalStickerUrl = '/stickers/laugh.png';
+        else if (sName.includes('khóc') || sName.includes('cry')) finalStickerUrl = '/stickers/cry.png';
+        else if (sName.includes('tim') || sName.includes('heart')) finalStickerUrl = '/stickers/heart.png';
+        else if (sName.includes('mèo') || sName.includes('cat')) finalStickerUrl = '/stickers/cat.png';
+        else if (sName.includes('vỗ') || sName.includes('clap')) finalStickerUrl = '/stickers/clap.png';
+        else if (sName.includes('tiệc') || sName.includes('party')) finalStickerUrl = '/stickers/party.png';
+        else if (sName.includes('kính') || sName.includes('ngầu')) finalStickerUrl = '/stickers/cool.png';
+        else if (sName.includes('ếch') || sName.includes('pepe')) finalStickerUrl = '/memes/pepe.png';
+        else finalStickerUrl = '/stickers/popcorn.png';
       }
 
-      if (this.isDataSaver) {
-        bodyContent = `<div style="font-size:12px; color:#38bdf8; font-style:italic;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name || 'Nhãn dán')}]</div>`;
-      } else {
-        bodyContent = `
-          <div class="chat-sticker-bubble">
-            <img src="${this.escapeHTML(finalStickerUrl)}" alt="${this.escapeHTML(msg.sticker.name || 'sticker')}" class="chat-sticker-img" loading="lazy" />
-            <span class="chat-sticker-label" style="font-size:11px; color:#9ca3af; margin-top:2px;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name || '')}]</span>
-          </div>
-        `;
-      }
+      bodyContent = `
+        <div class="chat-sticker-bubble">
+          <img src="${this.escapeHTML(finalStickerUrl)}" alt="${this.escapeHTML(msg.sticker.name || 'sticker')}" class="chat-sticker-img" loading="lazy" onerror="this.onerror=null; this.src='/stickers/popcorn.png';" />
+          <span class="chat-sticker-label" style="font-size:11px; color:#9ca3af; margin-top:2px;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name || '')}]</span>
+        </div>
+      `;
     } else if (msg.isGiftNotice) {
       bodyContent = `<div style="color: #fbbf24; font-weight: 700; display:flex; align-items:center; gap:6px;">${this.escapeHTML(msg.text)}</div>`;
     }
@@ -2803,189 +2821,6 @@ class CinemaApp {
     toast.textContent = message;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 1800);
-  }
-
-  // ==================== CINEMA SETTINGS MODAL ====================
-  initSettingsModal() {
-    const btnOpenSettings = document.getElementById('btn-open-settings');
-    btnOpenSettings?.addEventListener('click', () => {
-      this.openModal('modal-settings');
-      this.syncSettingsUI();
-    });
-
-    // Volume Slider in Settings
-    const volSlider = document.getElementById('settings-volume-slider');
-    volSlider?.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value, 10);
-      this.player.setVolume(val);
-      this.player.isMuted = val === 0;
-      this.updateVolumeUI(val);
-    });
-
-    // Mute Button in Settings
-    document.getElementById('setting-btn-mute')?.addEventListener('click', () => {
-      const muted = this.player.toggleMute();
-      this.updateVolumeUI(muted ? 0 : this.player.volume);
-    });
-
-    // Theater Mode Toggle in Settings & Floating Controls
-    document.getElementById('setting-btn-theater')?.addEventListener('click', () => {
-      this.toggleTheaterMode();
-    });
-    document.getElementById('btn-exit-theater')?.addEventListener('click', () => {
-      this.toggleTheaterMode(false);
-    });
-    document.getElementById('btn-theater-toggle-chat')?.addEventListener('click', () => {
-      this.toggleChat();
-    });
-
-    // Cinema Lights in Settings
-    document.getElementById('setting-btn-lights')?.addEventListener('click', () => {
-      const nextLightsOff = !(this.cinema && this.cinema.lightsOff);
-      if (this.cinema) {
-        this.cinema.setLightsOff(nextLightsOff);
-      }
-      this.updateLightsModeUI(nextLightsOff);
-      if (this.canControlRoom()) {
-        this.send('toggle-lights');
-      }
-      this.syncSettingsUI();
-    });
-
-    // Party Lights in Settings
-    document.getElementById('setting-btn-party')?.addEventListener('click', () => {
-      if (!this.canControlRoom()) {
-        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được bật/tắt đèn tiệc!', 'error');
-        return;
-      }
-      this.send('toggle-party');
-      this.syncSettingsUI();
-    });
-
-    // Clean View / Hide HUD in Settings
-    document.getElementById('setting-btn-hide-hud')?.addEventListener('click', () => {
-      this.closeModal('modal-settings');
-      this.toggleHudVisibility(true);
-    });
-
-    // Data Saver in Settings
-    document.getElementById('setting-btn-data-saver')?.addEventListener('click', () => {
-      this.toggleDataSaver();
-    });
-
-    // Host Poll in Settings
-    document.getElementById('setting-btn-open-poll')?.addEventListener('click', () => {
-      this.closeModal('modal-settings');
-      this.openPollModal();
-    });
-
-    // Help in Settings
-    document.getElementById('setting-btn-open-help')?.addEventListener('click', () => {
-      this.closeModal('modal-settings');
-      this.openModal('modal-help');
-    });
-  }
-
-  updateVolumeUI(val = null) {
-    const curVol = val !== null ? val : (this.player.isMuted ? 0 : this.player.volume);
-    const slider = document.getElementById('settings-volume-slider');
-    const badge = document.getElementById('settings-volume-val');
-    const sub = document.getElementById('settings-volume-sub');
-    const icon = document.getElementById('setting-vol-icon');
-
-    if (slider) slider.value = curVol;
-    if (badge) badge.textContent = `${curVol}%`;
-    if (sub) sub.textContent = curVol === 0 ? 'Đang tắt tiếng (Muted)' : `Hiện tại: ${curVol}%`;
-    if (icon) {
-      icon.setAttribute('data-lucide', curVol === 0 ? 'volume-x' : (curVol < 40 ? 'volume-1' : 'volume-2'));
-      this.refreshIcons();
-    }
-  }
-
-  syncSettingsUI() {
-    this.updateVolumeUI();
-
-    // Theater Mode
-    const btnTheater = document.getElementById('setting-btn-theater');
-    const textTheater = document.getElementById('setting-theater-state');
-    if (btnTheater) btnTheater.classList.toggle('active', this.isTheaterMode);
-    if (textTheater) textTheater.textContent = this.isTheaterMode ? 'Đang bật' : 'Tắt';
-
-    // Lights
-    const isLightsOff = !!(this.cinema && this.cinema.lightsOff);
-    const btnLights = document.getElementById('setting-btn-lights');
-    const textLights = document.getElementById('setting-lights-state');
-    if (btnLights) btnLights.classList.toggle('active', isLightsOff);
-    if (textLights) textLights.textContent = isLightsOff ? 'Đang tắt đèn' : 'Bật sáng';
-
-    // Party
-    const isParty = !!(this.room && this.room.partyMode);
-    const btnParty = document.getElementById('setting-btn-party');
-    const textParty = document.getElementById('setting-party-state');
-    if (btnParty) btnParty.classList.toggle('active', isParty);
-    if (textParty) textParty.textContent = isParty ? 'Đang quẩy' : 'Tắt';
-
-    // Data Saver
-    const btnDataSaver = document.getElementById('setting-btn-data-saver');
-    const textDataSaver = document.getElementById('setting-datasaver-state');
-    if (btnDataSaver) btnDataSaver.classList.toggle('active', this.isDataSaver);
-    if (textDataSaver) textDataSaver.textContent = this.isDataSaver ? 'Đang bật' : 'Tắt';
-
-    // Host section visibility
-    document.getElementById('settings-host-section')?.classList.toggle('hidden', !this.canControlRoom());
-  }
-
-  // ==================== THEATER MODE ("KHÉP GÓC") ====================
-  toggleTheaterMode(forceState = null) {
-    this.isTheaterMode = forceState !== null ? forceState : !this.isTheaterMode;
-    document.body.classList.toggle('theater-mode', this.isTheaterMode);
-    
-    // Gọi chế độ Theater 2D trên Cinema engine (tắt 3D WebGL, đưa màn hình ra phẳng 2D không góc nghiêng)
-    if (this.cinema) {
-      this.cinema.toggleTheater2DMode(this.isTheaterMode);
-    }
-
-    const floatControls = document.getElementById('theater-floating-controls');
-    if (floatControls) {
-      floatControls.classList.toggle('hidden', !this.isTheaterMode);
-    }
-
-    // Đồng bộ nút chọn góc nhìn ở thanh điều khiển dưới đáy
-    document.querySelectorAll('.cam-btn').forEach((btn) => {
-      const c = btn.getAttribute('data-camera');
-      if (this.isTheaterMode) {
-        btn.classList.toggle('active', c === 'theater');
-      } else {
-        const curMode = this.cinema?.cameraMode || 'overview';
-        btn.classList.toggle('active', c === curMode);
-      }
-    });
-
-    if (this.isTheaterMode) {
-      this.showToast('🎭 Đã bật Khép góc: Màn chiếu 2D toàn cảnh, không gian tối ưu.', 'info');
-    } else {
-      this.showToast('🎬 Đã quay lại rạp chiếu 3D.', 'info');
-    }
-    this.syncSettingsUI();
-  }
-
-  // ==================== DATA SAVER MODE ====================
-  toggleDataSaver(forceState = null) {
-    this.isDataSaver = forceState !== null ? forceState : !this.isDataSaver;
-    document.body.classList.toggle('data-saver-mode', this.isDataSaver);
-    document.getElementById('data-saver-pill')?.classList.toggle('hidden', !this.isDataSaver);
-    document.getElementById('chat-feed')?.classList.toggle('data-saver-chat', this.isDataSaver);
-
-    if (this.player) this.player.setDataSaver(this.isDataSaver);
-    if (this.cinema) this.cinema.setDataSaver(this.isDataSaver);
-
-    this.showToast(
-      this.isDataSaver
-        ? '📶 Đã bật Tiết kiệm dữ liệu: Tự động hạ 360p & tối ưu đường truyền 4G.'
-        : '📶 Đã tắt Tiết kiệm dữ liệu.',
-      'info'
-    );
-    this.syncSettingsUI();
   }
 
   // ==================== STICKERS & MEMES IN CHAT ====================
