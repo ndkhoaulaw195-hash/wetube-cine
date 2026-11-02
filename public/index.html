@@ -19,10 +19,11 @@
   <!-- Vendor Scripts -->
   <script src="/vendor/three.min.js"></script>
   <script src="/vendor/CSS3DRenderer.js"></script>
+  <script src="/vendor/hls.min.js"></script>
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261102_v3">
+  <link rel="stylesheet" href="/css/style.css?v=20261102_v19">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -33,26 +34,26 @@
         <span class="lobby-logo-icon">🎬</span>
         <div class="lobby-brand-info">
           <h1 class="lobby-title">wetube ciné</h1>
-          <span class="lobby-subtitle">SẢNH CHỜ TRUNG TÂM · RẠP CHIẾU 3D CHIBI</span>
+          <span class="lobby-subtitle">RẠP CHIẾU PHIM 3D</span>
         </div>
       </div>
 
       <div class="lobby-header-right">
         <div class="lobby-status-pill">
           <span class="lobby-pulse-dot"></span>
-          <span id="lobby-rooms-count-pill">0/5 phòng đang mở</span>
+          <span id="lobby-rooms-count-pill">0/5 phòng</span>
         </div>
 
         <!-- Admin Dashboard Button (Visible ONLY to Admin) -->
-        <button class="btn-admin-badge hidden" id="btn-lobby-admin" title="Mở Trung Tâm Quản Trị Admin">
+        <button class="btn-admin-badge hidden" id="btn-lobby-admin" title="Quản trị hệ thống">
           <i data-lucide="shield-check" style="width: 15px; height: 15px;"></i>
-          <span>Quản Trị Admin</span>
+          <span>Quản Trị</span>
         </button>
 
         <!-- User Account / Login / Pixel Avatar Button -->
-        <button class="lobby-user-pill" id="btn-lobby-open-profile" title="Đăng nhập / Đăng ký & Quản lý tài khoản">
+        <button class="lobby-user-pill" id="btn-lobby-open-profile" title="Tài khoản">
           <img id="lobby-user-avatar-img" class="pixel-avatar-mini" src="" alt="Avatar" />
-          <span id="lobby-user-name" class="lobby-user-name">Đăng nhập / Đăng ký</span>
+          <span id="lobby-user-name" class="lobby-user-name">Đăng nhập</span>
           <span id="lobby-user-role-tag" class="role-mini-tag">Khách</span>
         </button>
       </div>
@@ -60,10 +61,8 @@
 
     <!-- Lobby Main Content -->
     <main class="lobby-main">
-      <div class="lobby-hero">
-        <span class="lobby-hero-badge">🍿 RẠP PHIM 3D NHÂN VẬT PIXEL CHIBI</span>
-        <h2>Chào mừng bạn đến với Sảnh Chờ Rạp Phim</h2>
-        <p>Mỗi phòng chiếu có <strong>Mật khẩu riêng</strong> và <strong>Chủ phòng (Host)</strong> toàn quyền điều khiển màn chiếu cho <strong>10 ghế VIP</strong>. Hãy đăng nhập tài khoản, chọn nhân vật Pixel Chibi yêu thích và tạo phòng ngay!</p>
+      <div class="lobby-hero" style="margin-bottom: 4px;">
+        <h2>Sảnh Chờ Rạp Chiếu Phim</h2>
       </div>
 
       <!-- Quick Room Creation Card (With Room Password) -->
@@ -72,28 +71,51 @@
           <div class="create-card-header">
             <div class="create-title-box">
               <i data-lucide="crown" class="text-gold" style="width: 18px; height: 18px;"></i>
-              <h3>Tạo Phòng Chiếu Riêng (Bạn Là Chủ Phòng / Host)</h3>
+              <h3>Tạo Phòng Chiếu</h3>
             </div>
-            <span class="rooms-badge" id="lobby-create-badge">Tối đa 5 phòng</span>
+            <span class="rooms-badge" id="lobby-create-badge">0/5 phòng</span>
           </div>
           
           <form id="form-lobby-create-room" class="lobby-create-form">
             <div class="lobby-input-wrapper">
               <i data-lucide="tv" style="width: 18px; height: 18px; color: #9ca3af;"></i>
-              <input type="text" id="lobby-create-room-input" placeholder="Nhập tên phòng (VD: Hội Bạn Cày Phim, Nghe Nhạc Chill...)" maxlength="30" required autocomplete="off" />
+              <input type="text" id="lobby-create-room-input" placeholder="Tên phòng chiếu..." maxlength="30" required autocomplete="off" />
             </div>
             <div class="lobby-input-wrapper pass-input-wrapper">
               <i data-lucide="key-round" style="width: 18px; height: 18px; color: #f2cf78;"></i>
-              <input type="text" id="lobby-create-room-pass" placeholder="Đặt mật khẩu phòng (VD: 1234)" maxlength="20" required autocomplete="off" />
+              <input type="text" id="lobby-create-room-pass" placeholder="Mật khẩu phòng..." maxlength="20" required autocomplete="off" />
             </div>
             <button type="submit" id="btn-lobby-submit-create" class="btn-create-glowing">
               <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
-              <span>Mở phòng & Làm Host</span>
+              <span>Tạo phòng</span>
             </button>
           </form>
-          <div class="create-card-foot">
-            <span>👑 <strong>Quyền Chủ Phòng (Host):</strong> Chỉ người tạo phòng mới được Phát/Dừng, Tua phim, Thêm danh sách chờ và bấm <strong>Chuyển tiếp</strong> bài.</span>
+        </div>
+
+        <!-- Quick Join Existing Room Card -->
+        <div id="lobby-quick-join-card" class="lobby-create-card hidden" style="margin-top: 14px; border-color: rgba(56, 189, 248, 0.28);">
+          <div class="create-card-header">
+            <div class="create-title-box">
+              <i data-lucide="door-open" style="width: 18px; height: 18px; color: #38bdf8;"></i>
+              <h3>Vào Phòng Nhanh</h3>
+            </div>
           </div>
+          <form id="form-lobby-quick-join" class="lobby-create-form">
+            <div class="lobby-input-wrapper">
+              <i data-lucide="clapperboard" style="width: 18px; height: 18px; color: #38bdf8;"></i>
+              <select id="lobby-quick-room-select" style="width:100%; background:transparent; border:none; color:#f9fafb; font-size:14px; font-weight:600; outline:none; cursor:pointer;">
+                <option value="" style="background:#11131a;">-- Chọn phòng --</option>
+              </select>
+            </div>
+            <div class="lobby-input-wrapper pass-input-wrapper" id="lobby-quick-pass-wrap">
+              <i data-lucide="key-round" style="width: 18px; height: 18px; color: #f2cf78;"></i>
+              <input type="text" class="masked-secret-input" id="lobby-quick-room-pass" placeholder="Mật khẩu phòng..." maxlength="20" autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
+            </div>
+            <button type="submit" class="btn-create-glowing" style="background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: #08121e;">
+              <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+              <span>Vào phòng</span>
+            </button>
+          </form>
         </div>
       </section>
 
@@ -102,7 +124,7 @@
         <div class="rooms-section-header">
           <div class="section-title">
             <i data-lucide="clapperboard" style="width: 18px; height: 18px; color: var(--gold-primary);"></i>
-            <h3>Các Phòng Đang Chiếu (Cần Mật Khẩu Để Vào)</h3>
+            <h3>Phòng Đang Chiếu</h3>
           </div>
           <span id="lobby-active-count-tag" class="section-badge">0 phòng</span>
         </div>
@@ -116,7 +138,6 @@
         <div id="lobby-empty-rooms" class="lobby-empty-state hidden">
           <div class="empty-icon">🍿</div>
           <h4>Chưa có phòng nào đang mở</h4>
-          <p>Hãy đặt tên phòng + mật khẩu ở trên và bấm <strong>"Mở phòng & Làm Host"</strong> để bắt đầu!</p>
         </div>
       </section>
 
@@ -125,7 +146,7 @@
         <div class="rooms-section-header">
           <div class="section-title">
             <i data-lucide="film" style="width: 18px; height: 18px; color: var(--gold-primary);"></i>
-            <h3>Kho Phim Hệ Thống Nổi Bật</h3>
+            <h3>Kho Phim Đề Xuất</h3>
           </div>
           <span id="lobby-catalog-count-tag" class="section-badge">3 bộ phim</span>
         </div>
@@ -150,32 +171,55 @@
             <div id="yt-player"></div>
           </div>
 
-          <!-- Source 2: Direct HTML5 Video Player (MP4, WebM, Uploaded Files, CDN) -->
-          <video id="html5-video-player" class="html5-video-host hidden" playsinline></video>
+          <!-- Source 2: Direct HTML5 Video Player (MP4, WebM, HLS .m3u8, Uploaded Files, CDN) -->
+          <video id="html5-video-player" class="html5-video-host hidden" playsinline controls></video>
 
-          <!-- Source 3: Embed IFrame Player (Google Drive, Custom Streaming CDN) -->
-          <iframe id="embed-iframe-player" class="embed-iframe-host hidden" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
+          <!-- Source 3: Embed IFrame Player (All Web Links, Google Drive, Facebook, TikTok, Vimeo, Movie Sites) -->
+          <iframe id="embed-iframe-player" class="embed-iframe-host hidden" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+          <!-- External Link Helper Toolbar (Switch between Proxy Bypass / Direct / Stream / Open Tab) -->
+          <div id="embed-helper-bar" class="embed-helper-bar hidden">
+            <div class="embed-helper-left">
+              <span class="embed-badge-dot"></span>
+              <span id="embed-source-domain">Nguồn Web Ngoài</span>
+            </div>
+            <div class="embed-helper-actions">
+              <button type="button" id="btn-embed-mode-proxy" class="embed-mode-btn active" title="Vượt chặn X-Frame-Options cho các trang web phim">
+                🛡️ Proxy Vượt Chặn
+              </button>
+              <button type="button" id="btn-embed-mode-direct" class="embed-mode-btn" title="Nhúng trực tiếp iframe gốc">
+                ⚡ Nhúng Trực Tiếp
+              </button>
+              <button type="button" id="btn-embed-mode-stream" class="embed-mode-btn hidden" title="Phát trực tiếp luồng video .m3u8/.mp4 trích xuất được">
+                🎬 Phát Luồng Stream
+              </button>
+              <button type="button" id="btn-embed-reload" class="embed-mode-btn" title="Tải lại khung hình">
+                🔄 Tải lại
+              </button>
+              <a id="btn-embed-open-origin" href="#" target="_blank" rel="noopener noreferrer" class="embed-mode-btn link" title="Mở trang gốc trong tab mới">
+                ↗️ Mở trang gốc
+              </a>
+            </div>
+          </div>
 
           <!-- Screen Idle & Poster Overlay -->
           <div id="screen-idle" class="screen-idle">
             <div class="screen-grid"></div>
             <div class="screen-top">
-              <span>WETUBE CINÉ / RẠP VIP</span>
-              <span>10 GHẾ CHIBI · ĐỒNG BỘ MÀN HÌNH</span>
+              <span>WETUBE CINÉ</span>
+              <span>10 GHẾ VIP</span>
             </div>
             <div class="screen-center">
-              <div class="screen-mark" id="btn-screen-play-center" title="Bấm để phát & bật âm thanh rạp">
+              <div class="screen-mark" id="btn-screen-play-center" title="Bấm để phát & bật âm thanh">
                 <svg width="56" height="56" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="6 3 20 12 6 21 6 3"></polygon>
                 </svg>
               </div>
-              <span class="screen-eyebrow">MỘT CHIẾC RẠP. CẢ HỘI CÙNG XEM.</span>
-              <h1 id="screen-idle-title">Suất chiếu đang diễn ra.<br><i>Chạm vào rạp để xem & nghe âm thanh.</i></h1>
-              <p id="screen-idle-sub">Chủ phòng (Host) điều khiển màn chiếu · Mọi người cùng thưởng thức</p>
+              <h1 id="screen-idle-title">Chạm để xem & bật âm thanh</h1>
             </div>
             <div class="screen-bottom">
-              <span>🎬 RẠP PHIM wetube ciné</span>
-              <span>CHỦ PHÒNG ĐIỀU KHIỂN</span>
+              <span>🎬 wetube ciné</span>
+              <span>RẠP 3D</span>
             </div>
           </div>
 
@@ -183,8 +227,8 @@
           <div id="player-error" class="player-error hidden">
             <i data-lucide="alert-circle" style="width: 48px; height: 48px; color: #ef4444;"></i>
             <h2>Video chưa chiếu được</h2>
-            <p id="player-error-text">Chủ video không cho phép phát nhúng. Chủ phòng hãy bấm Chuyển tiếp.</p>
-            <button id="btn-player-retry">Chuyển tiếp bài kế (Dành cho Host)</button>
+            <p id="player-error-text">Nguồn video này không hỗ trợ phát trực tiếp.</p>
+            <button id="btn-player-retry">Chuyển tiếp</button>
           </div>
         </div>
       </div>
@@ -195,7 +239,7 @@
   <div id="screen-projection" class="hidden">
     <div class="projection-card">
       <div class="projection-header">
-        <span class="projection-tag">✨ CHIẾU ẢNH LÊN MÀN RẠP</span>
+        <span class="projection-tag">✨ ẢNH TRÊN MÀN CHIẾU</span>
         <span id="projection-sender" class="projection-sender"></span>
       </div>
       <div class="projection-image-container">
@@ -206,11 +250,52 @@
     </div>
   </div>
 
+  <!-- Floating Livestream Gift Celebration Banner Overlay -->
+  <div id="gift-banner-overlay" class="gift-banner-overlay pointer-events-none"></div>
+
+  <!-- Floating Mini-Game & Poll / Predictions Overlay -->
+  <div id="room-poll-overlay" class="room-poll-overlay hidden">
+    <div class="poll-card-header">
+      <div class="poll-title-wrap">
+        <span class="poll-live-dot"></span>
+        <span class="poll-header-badge">BÌNH CHỌN RẠP PHIM</span>
+      </div>
+      <div class="poll-header-actions">
+        <button id="btn-host-end-poll" class="poll-end-btn hidden" title="Chủ phòng: Kết thúc bình chọn sớm">Kết thúc</button>
+        <button id="btn-close-poll-overlay" class="poll-close-btn" title="Thu gọn / Đóng">&times;</button>
+      </div>
+    </div>
+    <div id="poll-question-text" class="poll-question-text">Câu hỏi bình chọn...</div>
+    <div id="poll-options-list" class="poll-options-list"></div>
+    <div class="poll-card-footer">
+      <span id="poll-voters-count">0 lượt bình chọn</span>
+      <span id="poll-status-tag" class="poll-status-tag active">Đang diễn ra</span>
+    </div>
+  </div>
+
+  <!-- Theater Mode Floating Controls (Ẩn/Hiện Chat & Thoát Khép Góc) -->
+  <div id="theater-floating-controls" class="theater-floating-controls hidden">
+    <button id="btn-theater-toggle-chat" class="theater-chat-toggle-btn" title="Ẩn / Hiện khung trò chuyện">
+      <i data-lucide="message-square"></i>
+      <span id="theater-chat-toggle-text">Ẩn Chat</span>
+    </button>
+    <button id="btn-exit-theater" class="exit-theater-btn" title="Thoát chế độ Khép góc (Phím T)">
+      <i data-lucide="minimize-2"></i>
+      <span>✕ Thoát Khép Góc</span>
+    </button>
+  </div>
+
+  <!-- Data Saver Status Pill -->
+  <div id="data-saver-pill" class="data-saver-pill hidden">
+    <i data-lucide="gauge" style="width: 14px; height: 14px;"></i>
+    <span>Tiết kiệm 4G (360p / Text thuần)</span>
+  </div>
+
   <!-- Audio Unmute Overlay (Browser policy) -->
   <div id="audio-blocked-overlay" class="hidden">
     <button id="btn-unmute-audio" class="unmute-banner">
       <i data-lucide="volume-2"></i>
-      <span>Trình duyệt đang tắt tiếng tự động. <strong>Bấm vào đây để bật âm thanh rạp phim!</strong></span>
+      <span><strong>Bấm để bật âm thanh</strong></span>
       <span class="unmute-close" id="btn-dismiss-audio-banner" title="Đóng">&times;</span>
     </button>
   </div>
@@ -227,23 +312,23 @@
       </div>
 
       <!-- Room Selector Pill -->
-      <button id="btn-open-rooms" class="hud-room-badge" title="Đổi phòng chiếu hoặc mở phòng riêng">
+      <button id="btn-open-rooms" class="hud-room-badge" title="Đổi phòng hoặc Out phòng">
         <span class="room-indicator-dot"></span>
         <span id="current-room-name">Phòng 01</span>
-        <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+        <i data-lucide="chevron-down" style="width: 13px; height: 13px;"></i>
       </button>
 
       <!-- Host & Room Password Pill -->
       <div class="hud-host-badge" id="hud-host-badge" title="Chủ phòng điều khiển màn chiếu">
-        <i data-lucide="crown" style="width: 14px; height: 14px; color: #f2cf78;"></i>
-        <span id="hud-host-name">Host: Quản Trị Viên</span>
+        <i data-lucide="crown" style="width: 13px; height: 13px; color: #f2cf78;"></i>
+        <span id="hud-host-name">Chủ phòng</span>
         <span id="hud-room-pass-tag" class="room-pass-chip hidden">Pass: 1234</span>
       </div>
 
-      <!-- Back to Lobby Button -->
-      <button id="btn-back-lobby" class="hud-pill-lobby" title="Rời phòng và quay về Sảnh Chờ trung tâm">
-        <i data-lucide="door-closed" style="width: 14px; height: 14px;"></i>
-        <span>Về Sảnh Chờ</span>
+      <!-- Back to Lobby / Out Room Button -->
+      <button id="btn-back-lobby" class="hud-pill-lobby" title="Out khỏi phòng này và quay về Sảnh Chờ" style="background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5;">
+        <i data-lucide="log-out" style="width: 13px; height: 13px;"></i>
+        <span>Out</span>
       </button>
 
       <div class="hud-now-playing" id="hud-now-playing" title="Bài đang chiếu">
@@ -255,9 +340,9 @@
         </div>
       </div>
 
-      <div class="hud-occupancy" id="hud-occupancy" title="Số người đang xem">
-        <i data-lucide="users"></i>
-        <span id="occupancy-text">1 / 10 ghế</span>
+      <div class="hud-occupancy" id="hud-occupancy" title="Số người đang ngồi xem">
+        <i data-lucide="users" style="width: 13px; height: 13px;"></i>
+        <span id="occupancy-text">0/10</span>
       </div>
     </div>
 
@@ -265,49 +350,38 @@
       <!-- Admin Button inside room (Visible ONLY to Admin) -->
       <button id="btn-hud-admin" class="hud-btn admin-hud-btn hidden" title="Mở Trung Tâm Quản Trị Admin">
         <i data-lucide="shield-check"></i>
-        <span class="hud-btn-label">Quản Trị Admin</span>
+        <span class="hud-btn-label">Admin</span>
+      </button>
+
+      <!-- Quick Voice Mic Button in Top HUD -->
+      <button id="btn-hud-mic" class="hud-btn mic-hud-btn" title="Bật/Tắt Mic đàm thoại trong phòng (Phím M)">
+        <i data-lucide="mic-off" id="hud-mic-icon"></i>
+        <span class="hud-btn-label" id="hud-mic-label">Bật Mic</span>
       </button>
 
       <!-- Sao chép link + pass mời bạn bè -->
       <button id="btn-copy-invite" class="hud-btn invite-btn" title="Sao chép link & mật khẩu phòng gửi bạn bè">
         <i data-lucide="share-2"></i>
-        <span class="hud-btn-label">Mời bạn bè</span>
+        <span class="hud-btn-label">Mời</span>
       </button>
 
-      <button id="btn-toggle-hud" class="hud-btn" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
-        <i data-lucide="eye-off"></i>
-        <span class="hud-btn-label">Ẩn giao diện</span>
+      <!-- Cài Đặt Rạp Phim (Gom toàn bộ tính năng: Khép góc, PiP, Tiết kiệm 4G, Đèn, Volume, Ẩn nút...) -->
+      <button id="btn-open-settings" class="hud-btn settings-btn" title="Cài Đặt Rạp Phim (Khép góc, PiP, Tiết kiệm 4G, Tắt đèn, Đèn tiệc, Âm lượng...)">
+        <i data-lucide="settings"></i>
+        <span class="hud-btn-label">Cài đặt</span>
       </button>
-
-      <button id="btn-theater-mode" class="hud-btn theater-btn" title="Chuyển chế độ rạp 2D / Toàn cảnh 3D">
-        <i data-lucide="tv"></i>
-        <span id="theater-mode-label" class="hud-btn-label">Tập trung màn hình</span>
-      </button>
-
-      <button id="btn-toggle-party" class="hud-btn party-btn" title="Bật/Tắt quả cầu disco & đèn laser (Chỉ Host/Admin)">
-        <i data-lucide="sparkles"></i>
-        <span class="hud-btn-label">Đèn tiệc</span>
-      </button>
-
-      <div class="volume-control-wrap">
-        <button id="btn-volume" class="hud-btn" title="Âm lượng rạp">
-          <i data-lucide="volume-2" id="volume-icon"></i>
-        </button>
-        <div class="volume-slider-popover" id="volume-popover">
-          <input type="range" id="volume-slider" min="0" max="100" value="80">
-          <span id="volume-val">80%</span>
-        </div>
-      </div>
 
       <button id="btn-fullscreen" class="hud-btn" title="Toàn màn hình">
         <i data-lucide="maximize"></i>
       </button>
-
-      <button id="btn-help" class="hud-btn" title="Hướng dẫn sử dụng">
-        <i data-lucide="help-circle"></i>
-      </button>
     </div>
   </header>
+
+  <!-- Live Voice Chat Active Speakers Indicator -->
+  <div id="voice-speakers-pill" class="voice-speakers-pill hidden">
+    <span class="voice-wave-dot"></span>
+    <span id="voice-speakers-text">🎙️ Đang bật Mic: ...</span>
+  </div>
 
   <!-- Quick Floating Emoji Reaction Dock -->
   <div class="reaction-dock">
@@ -339,6 +413,10 @@
         <button id="btn-bar-next" class="playback-btn next-btn" title="Chuyển sang bài tiếp theo trong hàng chờ (Chỉ Chủ phòng)">
           <i data-lucide="skip-forward"></i>
           <span>Chuyển tiếp</span>
+        </button>
+        <button id="btn-bar-stop" class="playback-btn" title="Tắt video đang chiếu trên màn hình (Chỉ Chủ phòng)" style="background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.45); color: #fca5a5;">
+          <i data-lucide="square"></i>
+          <span>Tắt chiếu</span>
         </button>
       </div>
 
@@ -377,10 +455,6 @@
         <i data-lucide="layout-grid"></i>
         <span>Toàn cảnh</span>
       </button>
-      <button class="cam-btn" data-camera="seat" title="Góc nhìn từ ghế của tôi">
-        <i data-lucide="armchair"></i>
-        <span>Ghế tôi</span>
-      </button>
       <button class="cam-btn" data-camera="screen" title="Xem cận cảnh màn hình">
         <i data-lucide="tv"></i>
         <span>Màn hình</span>
@@ -397,9 +471,9 @@
         <span id="my-seat-status">Chọn ghế</span>
       </button>
 
-      <button id="btn-stage" class="action-btn" title="Lên sân khấu quẩy">
-        <i data-lucide="music"></i>
-        <span id="stage-btn-text">Lên sân khấu</span>
+      <button id="btn-voice-mic" class="action-btn mic-action-btn" title="Bật/Tắt Mic nói chuyện hai chiều với mọi người trong phòng (Phím M)">
+        <i data-lucide="mic-off" id="icon-voice-mic"></i>
+        <span id="voice-mic-text">Bật Mic</span>
       </button>
 
       <button id="btn-open-queue" class="action-btn" title="Danh sách phát & Kho phim (Chủ phòng quản lý)">
@@ -417,6 +491,18 @@
         <span>Chiếu ảnh</span>
       </button>
 
+      <!-- Mini-Game & Dự đoán bình chọn (Chỉ Host/Admin) -->
+      <button id="btn-open-poll-maker" class="action-btn host-only-action hidden" title="Tạo mini-game bình chọn / dự đoán phim cho cả rạp (Chỉ Chủ phòng)">
+        <i data-lucide="bar-chart-2"></i>
+        <span>Bình chọn</span>
+      </button>
+
+      <!-- Quà tặng ảo cho Chủ phòng -->
+      <button id="btn-open-gifts" class="action-btn gift-btn" title="Tặng quà ảo cho Chủ phòng (Hoa hồng, Trà sữa, Tên lửa, Siêu xe...)">
+        <i data-lucide="gift"></i>
+        <span>Tặng quà</span>
+      </button>
+
       <button id="btn-open-profile" class="action-btn" title="Tài khoản & Đổi nhân vật Pixel Chibi">
         <img id="hud-user-avatar-img" class="pixel-avatar-hud" src="" alt="Avatar" />
         <span id="user-display-name">Tài khoản</span>
@@ -426,6 +512,11 @@
         <i data-lucide="message-square"></i>
         <span>Trò chuyện</span>
         <span id="chat-unread-badge" class="unread-dot hidden"></span>
+      </button>
+
+      <button id="btn-bottom-leave-room" class="action-btn" title="Out khỏi phòng chiếu và quay về Sảnh Chờ" style="background: rgba(239, 68, 68, 0.16); border-color: rgba(239, 68, 68, 0.45); color: #fca5a5;">
+        <i data-lucide="log-out"></i>
+        <span>Out Phòng</span>
       </button>
     </div>
   </footer>
@@ -444,7 +535,22 @@
 
     <div class="chat-feed" id="chat-feed"></div>
 
+    <!-- Sticker & Meme Popover Drawer -->
+    <div id="sticker-popover" class="sticker-popover hidden">
+      <div class="sticker-popover-header">
+        <div class="sticker-tabs">
+          <button type="button" class="sticker-tab-btn active" data-sticker-tab="stickers">Nhãn dán 🍿</button>
+          <button type="button" class="sticker-tab-btn" data-sticker-tab="memes">Ảnh chế 🐱</button>
+        </div>
+        <button type="button" id="btn-close-stickers" class="sticker-close-btn" title="Đóng">&times;</button>
+      </div>
+      <div id="sticker-grid" class="sticker-grid"></div>
+    </div>
+
     <form id="chat-form" class="chat-input-area">
+      <button type="button" id="btn-chat-sticker" class="chat-tool-btn" title="Gửi nhãn dán / ảnh chế Meme">
+        <i data-lucide="smile"></i>
+      </button>
       <input type="text" id="chat-input" placeholder="Nói gì với cả rạp đi…" maxlength="200" autocomplete="off" />
       <button type="submit" class="chat-send-btn" title="Gửi tin nhắn">
         <i data-lucide="send"></i>
@@ -458,7 +564,7 @@
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="user-check"></i>
-          <span id="auth-modal-title">Tài Khoản & Nhân Vật Pixel Chibi</span>
+          <span id="auth-modal-title">Tài Khoản & Nhân Vật</span>
         </div>
         <button class="modal-close" data-close="modal-profile"><i data-lucide="x"></i></button>
       </div>
@@ -467,57 +573,48 @@
         <div id="auth-guest-section">
           <div class="auth-tabs">
             <button type="button" class="auth-tab-btn active" data-auth-tab="login">🔑 Đăng Nhập</button>
-            <button type="button" class="auth-tab-btn" data-auth-tab="register">✨ Đăng Ký Tài Khoản Mới</button>
-          </div>
-
-          <!-- Quick Demo Account Banner -->
-          <div class="demo-accounts-banner">
-            <span>💡 <strong>Tài khoản có sẵn để dùng ngay:</strong></span>
-            <div class="demo-pills">
-              <button type="button" class="demo-pill" id="btn-fill-admin">🛡️ Admin: <code>admin</code> / <code>admin123</code></button>
-              <button type="button" class="demo-pill" id="btn-fill-vip">👑 Khách VIP: <code>vip</code> / <code>123456</code></button>
-            </div>
+            <button type="button" class="auth-tab-btn" data-auth-tab="register">✨ Đăng Ký</button>
           </div>
 
           <!-- Login Form -->
-          <form id="form-login" class="auth-form">
+          <form id="form-login" class="auth-form" autocomplete="off">
             <div class="form-group">
-              <label>Tên đăng nhập (Username):</label>
-              <input type="text" id="login-username" placeholder="Nhập username (VD: admin)" required autocomplete="username" />
+              <label>Tên đăng nhập</label>
+              <input type="text" id="login-username" placeholder="Tên đăng nhập..." required autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
             </div>
             <div class="form-group">
-              <label>Mật khẩu:</label>
-              <input type="password" id="login-password" placeholder="Nhập mật khẩu" required autocomplete="current-password" />
+              <label>Mật khẩu</label>
+              <input type="text" class="masked-secret-input" id="login-password" placeholder="Mật khẩu..." required autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
             </div>
             <button type="submit" class="btn-primary full-width">
               <i data-lucide="log-in"></i>
-              <span>Đăng Nhập Ngay</span>
+              <span>Đăng Nhập</span>
             </button>
           </form>
 
           <!-- Register Form -->
-          <form id="form-register" class="auth-form hidden">
+          <form id="form-register" class="auth-form hidden" autocomplete="off">
             <div class="form-row-2">
               <div class="form-group">
-                <label>Tên đăng nhập (viết liền):</label>
-                <input type="text" id="reg-username" placeholder="VD: khoacine99" maxlength="20" required />
+                <label>Tên đăng nhập</label>
+                <input type="text" id="reg-username" placeholder="Viết liền không dấu..." maxlength="20" required autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
               </div>
               <div class="form-group">
-                <label>Mật khẩu (tối thiểu 4 ký tự):</label>
-                <input type="password" id="reg-password" placeholder="Nhập mật khẩu" required />
+                <label>Mật khẩu</label>
+                <input type="text" class="masked-secret-input" id="reg-password" placeholder="Tối thiểu 4 ký tự..." required autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
               </div>
             </div>
             <div class="form-group">
-              <label>Tên hiển thị trong rạp:</label>
-              <input type="text" id="reg-displayname" placeholder="VD: Khoa Tổng Tài" maxlength="24" required />
+              <label>Tên hiển thị</label>
+              <input type="text" id="reg-displayname" placeholder="Tên hiển thị trong phòng..." maxlength="24" required />
             </div>
             <div class="form-group">
-              <label>Chọn hình tượng nhân vật Pixel Chibi của bạn:</label>
+              <label>Chọn nhân vật</label>
               <div class="pixel-avatar-grid" id="reg-avatar-grid"></div>
             </div>
             <button type="submit" class="btn-primary full-width">
               <i data-lucide="user-plus"></i>
-              <span>Tạo Tài Khoản & Vào Rạp</span>
+              <span>Tạo Tài Khoản</span>
             </button>
           </form>
         </div>
@@ -534,7 +631,6 @@
                 <span id="account-info-badge" class="role-badge admin">🛡️ ADMIN</span>
               </div>
               <span id="account-info-username" class="account-username">@admin</span>
-              <p class="account-sub-note">Bạn có thể đổi hình tượng nhân vật Pixel Chibi, tên hiển thị hoặc mật khẩu bên dưới.</p>
             </div>
             <button type="button" id="btn-logout-account" class="btn-danger-outline">
               <i data-lucide="log-out" style="width: 15px; height: 15px;"></i>
@@ -544,17 +640,17 @@
 
           <form id="form-profile">
             <div class="form-group">
-              <label>Chọn hình tượng nhân vật Pixel Chibi (12 mẫu độc quyền):</label>
+              <label>Chọn nhân vật</label>
               <div class="pixel-avatar-grid" id="profile-avatar-grid"></div>
             </div>
 
             <div class="form-row-2">
               <div class="form-group">
-                <label>Tên hiển thị trong rạp:</label>
+                <label>Tên hiển thị</label>
                 <input type="text" id="profile-name-input" maxlength="24" required />
               </div>
               <div class="form-group">
-                <label>Danh hiệu hiển thị:</label>
+                <label>Danh hiệu</label>
                 <select id="profile-tier-select" class="custom-select">
                   <option value="Khán Giả VIP">Khán Giả VIP</option>
                   <option value="💼 Tổng Tài Bá Đạo">💼 Tổng Tài Bá Đạo</option>
@@ -567,7 +663,7 @@
             </div>
 
             <div class="form-group">
-              <label>Màu bảng tên nhân vật 3D:</label>
+              <label>Màu bảng tên</label>
               <div class="color-picker-grid" id="color-picker-grid">
                 <button type="button" class="color-circle" data-color="#f2cf78" style="background: #f2cf78"></button>
                 <button type="button" class="color-circle" data-color="#3b82f6" style="background: #3b82f6"></button>
@@ -581,22 +677,22 @@
             </div>
 
             <details class="password-change-details">
-              <summary>🔐 Đổi mật khẩu tài khoản (Bấm để mở)</summary>
+              <summary>🔐 Đổi mật khẩu</summary>
               <div class="form-row-2" style="margin-top: 10px;">
                 <div class="form-group">
-                  <label>Mật khẩu hiện tại:</label>
-                  <input type="password" id="acc-current-password" placeholder="Bỏ trống nếu không đổi" />
+                  <label>Mật khẩu hiện tại</label>
+                  <input type="text" class="masked-secret-input" id="acc-current-password" placeholder="Mật khẩu hiện tại..." autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
                 </div>
                 <div class="form-group">
-                  <label>Mật khẩu mới:</label>
-                  <input type="password" id="acc-new-password" placeholder="Nhập mật khẩu mới" />
+                  <label>Mật khẩu mới</label>
+                  <input type="text" class="masked-secret-input" id="acc-new-password" placeholder="Mật khẩu mới..." autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
                 </div>
               </div>
             </details>
 
             <button type="submit" class="btn-primary full-width" style="margin-top: 12px;">
               <i data-lucide="check-circle"></i>
-              <span>Lưu Hồ Sơ & Nhân Vật</span>
+              <span>Lưu Thay Đổi</span>
             </button>
           </form>
         </div>
@@ -610,22 +706,22 @@
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="lock" style="color: #f2cf78;"></i>
-          <span>Nhập Mật Khẩu Phòng Chiếu</span>
+          <span>Mật Khẩu Phòng</span>
         </div>
         <button class="modal-close" data-close="modal-room-pass"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Phòng <strong id="pass-modal-room-name" style="color: #f2cf78;">Phòng 01</strong> yêu cầu mật khẩu riêng để vào xem.</p>
-        <form id="form-enter-room-pass">
+        <p class="modal-desc">Phòng: <strong id="pass-modal-room-name" style="color: #f2cf78;">Phòng 01</strong></p>
+        <form id="form-enter-room-pass" autocomplete="off">
           <input type="hidden" id="pass-modal-room-id" />
           <div class="form-group">
-            <label>Mật khẩu phòng (Pass):</label>
-            <input type="password" id="pass-modal-input" placeholder="Nhập mật khẩu phòng (Phòng mặc định: 1234)" required autocomplete="off" />
+            <label>Mật khẩu</label>
+            <input type="text" class="masked-secret-input" id="pass-modal-input" placeholder="Nhập mật khẩu phòng..." required autocomplete="off" spellcheck="false" data-lpignore="true" data-form-type="other" />
           </div>
           <p id="pass-modal-error" class="error-inline hidden"></p>
           <button type="submit" class="btn-primary full-width">
             <i data-lucide="door-open"></i>
-            <span>Xác Nhận & Vào Phòng</span>
+            <span>Vào Phòng</span>
           </button>
         </form>
       </div>
@@ -638,36 +734,35 @@
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="door-open"></i>
-          <span>Quản Lý Phòng Chiếu (Mỗi Phòng Có Host & Mật Khẩu Riêng)</span>
+          <span>Danh Sách Phòng Chiếu</span>
         </div>
         <button class="modal-close" data-close="modal-rooms"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div class="create-room-box">
           <div class="create-room-header">
-            <h4>👑 Mở Phòng Mới (Bạn Làm Chủ Phòng / Host)</h4>
-            <span id="rooms-count-badge" class="rooms-badge">2 / 5 phòng</span>
+            <h4>👑 Tạo Phòng Mới</h4>
+            <span id="rooms-count-badge" class="rooms-badge">0 / 5 phòng</span>
           </div>
           <form id="form-create-room" class="create-room-form">
-            <input type="text" id="create-room-input" placeholder="Nhập tên phòng..." maxlength="30" required>
-            <input type="text" id="create-room-pass-input" placeholder="Mật khẩu phòng (VD: 1234)" maxlength="20" required style="max-width: 190px;">
+            <input type="text" id="create-room-input" placeholder="Tên phòng..." maxlength="30" required>
+            <input type="text" id="create-room-pass-input" placeholder="Mật khẩu..." maxlength="20" required style="max-width: 190px;">
             <button type="submit" id="btn-submit-create-room" class="btn-primary">
               <i data-lucide="plus"></i>
-              <span>Mở phòng</span>
+              <span>Tạo phòng</span>
             </button>
           </form>
-          <p class="create-room-note">Chỉ Chủ phòng (Host) tạo phòng hoặc Admin mới được điều khiển phát màn hình và xoá phòng.</p>
         </div>
 
         <div class="rooms-list-header">
-          <h4>Phòng đang hoạt động</h4>
+          <h4>Phòng đang mở</h4>
         </div>
         <div id="rooms-grid" class="rooms-grid"></div>
 
         <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
-          <button type="button" id="btn-modal-back-lobby" class="btn-ghost full-width" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 8px; font-weight: 600; color: #d1d5db; border: 1px solid rgba(255,255,255,0.12); cursor: pointer;">
-            <i data-lucide="door-closed" style="width: 16px; height: 16px;"></i>
-            <span>Rời phòng hiện tại & Quay về Sảnh Chờ</span>
+          <button type="button" id="btn-modal-back-lobby" class="btn-ghost full-width" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px; border-radius: 8px; font-weight: 700; color: #fca5a5; background: rgba(239, 68, 68, 0.14); border: 1px solid rgba(239, 68, 68, 0.45); cursor: pointer;">
+            <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+            <span>🚪 Rời Phòng Về Sảnh Chờ</span>
           </button>
         </div>
       </div>
@@ -680,23 +775,20 @@
       <div class="modal-header">
         <div class="modal-title" style="color: #ef4444;">
           <i data-lucide="alert-triangle"></i>
-          <span>Xác nhận xoá phòng</span>
+          <span>Xoá Phòng Chiếu</span>
         </div>
         <button class="modal-close" data-close="modal-confirm-delete"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body text-center" style="padding: 24px 20px;">
         <div style="font-size: 38px; margin-bottom: 12px;">🗑️</div>
-        <p style="font-size: 14px; color: #f3f4f6; margin-bottom: 8px;">
-          Bạn có chắc chắn muốn xoá <strong id="delete-room-target-name" style="color: #fca5a5;">phòng này</strong>?
-        </p>
-        <p style="font-size: 12px; color: #9ca3af; margin-bottom: 22px; line-height: 1.5;">
-          ⚠️ Mọi người đang ngồi xem trong phòng sẽ được tự động chuyển về <strong>Sảnh Chờ</strong>.
+        <p style="font-size: 14px; color: #f3f4f6; margin-bottom: 20px;">
+          Xoá <strong id="delete-room-target-name" style="color: #fca5a5;">phòng này</strong>?
         </p>
         <div style="display: flex; gap: 12px; justify-content: center;">
-          <button type="button" id="btn-cancel-delete-room" class="btn-cancel-action" style="padding: 10px 20px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #e5e7eb; font-weight: 600; cursor: pointer;">Huỷ bỏ</button>
+          <button type="button" id="btn-cancel-delete-room" class="btn-cancel-action" style="padding: 10px 20px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color: #e5e7eb; font-weight: 600; cursor: pointer;">Huỷ</button>
           <button type="button" id="btn-confirm-delete-room" class="btn-confirm-delete" style="padding: 10px 22px; background: #ef4444; border: 1px solid #dc2626; border-radius: 10px; color: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
             <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-            <span>Đồng ý xoá</span>
+            <span>Xoá phòng</span>
           </button>
         </div>
       </div>
@@ -709,92 +801,90 @@
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="armchair"></i>
-          <span>Sơ đồ 10 ghế VIP (Nhân vật Pixel Chibi)</span>
+          <span>Sơ Đồ Chọn Ghế</span>
         </div>
         <button class="modal-close" data-close="modal-seats"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Chọn ghế bạn thích hoặc bấm trực tiếp vào ghế trong không gian 3D.</p>
-        
         <div class="cinema-screen-indicator">
-          <span>🎬 MÀN HÌNH CHIẾU PHIM</span>
+          <span>🎬 MÀN HÌNH CHIẾU</span>
         </div>
 
         <div class="seat-map-grid">
-          <div class="seat-row-label">HÀNG A (Trước)</div>
+          <div class="seat-row-label">HÀNG A</div>
           <div class="seat-row" id="row-a-seats"></div>
 
-          <div class="seat-row-label">HÀNG B (Sau - VIP)</div>
+          <div class="seat-row-label">HÀNG B</div>
           <div class="seat-row" id="row-b-seats"></div>
         </div>
 
         <div class="seat-legend">
           <div class="legend-item"><span class="legend-dot mine"></span> Ghế của bạn</div>
-          <div class="legend-item"><span class="legend-dot occupied"></span> Đang có người</div>
+          <div class="legend-item"><span class="legend-dot occupied"></span> Đã có người</div>
           <div class="legend-item"><span class="legend-dot vacant"></span> Còn trống</div>
         </div>
 
         <div class="modal-footer-action" style="gap: 10px;">
           <button id="btn-modal-copy-invite" class="btn-primary">
             <i data-lucide="share-2"></i>
-            <span>Sao chép Link & Pass phòng</span>
+            <span>Sao chép Link phòng</span>
           </button>
-          <button id="btn-leave-seat" class="btn-secondary hidden">Rời ghế hiện tại</button>
+          <button id="btn-leave-seat" class="btn-secondary hidden">Rời ghế</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ==================== MODAL 5: DANH SÁCH PHÁT & KHO PHIM (CHỈ HOST ĐIỀU KHIỂN) ==================== -->
+  <!-- ==================== MODAL 5: DANH SÁCH PHÁT & KHO PHIM ==================== -->
   <div class="modal-backdrop hidden" id="modal-queue">
     <div class="modal-card modal-lg">
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="list-video"></i>
-          <span>Danh Sách Phát & Kho Phim (Chủ Phòng Điều Khiển)</span>
+          <span>Danh Sách Phát & Kho Phim</span>
         </div>
         <button class="modal-close" data-close="modal-queue"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <!-- Host permission banner -->
-        <div id="queue-host-banner" class="host-permission-banner">
-          👑 Chỉ <strong>Chủ phòng (Host)</strong> hoặc <strong>Admin</strong> mới được thêm phim vào hàng chờ và bấm <strong>Chuyển tiếp</strong>. Danh sách chờ không tự động nhảy bài.
-        </div>
-
         <form id="form-add-video" class="add-video-form">
           <div class="input-with-btn">
-            <input type="text" id="video-url-input" placeholder="Dán link YouTube, Google Drive, hoặc link MP4/CDN để thêm vào hàng chờ..." required />
+            <input type="text" id="video-url-input" placeholder="Dán link video (YouTube, Web Phim, Facebook, TikTok, Drive, MP4...)" required />
             <button type="submit" id="btn-submit-queue-video" class="btn-primary">
               <i data-lucide="plus"></i>
-              <span>Thêm vào hàng chờ</span>
+              <span>Thêm video</span>
             </button>
           </div>
         </form>
 
         <!-- System Movie Catalog Quick Picker for Host -->
         <div class="catalog-Host-picker">
-          <h4>🎬 Chọn nhanh từ Kho Phim Hệ Thống (Bấm để thêm vào hàng chờ):</h4>
+          <h4>🎬 Kho Phim Hệ Thống</h4>
           <div id="queue-catalog-list" class="queue-catalog-grid"></div>
         </div>
 
         <div class="queue-section">
-          <h3>Đang chiếu trên màn hình</h3>
+          <h3>Đang chiếu</h3>
           <div class="current-playing-card" id="queue-current-card">
             <img id="qc-thumb" src="" alt="Thumbnail" />
             <div class="qc-info">
-              <span id="qc-title" class="qc-title">Đang phát...</span>
+              <span id="qc-title" class="qc-title">Chưa phát video</span>
               <span id="qc-author" class="qc-author"></span>
               <span id="qc-requester" class="qc-requester"></span>
             </div>
-            <button id="btn-force-skip" class="btn-skip-pill" title="Bấm Chuyển tiếp để phát video kế tiếp trong danh sách chờ">
-              <i data-lucide="skip-forward"></i>
-              <span>Chuyển tiếp bài kế</span>
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+              <button id="btn-stop-current" class="btn-skip-pill" title="Tắt chiếu" style="background: rgba(239, 68, 68, 0.18); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5;">
+                <i data-lucide="square"></i>
+                <span>Tắt chiếu</span>
+              </button>
+              <button id="btn-force-skip" class="btn-skip-pill" title="Chuyển tiếp">
+                <i data-lucide="skip-forward"></i>
+                <span>Chuyển tiếp</span>
+              </button>
+            </div>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; margin-bottom: 8px;">
-            <h3 style="margin: 0;">Danh sách chờ tiếp theo (<span id="queue-count">0</span>)</h3>
-            <span style="font-size: 11px; color: #f2cf78;">🔒 Không tự động chọn — Bấm "Chuyển tiếp" để phát tuần tự</span>
+            <h3 style="margin: 0;">Hàng chờ tiếp theo (<span id="queue-count">0</span>)</h3>
           </div>
           <div class="queue-list" id="queue-list">
             <div class="empty-queue-msg">Chưa có bài nào trong hàng chờ.</div>
@@ -810,18 +900,18 @@
       <div class="modal-header admin-modal-header">
         <div class="modal-title">
           <i data-lucide="shield-check" style="color: #f2cf78;"></i>
-          <span>Trung Tâm Quản Trị Viên (Admin Control Panel)</span>
+          <span>Quản Trị Hệ Thống</span>
         </div>
         <button class="modal-close" data-close="modal-admin"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body admin-modal-body">
         <!-- 5 Admin Navigation Tabs -->
         <div class="admin-nav-tabs">
-          <button type="button" class="admin-tab-btn active" data-admin-tab="movies">🎬 1. Quản lý nội dung phim</button>
-          <button type="button" class="admin-tab-btn" data-admin-tab="broadcast">📡 2. Hệ thống phát sóng & Upload</button>
-          <button type="button" class="admin-tab-btn" data-admin-tab="categories">🏷️ 3. Quản lý danh mục</button>
-          <button type="button" class="admin-tab-btn" data-admin-tab="users">👥 4. Người dùng & Bình luận</button>
-          <button type="button" class="admin-tab-btn" data-admin-tab="stats">📊 5. Thống kê & Doanh thu</button>
+          <button type="button" class="admin-tab-btn active" data-admin-tab="movies">🎬 Kho phim</button>
+          <button type="button" class="admin-tab-btn" data-admin-tab="broadcast">📡 Upload & Phòng</button>
+          <button type="button" class="admin-tab-btn" data-admin-tab="categories">🏷️ Danh mục</button>
+          <button type="button" class="admin-tab-btn" data-admin-tab="users">👥 Thành viên & Chat</button>
+          <button type="button" class="admin-tab-btn" data-admin-tab="stats">📊 Thống kê</button>
         </div>
 
         <!-- TAB 1: QUẢN LÝ NỘI DUNG PHIM -->
@@ -832,72 +922,72 @@
               <form id="form-admin-movie">
                 <input type="hidden" id="adm-movie-id" />
                 <div class="form-group">
-                  <label>Tên bộ phim / Tập phim:</label>
-                  <input type="text" id="adm-movie-title" placeholder="VD: Doraemon: Nobita và Vùng Đất Lý Tưởng" required />
+                  <label>Tên phim</label>
+                  <input type="text" id="adm-movie-title" placeholder="Tên phim..." required />
                 </div>
                 <div class="form-row-2">
                   <div class="form-group">
-                    <label>Ảnh Poster (URL):</label>
+                    <label>Ảnh Poster (URL)</label>
                     <input type="text" id="adm-movie-poster" placeholder="https://..." />
                   </div>
                   <div class="form-group">
-                    <label>Diễn viên / Tác giả:</label>
-                    <input type="text" id="adm-movie-cast" placeholder="VD: Trấn Thành, Tuấn Trần..." />
+                    <label>Diễn viên / Tác giả</label>
+                    <input type="text" id="adm-movie-cast" placeholder="Diễn viên / Tác giả..." />
                   </div>
                 </div>
                 <div class="form-row-3">
                   <div class="form-group">
-                    <label>Thể loại:</label>
+                    <label>Thể loại</label>
                     <select id="adm-movie-genre" class="custom-select"></select>
                   </div>
                   <div class="form-group">
-                    <label>Quốc gia:</label>
+                    <label>Quốc gia</label>
                     <select id="adm-movie-country" class="custom-select"></select>
                   </div>
                   <div class="form-group">
-                    <label>Năm phát hành:</label>
+                    <label>Năm</label>
                     <select id="adm-movie-year" class="custom-select"></select>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Mô tả nội dung phim:</label>
-                  <textarea id="adm-movie-desc" rows="2" placeholder="Tóm tắt nội dung phim..."></textarea>
+                  <label>Mô tả</label>
+                  <textarea id="adm-movie-desc" rows="2" placeholder="Tóm tắt nội dung..."></textarea>
                 </div>
                 <div class="form-row-2">
                   <div class="form-group">
-                    <label>Nguồn phát sóng:</label>
+                    <label>Nguồn phát</label>
                     <select id="adm-movie-source" class="custom-select">
                       <option value="auto">Tự động nhận diện</option>
                       <option value="youtube">YouTube</option>
                       <option value="direct">File MP4 / CDN / m3u8 / Upload</option>
-                      <option value="embed">Google Drive / Embed Iframe</option>
+                      <option value="embed">Google Drive / Embed Web</option>
                     </select>
                   </div>
                   <div class="form-group">
-                    <label>Phân quyền gói xem:</label>
+                    <label>Phân quyền</label>
                     <select id="adm-movie-vip" class="custom-select">
-                      <option value="false">Miễn phí cho mọi người</option>
-                      <option value="true">👑 Chỉ dành cho Gói VIP</option>
+                      <option value="false">Mọi người</option>
+                      <option value="true">👑 VIP</option>
                     </select>
                   </div>
                 </div>
                 <div class="form-group">
-                  <label>Link video phát sóng (hoặc đường dẫn sau khi Upload ở Tab 2):</label>
-                  <input type="text" id="adm-movie-url" placeholder="https://www.youtube.com/watch?v=... hoặc /uploads/..." required />
+                  <label>Link video</label>
+                  <input type="text" id="adm-movie-url" placeholder="https://..." required />
                 </div>
                 <div class="form-group">
-                  <label>Danh sách các tập (Mỗi dòng: Tên tập | Link phát):</label>
-                  <textarea id="adm-movie-episodes" rows="2" placeholder="Tập 1 Full | https://..."></textarea>
+                  <label>Danh sách tập (Tên tập | Link)</label>
+                  <textarea id="adm-movie-episodes" rows="2" placeholder="Tập 1 | https://..."></textarea>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                  <button type="submit" class="btn-primary full-width">💾 Lưu Phim Vào Hệ Thống</button>
+                  <button type="submit" class="btn-primary full-width">💾 Lưu Phim</button>
                   <button type="button" id="btn-adm-movie-reset" class="btn-secondary">Làm mới</button>
                 </div>
               </form>
             </div>
 
             <div class="admin-list-panel">
-              <h4>📚 Danh sách phim trong hệ thống (<span id="adm-movies-count">0</span>)</h4>
+              <h4>📚 Kho phim (<span id="adm-movies-count">0</span>)</h4>
               <div id="adm-movies-list" class="admin-items-list"></div>
             </div>
           </div>
@@ -907,28 +997,26 @@
         <div class="admin-tab-pane hidden" id="admin-pane-broadcast">
           <div class="admin-split-layout">
             <div class="admin-form-panel">
-              <h4>📤 Upload Trực Tiếp Tệp Phim Từ Máy Tính</h4>
-              <p class="modal-desc">Tải tệp video (<code>.mp4</code>, <code>.webm</code>, <code>.mov</code>) lên máy chủ để phát trực tiếp trong các phòng chiếu 3D.</p>
+              <h4>📤 Tải Phim Lên Máy Chủ</h4>
               <form id="form-admin-upload-video">
                 <div class="form-group">
-                  <label>Chọn tệp video từ máy tính:</label>
+                  <label>Chọn tệp video</label>
                   <input type="file" id="adm-upload-file" accept="video/mp4,video/webm,video/quicktime,video/*" class="file-input" required />
                 </div>
                 <div class="form-group">
-                  <label>Tên phim (Tự động thêm vào Kho Phim sau khi tải lên):</label>
-                  <input type="text" id="adm-upload-title" placeholder="VD: Phim Bom Tấn Chiếu Rạp (Bản Upload)" required />
+                  <label>Tên phim</label>
+                  <input type="text" id="adm-upload-title" placeholder="Tên phim..." required />
                 </div>
                 <button type="submit" id="btn-adm-upload-submit" class="btn-primary full-width">
                   <i data-lucide="upload-cloud"></i>
-                  <span id="adm-upload-btn-text">Tải Lên & Tạo Nguồn Phát Ngay</span>
+                  <span id="adm-upload-btn-text">Tải Lên</span>
                 </button>
               </form>
               <div id="adm-upload-result" class="upload-result-box hidden"></div>
             </div>
 
             <div class="admin-list-panel">
-              <h4>🌐 Nhúng Link Phát Sóng (Google Drive / CDN / m3u8 / YouTube) & Quản Lý Pass Phòng</h4>
-              <p class="modal-desc">Kiểm tra mật khẩu các phòng đang mở hoặc đổi mật khẩu phòng bất kỳ:</p>
+              <h4>🔑 Mật Khẩu Các Phòng Đang Mở</h4>
               <div id="adm-rooms-pass-list" class="admin-items-list"></div>
             </div>
           </div>
@@ -939,25 +1027,25 @@
           <form id="form-admin-categories">
             <div class="form-row-2">
               <div class="form-group">
-                <label>🎭 Các Thể loại phim (Cách nhau bởi dấu phẩy):</label>
+                <label>🎭 Thể loại</label>
                 <textarea id="adm-cat-genres" rows="3"></textarea>
               </div>
               <div class="form-group">
-                <label>🌏 Các Quốc gia (Cách nhau bởi dấu phẩy):</label>
+                <label>🌏 Quốc gia</label>
                 <textarea id="adm-cat-countries" rows="3"></textarea>
               </div>
             </div>
             <div class="form-row-2">
               <div class="form-group">
-                <label>📅 Năm phát hành (Cách nhau bởi dấu phẩy):</label>
+                <label>📅 Năm phát hành</label>
                 <textarea id="adm-cat-years" rows="3"></textarea>
               </div>
               <div class="form-group">
-                <label>🏷️ Các Thẻ / Tags (Cách nhau bởi dấu phẩy):</label>
+                <label>🏷️ Thẻ / Tags</label>
                 <textarea id="adm-cat-tags" rows="3"></textarea>
               </div>
             </div>
-            <button type="submit" class="btn-primary">💾 Lưu Toàn Bộ Danh Mục</button>
+            <button type="submit" class="btn-primary">💾 Lưu Danh Mục</button>
           </form>
         </div>
 
@@ -965,69 +1053,43 @@
         <div class="admin-tab-pane hidden" id="admin-pane-users">
           <div class="admin-split-layout">
             <div class="admin-list-panel">
-              <h4>👥 Quản lý Tài khoản & Phân quyền VIP / Khóa vi phạm (<span id="adm-users-count">0</span>)</h4>
+              <h4>👥 Tài khoản (<span id="adm-users-count">0</span>)</h4>
               <div id="adm-users-list" class="admin-items-list"></div>
             </div>
             <div class="admin-list-panel">
-              <h4>💬 Kiểm duyệt & Xóa Bình luận / Chat Spam</h4>
+              <h4>💬 Bình luận</h4>
               <div id="adm-comments-list" class="admin-items-list"></div>
             </div>
           </div>
         </div>
 
-        <!-- TAB 5: THỐNG KÊ VÀ BÁO CÁO DOANH THU -->
+        <!-- TAB 5: THỐNG KÊ VÀ BÁO CÁO HOẠT ĐỘNG -->
         <div class="admin-tab-pane hidden" id="admin-pane-stats">
           <div class="stats-kpi-grid">
             <div class="stat-kpi-card">
-              <span class="kpi-label">👀 Tổng lượt truy cập</span>
+              <span class="kpi-label">👀 Lượt truy cập</span>
               <strong class="kpi-value" id="stat-total-visits">0</strong>
               <small id="stat-online-now" style="color: #10b981;">Đang online: 1</small>
             </div>
             <div class="stat-kpi-card">
-              <span class="kpi-label">👥 Tổng tài khoản & VIP</span>
+              <span class="kpi-label">👥 Tài khoản</span>
               <strong class="kpi-value" id="stat-total-accounts">0</strong>
-              <small id="stat-total-vip" style="color: #f2cf78;">Thành viên VIP: 0</small>
+              <small id="stat-total-vip" style="color: #f2cf78;">VIP: 0</small>
             </div>
             <div class="stat-kpi-card">
-              <span class="kpi-label">👑 Doanh thu Gói VIP</span>
-              <strong class="kpi-value text-gold" id="stat-vip-revenue">0 đ</strong>
-              <small>Nâng cấp & Gia hạn VIP</small>
+              <span class="kpi-label">🎬 Kho phim</span>
+              <strong class="kpi-value text-gold" id="stat-total-movies">0</strong>
             </div>
             <div class="stat-kpi-card">
-              <span class="kpi-label">📢 Doanh thu Quảng cáo</span>
-              <strong class="kpi-value" style="color: #38bdf8;" id="stat-ad-revenue">0 đ</strong>
-              <small>Tài trợ Banner & Rạp</small>
+              <span class="kpi-label">🚪 Phòng đang mở</span>
+              <strong class="kpi-value" style="color: #38bdf8;" id="stat-active-rooms">0</strong>
             </div>
           </div>
 
-          <div class="admin-split-layout" style="margin-top: 16px;">
+          <div style="margin-top: 16px;">
             <div class="admin-list-panel">
-              <h4>🔥 Top Phim Xem Nhiều Nhất</h4>
+              <h4>🔥 Phim Xem Nhiều</h4>
               <div id="adm-top-movies" class="admin-items-list"></div>
-            </div>
-            <div class="admin-form-panel">
-              <h4>💰 Ghi nhận Doanh thu Quảng cáo / Gói VIP mới</h4>
-              <form id="form-admin-revenue">
-                <div class="form-row-2">
-                  <div class="form-group">
-                    <label>Nguồn thu:</label>
-                    <select id="adm-rev-type" class="custom-select">
-                      <option value="vip">👑 Đăng ký Gói VIP</option>
-                      <option value="ad">📢 Hợp đồng Quảng cáo</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>Số tiền (VNĐ):</label>
-                    <input type="number" id="adm-rev-amount" placeholder="VD: 200000" min="1000" required />
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Ghi chú giao dịch:</label>
-                  <input type="text" id="adm-rev-note" placeholder="VD: Nâng cấp VIP 1 tháng cho user..." required />
-                </div>
-                <button type="submit" class="btn-primary full-width">➕ Ghi Nhận Doanh Thu</button>
-              </form>
-              <div id="adm-transactions-list" class="admin-items-list" style="margin-top: 10px; max-height: 150px;"></div>
             </div>
           </div>
         </div>
@@ -1041,16 +1103,14 @@
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="image"></i>
-          <span>Chiếu ảnh lên màn rạp (Chỉ Chủ Phòng)</span>
+          <span>Chiếu Ảnh Lên Màn Hình</span>
         </div>
         <button class="modal-close" data-close="modal-photo"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Bức ảnh và thông điệp của Chủ phòng sẽ được phóng to trên màn chiếu rạp phim trong 10 giây!</p>
-        
         <form id="form-screen-photo">
           <div class="form-group">
-            <label>Chọn ảnh từ thiết bị:</label>
+            <label>Chọn ảnh</label>
             <input type="file" id="photo-file-input" accept="image/*" class="file-input" />
           </div>
 
@@ -1065,41 +1125,271 @@
           </div>
 
           <div class="form-group">
-            <label>Lời nhắn trên màn chiếu (tối đa 80 ký tự):</label>
-            <input type="text" id="photo-caption-input" placeholder="Ví dụ: Chúc cả rạp một buổi tối vui vẻ!" maxlength="80" />
+            <label>Lời nhắn</label>
+            <input type="text" id="photo-caption-input" placeholder="Nhập lời nhắn..." maxlength="80" />
           </div>
 
           <button type="submit" class="btn-primary full-width" id="btn-submit-photo">
             <i data-lucide="sparkles"></i>
-            <span>Chiếu lên màn hình ngay</span>
+            <span>Chiếu ngay</span>
           </button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Hướng dẫn sử dụng -->
+  <!-- Modal: Tạo Bình Chọn / Mini-Game Phim (Chỉ Host/Admin) -->
+  <div class="modal-backdrop hidden" id="modal-create-poll">
+    <div class="modal-card modal-md">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="bar-chart-2"></i>
+          <span>Tạo Bình Chọn Phim / Mini-Game</span>
+        </div>
+        <button class="modal-close" data-close="modal-create-poll"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="poll-quick-presets">
+          <span class="presets-label">Gợi ý câu hỏi nhanh:</span>
+          <div class="presets-tags">
+            <button type="button" class="preset-tag-btn" data-preset="culprit">🕵️ Ai là hung thủ?</button>
+            <button type="button" class="preset-tag-btn" data-preset="survive">⚔️ Nhân vật có sống sót?</button>
+            <button type="button" class="preset-tag-btn" data-preset="rating">⭐ Phim đỉnh mấy điểm?</button>
+          </div>
+        </div>
+        <form id="form-create-poll" class="poll-create-form">
+          <div class="form-group">
+            <label>Câu hỏi bình chọn</label>
+            <input type="text" id="poll-input-question" placeholder="Ví dụ: Ai là kẻ phản bội?..." maxlength="120" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>Lựa chọn 1</label>
+            <input type="text" class="poll-option-input" placeholder="Lựa chọn 1..." maxlength="50" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>Lựa chọn 2</label>
+            <input type="text" class="poll-option-input" placeholder="Lựa chọn 2..." maxlength="50" required autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>Lựa chọn 3 (Tùy chọn)</label>
+            <input type="text" class="poll-option-input" placeholder="Lựa chọn 3..." maxlength="50" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>Lựa chọn 4 (Tùy chọn)</label>
+            <input type="text" class="poll-option-input" placeholder="Lựa chọn 4..." maxlength="50" autocomplete="off" />
+          </div>
+          <button type="submit" class="btn-primary full-width" style="margin-top: 10px;">
+            <i data-lucide="rocket"></i>
+            <span>Bắt đầu bình chọn cho cả rạp</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Quà Tặng Ảo Cho Chủ Phòng (Livestream Gifting) -->
+  <div class="modal-backdrop hidden" id="modal-gifts">
+    <div class="modal-card modal-md">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="gift"></i>
+          <span>Tặng Quà Ảo Cho Chủ Phòng</span>
+        </div>
+        <button class="modal-close" data-close="modal-gifts"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="gifts-balance-bar">
+          <div class="balance-info">
+            <span class="balance-label">Số dư của bạn:</span>
+            <span id="user-coins-display" class="balance-coins">🪙 1,000 Xu</span>
+          </div>
+          <button type="button" id="btn-claim-free-coins" class="btn-claim-coins" title="Nhận 500 Xu thưởng miễn phí">
+            <span>+ Nhận 500 Xu Free</span>
+          </button>
+        </div>
+        <div class="gifts-grid" id="gifts-grid"></div>
+        <div class="gifts-notice">
+          ✨ Quà tặng sẽ phát hiệu ứng hoạt hình rực rỡ và vinh danh bạn trên toàn màn hình rạp chiếu!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Cài Đặt Rạp Phim (Gom toàn bộ tính năng ẩn: Khép góc, PiP, Tiết kiệm 4G, Đèn, Volume, Ẩn giao diện) -->
+  <div class="modal-backdrop hidden" id="modal-settings">
+    <div class="modal-card modal-md">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="settings"></i>
+          <span>Cài Đặt Rạp Phim</span>
+        </div>
+        <button class="modal-close" data-close="modal-settings"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body settings-modal-body">
+        
+        <!-- SECTION 1: ÂM THANH RẠP CHIẾU -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">🔊 Âm Lượng Rạp</h4>
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Mức âm thanh</span>
+              <span class="settings-sub" id="settings-volume-sub">Hiện tại: 80%</span>
+            </div>
+            <div class="settings-slider-wrap">
+              <button type="button" id="setting-btn-mute" class="settings-icon-btn" title="Bật/Tắt tiếng">
+                <i data-lucide="volume-2" id="setting-vol-icon"></i>
+              </button>
+              <input type="range" id="settings-volume-slider" min="0" max="100" value="80" class="settings-slider" />
+              <span id="settings-volume-val" class="settings-badge">80%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: CHẾ ĐỘ XEM & HIỂN THỊ -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">🎬 Chế Độ Xem Phim</h4>
+
+          <!-- Khép góc / Theater Mode -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Khép góc (Theater Mode)</span>
+              <span class="settings-sub">Làm mờ xung quanh, mở rộng màn chiếu, thu nhỏ chat (Phím T)</span>
+            </div>
+            <button type="button" id="setting-btn-theater" class="settings-toggle-btn">
+              <span class="toggle-state-text" id="setting-theater-state">Tắt</span>
+            </button>
+          </div>
+
+          <!-- Cửa sổ thu nhỏ PiP -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Cửa sổ thu nhỏ (PiP)</span>
+              <span class="settings-sub">Xem phim đồng bộ khi duyệt các tab khác trên máy tính</span>
+            </div>
+            <button type="button" id="setting-btn-pip" class="settings-action-btn">
+              <i data-lucide="picture-in-picture-2"></i>
+              <span>Mở PiP</span>
+            </button>
+          </div>
+
+          <!-- Tắt đèn rạp -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Tắt đèn rạp</span>
+              <span class="settings-sub">Tắt đèn chiếu sáng rạp phim (Có thể bật cùng Đèn tiệc)</span>
+            </div>
+            <button type="button" id="setting-btn-lights" class="settings-toggle-btn">
+              <span class="toggle-state-text" id="setting-lights-state">Tắt</span>
+            </button>
+          </div>
+
+          <!-- Đèn tiệc disco (Host / Admin) -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Đèn tiệc & Quả cầu Disco</span>
+              <span class="settings-sub">Bật quả cầu disco & hiệu ứng laser vũ trường (Chỉ Host/Admin)</span>
+            </div>
+            <button type="button" id="setting-btn-party" class="settings-toggle-btn">
+              <span class="toggle-state-text" id="setting-party-state">Tắt</span>
+            </button>
+          </div>
+
+          <!-- Ẩn thanh điều khiển HUD -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Ẩn giao diện xem phim (Clean View)</span>
+              <span class="settings-sub">Ẩn toàn bộ nút để thưởng thức trọn vẹn màn hình (Phím H)</span>
+            </div>
+            <button type="button" id="setting-btn-hide-hud" class="settings-action-btn">
+              <i data-lucide="eye-off"></i>
+              <span>Ẩn giao diện</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION 3: MẠNG & TIẾT KIỆM DỮ LIỆU -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">📶 Mạng & Hiệu Năng</h4>
+
+          <!-- Data Saver Mode -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Tiết kiệm dữ liệu (4G/5G)</span>
+              <span class="settings-sub">Hạ độ phân giải 360p, chuyển chat về text thuần, giảm tải đường truyền</span>
+            </div>
+            <button type="button" id="setting-btn-data-saver" class="settings-toggle-btn">
+              <span class="toggle-state-text" id="setting-datasaver-state">Tắt</span>
+            </button>
+          </div>
+
+          <!-- Adaptive FPS -->
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Adaptive FPS (Tối ưu GPU)</span>
+              <span class="settings-sub">Tự động giảm tải card đồ họa khi đứng yên xem phim</span>
+            </div>
+            <span class="settings-badge active" style="color: #10b981; background: rgba(16, 185, 129, 0.15); font-weight:700;">Đang bật</span>
+          </div>
+        </div>
+
+        <!-- SECTION 4: MINI-GAME / BÌNH CHỌN (HOST/ADMIN) -->
+        <div class="settings-group" id="settings-host-section">
+          <h4 class="settings-group-title">👑 Tiện Ích Chủ Phòng</h4>
+          <div class="settings-row">
+            <div class="settings-info">
+              <span class="settings-label">Mini-Game & Bình chọn rạp</span>
+              <span class="settings-sub">Tạo câu hỏi bình chọn / dự đoán nhanh cho cả rạp</span>
+            </div>
+            <button type="button" id="setting-btn-open-poll" class="settings-action-btn primary">
+              <i data-lucide="bar-chart-2"></i>
+              <span>Tạo bình chọn</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SECTION 5: HƯỚNG DẪN SỬ DỤNG -->
+        <div class="settings-group">
+          <div class="settings-row" style="border: none; padding-bottom: 0;">
+            <div class="settings-info">
+              <span class="settings-label">Hướng dẫn sử dụng</span>
+              <span class="settings-sub">Quy tắc phòng chiếu, phím tắt và mẹo thưởng thức</span>
+            </div>
+            <button type="button" id="setting-btn-open-help" class="settings-action-btn">
+              <i data-lucide="help-circle"></i>
+              <span>Xem hướng dẫn</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Hướng dẫn sử dụng (Giữ phần giải thích tại đây) -->
   <div class="modal-backdrop hidden" id="modal-help">
     <div class="modal-card">
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="help-circle"></i>
-          <span>Hướng dẫn rạp wetube ciné</span>
+          <span>Hướng dẫn sử dụng</span>
         </div>
         <button class="modal-close" data-close="modal-help"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body help-content">
-        <h4>1. Tài khoản & Nhân vật Pixel Chibi</h4>
-        <p>Đăng ký tài khoản miễn phí hoặc đăng nhập tài khoản có sẵn (Admin: <code>admin</code> / <code>admin123</code>) và chọn 1 trong 12 hình tượng nhân vật Pixel Chibi độc đáo.</p>
-        
-        <h4>2. Mật khẩu Phòng & Quyền Chủ Phòng (Host)</h4>
+        <h4>1. Phòng chiếu & Quyền Chủ phòng (Host)</h4>
         <ul>
-          <li>Mỗi phòng chiếu đều có <strong>Mật khẩu (Pass) riêng</strong> để bảo vệ không gian riêng tư.</li>
-          <li><strong>Chủ phòng (Host)</strong> đã tạo phòng là người duy nhất được điều khiển màn hình (Phát/Dừng, Tua phim, Thêm danh sách chờ, Chiếu ảnh, Bật đèn tiệc).</li>
+          <li>Mỗi phòng chiếu có mật khẩu riêng do người tạo phòng đặt.</li>
+          <li><strong>Chủ phòng (Host)</strong> điều khiển màn chiếu: Phát/Dừng, Tua phim, Thêm danh sách phát, Chuyển tiếp bài, Chiếu ảnh và Bật đèn tiệc.</li>
+        </ul>
+        
+        <h4>2. Đàm thoại Mic & Đèn rạp</h4>
+        <ul>
+          <li>Bấm <strong>Bật Mic</strong> để nói chuyện trực tiếp 2 chiều với mọi người trong phòng.</li>
+          <li>Có thể bật đồng thời cả <strong>Tắt đèn</strong> và <strong>Đèn tiệc</strong>.</li>
         </ul>
 
-        <h4>3. Danh sách phát tuần tự (Bấm Chuyển tiếp)</h4>
-        <p>Danh sách chờ không tự động nhảy bài và không cho khách tự ý chọn bài. Khi muốn qua bài tiếp theo trong hàng chờ, Chủ phòng bấm nút <strong>"Chuyển tiếp"</strong>.</p>
+        <h4>3. Danh sách phát</h4>
+        <p>Hỗ trợ dán link YouTube, các trang web phim, Google Drive, Facebook, TikTok, MP4/M3U8. Bấm <strong>Chuyển tiếp</strong> khi muốn qua bài kế tiếp.</p>
       </div>
     </div>
   </div>
@@ -1108,9 +1398,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261102_v3"></script>
-  <script src="/js/cinema.js?v=20261102_v3"></script>
-  <script src="/js/player.js?v=20261102_v3"></script>
-  <script src="/js/app.js?v=20261102_v3"></script>
+  <script src="/js/avatars.js?v=20261102_v19"></script>
+  <script src="/js/cinema.js?v=20261102_v19"></script>
+  <script src="/js/player.js?v=20261102_v19"></script>
+  <script src="/js/app.js?v=20261102_v19"></script>
 </body>
 </html>

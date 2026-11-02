@@ -20,15 +20,22 @@ class CinemaScene {
     this.lastHoverCheck = 0;
     this.wasPausedByTab = false;
 
+    // Adaptive FPS State (60 FPS on movement/events, 24 FPS when idle watching movie)
+    this.lastRenderTime = 0;
+    this.lastActiveTime = performance.now();
+    this.currentMySeatId = null;
+
     // Quality setting: 'high' | 'smooth'
     this.quality = 'smooth';
     this.partyMode = false;
+    this.lightsOff = false;
 
     // Camera state & targets for smooth interpolation (lerp)
     this.cameraMode = 'overview'; // 'overview' | 'seat' | 'screen' | 'audience'
-    this.camTargetPos = new THREE.Vector3(0, 8.2, 11.0);
-    this.camTargetLook = new THREE.Vector3(0, 3.6, -2.5);
-    this.camCurrentLook = new THREE.Vector3(0, 3.6, -2.5);
+    this.camTargetPos = new THREE.Vector3(0, 6.3, 9.8);
+    this.camTargetLook = new THREE.Vector3(0, 3.8, -5.8);
+    this.camCurrentLook = new THREE.Vector3(0, 3.8, -5.8);
+    this.isDollyActive = false;
 
     // Mouse drag orbit offsets
     this.mouseOffsetX = 0;
@@ -39,19 +46,19 @@ class CinemaScene {
     this.lastMousePos = { x: 0, y: 0 };
 
     // 10 Seats Coordinates
-    // Row A: 5 front seats (y = 0.5, z = -1.5)
-    // Row B: 5 back seats on elevated step (y = 1.3, z = 2.4)
+    // Row A: 5 front seats (y = 0.35, z = -2.2)
+    // Row B: 5 back seats on elevated step (y = 1.0, z = 1.1)
     this.seatCoords = [
-      { id: 0, label: 'A01', x: -4.8, y: 0.5, z: -1.5 },
-      { id: 1, label: 'A02', x: -2.4, y: 0.5, z: -1.5 },
-      { id: 2, label: 'A03', x: 0.0,  y: 0.5, z: -1.5 },
-      { id: 3, label: 'A04', x: 2.4,  y: 0.5, z: -1.5 },
-      { id: 4, label: 'A05', x: 4.8,  y: 0.5, z: -1.5 },
-      { id: 5, label: 'B01', x: -4.8, y: 1.3, z: 2.4 },
-      { id: 6, label: 'B02', x: -2.4, y: 1.3, z: 2.4 },
-      { id: 7, label: 'B03', x: 0.0,  y: 1.3, z: 2.4 },
-      { id: 8, label: 'B04', x: 2.4,  y: 1.3, z: 2.4 },
-      { id: 9, label: 'B05', x: 4.8,  y: 1.3, z: 2.4 }
+      { id: 0, label: 'A01', x: -4.8, y: 0.35, z: -2.2 },
+      { id: 1, label: 'A02', x: -2.4, y: 0.35, z: -2.2 },
+      { id: 2, label: 'A03', x: 0.0,  y: 0.35, z: -2.2 },
+      { id: 3, label: 'A04', x: 2.4,  y: 0.35, z: -2.2 },
+      { id: 4, label: 'A05', x: 4.8,  y: 0.35, z: -2.2 },
+      { id: 5, label: 'B01', x: -4.8, y: 1.0,  z: 1.1 },
+      { id: 6, label: 'B02', x: -2.4, y: 1.0,  z: 1.1 },
+      { id: 7, label: 'B03', x: 0.0,  y: 1.0,  z: 1.1 },
+      { id: 8, label: 'B04', x: 2.4,  y: 1.0,  z: 1.1 },
+      { id: 9, label: 'B05', x: 4.8,  y: 1.0,  z: 1.1 }
     ];
 
     // Meshes references
@@ -82,8 +89,8 @@ class CinemaScene {
     // 1. WebGL Scene & Camera
     this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(52, width / height, 0.1, 100);
-    this.camera.position.set(0, 8.2, 11.0);
+    this.camera = new THREE.PerspectiveCamera(54, width / height, 0.1, 100);
+    this.camera.position.set(0, 6.3, 9.8);
     this.camera.lookAt(this.camCurrentLook);
 
     // 2. Optimized Ultra-Smooth WebGL Renderer
@@ -162,17 +169,17 @@ class CinemaScene {
   }
 
   buildTheaterEnvironment() {
-    const hallWidth = 20;
+    const hallWidth = 21;
     const hallLength = 26;
-    const hallHeight = 11;
+    const hallHeight = 12.2;
 
-    const floorMat = new THREE.MeshStandardMaterial({
+    this.floorMat = new THREE.MeshStandardMaterial({
       color: 0x161816,
       roughness: 0.85,
       metalness: 0.1
     });
 
-    const wallMat = new THREE.MeshStandardMaterial({
+    this.wallMat = new THREE.MeshStandardMaterial({
       color: 0x111311,
       roughness: 0.9,
       metalness: 0.15
@@ -184,117 +191,117 @@ class CinemaScene {
       metalness: 0.2
     });
 
-    const goldTrimMat = new THREE.MeshStandardMaterial({
+    this.goldTrimMat = new THREE.MeshStandardMaterial({
       color: 0xf2cf78,
       roughness: 0.3,
       metalness: 0.8,
       emissive: 0x705218,
-      emissiveIntensity: 0.2
+      emissiveIntensity: 0.22
     });
 
     // 1. Tiered Cinema Floor
     // Front level: y = 0
     const frontFloorGeo = new THREE.BoxGeometry(hallWidth, 0.4, 10);
-    const frontFloor = new THREE.Mesh(frontFloorGeo, floorMat);
+    const frontFloor = new THREE.Mesh(frontFloorGeo, this.floorMat);
     frontFloor.position.set(0, -0.2, -3.5);
     frontFloor.receiveShadow = true;
     this.scene.add(frontFloor);
 
-    // Back Tier (Elevated step for Row B): y = 0.8
-    const backFloorGeo = new THREE.BoxGeometry(hallWidth, 1.2, 12);
-    const backFloor = new THREE.Mesh(backFloorGeo, floorMat);
-    backFloor.position.set(0, 0.2, 7.5);
+    // Back Tier (Elevated step for Row B): y = 0.65
+    const backFloorGeo = new THREE.BoxGeometry(hallWidth, 1.0, 12);
+    const backFloor = new THREE.Mesh(backFloorGeo, this.floorMat);
+    backFloor.position.set(0, 0.1, 6.2);
     backFloor.receiveShadow = true;
     this.scene.add(backFloor);
 
     // Glowing step strip
     const stepStripGeo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
-    const stepStripMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-    const stepStrip = new THREE.Mesh(stepStripGeo, stepStripMat);
-    stepStrip.position.set(0, 0.82, 1.48);
+    this.stepStripMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const stepStrip = new THREE.Mesh(stepStripGeo, this.stepStripMat);
+    stepStrip.position.set(0, 0.62, 0.22);
     this.scene.add(stepStrip);
 
-    // 2. Front Stage Platform in front of screen: y = 0.4
-    const stageGeo = new THREE.BoxGeometry(16, 0.6, 4.2);
+    // 2. Front Stage Platform in front of screen (low profile so stage dancers never cover screen)
+    const stageGeo = new THREE.BoxGeometry(15.2, 0.36, 3.6);
     const stage = new THREE.Mesh(stageGeo, woodStageMat);
-    stage.position.set(0, 0.3, -6.8);
+    stage.position.set(0, 0.12, -6.2);
     stage.receiveShadow = true;
     this.scene.add(stage);
 
     // Stage Front Edge Neon Gold Accent
-    const stageEdgeGeo = new THREE.BoxGeometry(16.05, 0.08, 0.08);
-    const stageEdgeMat = new THREE.MeshBasicMaterial({ color: 0xf2cf78 });
-    const stageEdge = new THREE.Mesh(stageEdgeGeo, stageEdgeMat);
-    stageEdge.position.set(0, 0.6, -4.68);
+    const stageEdgeGeo = new THREE.BoxGeometry(15.25, 0.06, 0.07);
+    this.stageEdgeMat = new THREE.MeshBasicMaterial({ color: 0xf2cf78 });
+    const stageEdge = new THREE.Mesh(stageEdgeGeo, this.stageEdgeMat);
+    stageEdge.position.set(0, 0.31, -4.4);
     this.scene.add(stageEdge);
 
     // 3. Walls & Ceiling
     const backWallGeo = new THREE.BoxGeometry(hallWidth + 2, hallHeight, 0.5);
-    const backWall = new THREE.Mesh(backWallGeo, wallMat);
+    const backWall = new THREE.Mesh(backWallGeo, this.wallMat);
     backWall.position.set(0, hallHeight / 2 - 0.2, -10.5);
     backWall.receiveShadow = true;
     this.scene.add(backWall);
 
-    const rearWall = new THREE.Mesh(backWallGeo, wallMat);
+    const rearWall = new THREE.Mesh(backWallGeo, this.wallMat);
     rearWall.position.set(0, hallHeight / 2 - 0.2, 13.5);
     this.scene.add(rearWall);
 
     const sideWallGeo = new THREE.BoxGeometry(0.5, hallHeight, hallLength);
-    const leftWall = new THREE.Mesh(sideWallGeo, wallMat);
+    const leftWall = new THREE.Mesh(sideWallGeo, this.wallMat);
     leftWall.position.set(-hallWidth / 2, hallHeight / 2 - 0.2, 0);
     this.scene.add(leftWall);
 
-    const rightWall = new THREE.Mesh(sideWallGeo, wallMat);
+    const rightWall = new THREE.Mesh(sideWallGeo, this.wallMat);
     rightWall.position.set(hallWidth / 2, hallHeight / 2 - 0.2, 0);
     this.scene.add(rightWall);
 
     // Decorative wall ribs
     for (let z = -7; z <= 10; z += 3.5) {
       const ribGeo = new THREE.BoxGeometry(0.2, hallHeight - 2, 1.2);
-      const ribLeft = new THREE.Mesh(ribGeo, goldTrimMat);
+      const ribLeft = new THREE.Mesh(ribGeo, this.goldTrimMat);
       ribLeft.position.set(-hallWidth / 2 + 0.25, hallHeight / 2, z);
       this.scene.add(ribLeft);
 
-      const ribRight = new THREE.Mesh(ribGeo, goldTrimMat);
+      const ribRight = new THREE.Mesh(ribGeo, this.goldTrimMat);
       ribRight.position.set(hallWidth / 2 - 0.25, hallHeight / 2, z);
       this.scene.add(ribRight);
     }
 
     const ceilingGeo = new THREE.BoxGeometry(hallWidth + 2, 0.4, hallLength);
-    const ceiling = new THREE.Mesh(ceilingGeo, wallMat);
+    const ceiling = new THREE.Mesh(ceilingGeo, this.wallMat);
     ceiling.position.set(0, hallHeight, 0);
     this.scene.add(ceiling);
 
-    // Speaker Towers
-    const speakerGeo = new THREE.BoxGeometry(1.2, 3.8, 1.2);
+    // Speaker Towers (Placed wide outside the 13.6-wide screen so they never overlap the screen frame)
+    const speakerGeo = new THREE.BoxGeometry(1.1, 3.2, 1.1);
     const speakerMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.5 });
     const speakerL = new THREE.Mesh(speakerGeo, speakerMat);
-    speakerL.position.set(-7.5, 2.2, -7.5);
+    speakerL.position.set(-8.2, 1.8, -8.3);
     this.scene.add(speakerL);
 
     const speakerR = new THREE.Mesh(speakerGeo, speakerMat);
-    speakerR.position.set(7.5, 2.2, -7.5);
+    speakerR.position.set(8.2, 1.8, -8.3);
     this.scene.add(speakerR);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
-    this.scene.add(ambientLight);
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.46);
+    this.scene.add(this.ambientLight);
 
-    const warmKeyLight = new THREE.DirectionalLight(0xfff1d6, 0.65);
-    warmKeyLight.position.set(0, 10, 5);
-    this.scene.add(warmKeyLight);
+    this.warmKeyLight = new THREE.DirectionalLight(0xfff1d6, 0.65);
+    this.warmKeyLight.position.set(0, 10, 5);
+    this.scene.add(this.warmKeyLight);
   }
 
   buildScreenAndCSS3D() {
-    const screenWidth = 14.2;
-    const screenHeight = 8.0;
+    const screenWidth = 13.6;
+    const screenHeight = 7.65;
 
     // In WebGL, add the outer frame bezel behind the screen
     if (this.hasWebGL) {
-      const frameGeo = new THREE.BoxGeometry(screenWidth + 0.9, screenHeight + 0.7, 0.3);
+      const frameGeo = new THREE.BoxGeometry(screenWidth + 0.7, screenHeight + 0.55, 0.3);
       const frameMat = new THREE.MeshStandardMaterial({ color: 0x070807, roughness: 0.7 });
       const screenFrame = new THREE.Mesh(frameGeo, frameMat);
-      screenFrame.position.set(0, 5.2, -9.85);
+      screenFrame.position.set(0, 5.65, -9.85);
       this.scene.add(screenFrame);
 
       // Glowing Neon Brand Text beneath screen: "✦ W E T U B E   C I N É   M I N I ✦"
@@ -304,32 +311,32 @@ class CinemaScene {
       const ctx = signCanvas.getContext('2d');
       ctx.fillStyle = '#060706';
       ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
-      ctx.font = 'bold 44px "Plus Jakarta Sans", sans-serif';
+      ctx.font = 'bold 42px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = '#f2cf78';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#f2cf78';
-      ctx.shadowBlur = 25;
+      ctx.shadowBlur = 22;
       ctx.fillText('✦ W E T U B E   C I N É   M I N I ✦', 512, 64);
 
       const signTex = new THREE.CanvasTexture(signCanvas);
-      const signGeo = new THREE.PlaneGeometry(6.2, 0.8);
+      const signGeo = new THREE.PlaneGeometry(5.2, 0.56);
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, transparent: true });
       const signMesh = new THREE.Mesh(signGeo, signMat);
-      signMesh.position.set(0, 0.85, -9.4);
+      signMesh.position.set(0, 1.38, -9.45);
       this.scene.add(signMesh);
 
       // Warm Glow behind the screen
-      const screenBackLight = new THREE.PointLight(0xf2cf78, 1.4, 15);
-      screenBackLight.position.set(0, 5.2, -9.2);
-      this.scene.add(screenBackLight);
+      this.screenBackLight = new THREE.PointLight(0xf2cf78, 1.4, 15);
+      this.screenBackLight.position.set(0, 5.65, -9.2);
+      this.scene.add(this.screenBackLight);
     }
 
     // Attach CSS3DObject (YouTube Player DOM element)
     const screenElement = document.getElementById('screen-surface');
     if (screenElement && typeof THREE.CSS3DObject !== 'undefined' && this.cssScene) {
       this.cssScreenObject = new THREE.CSS3DObject(screenElement);
-      this.cssScreenObject.position.set(0, 5.2, -9.6);
+      this.cssScreenObject.position.set(0, 5.65, -9.6);
       const scaleFactor = screenWidth / 1280;
       this.cssScreenObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
       this.cssScene.add(this.cssScreenObject);
@@ -432,17 +439,17 @@ class CinemaScene {
 
   buildDiscoBallAndLights() {
     this.discoBallGroup = new THREE.Group();
-    this.discoBallGroup.position.set(0, 9.4, 0);
+    this.discoBallGroup.position.set(0, 10.8, -3.0);
 
-    const rodGeo = new THREE.CylinderGeometry(0.025, 0.025, 1.6, 8);
+    const rodGeo = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 8);
     const rodMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.2 });
     const rod = new THREE.Mesh(rodGeo, rodMat);
-    rod.position.set(0, 0.8, 0);
+    rod.position.set(0, 0.6, 0);
     this.discoBallGroup.add(rod);
 
-    const sphereGeo = new THREE.IcosahedronGeometry(0.85, 3);
+    const sphereGeo = new THREE.IcosahedronGeometry(0.45, 3);
     const sphereMat = new THREE.MeshStandardMaterial({
-      color: 0xcccccc,
+      color: 0xd4d4d8,
       metalness: 0.95,
       roughness: 0.1,
       flatShading: true
@@ -462,7 +469,7 @@ class CinemaScene {
 
     spotColors.forEach((color, i) => {
       const spot = new THREE.SpotLight(color, 0, 18, Math.PI / 6, 0.4, 1.2);
-      spot.position.set(spotOffsets[i].x, 8.5, spotOffsets[i].z);
+      spot.position.set(spotOffsets[i].x, 9.5, spotOffsets[i].z);
       spot.target = ball;
       this.scene.add(spot);
       this.spotlights.push(spot);
@@ -478,7 +485,7 @@ class CinemaScene {
         opacity: 0
       });
       const laser = new THREE.Mesh(laserGeo, laserMat);
-      laser.position.set((i - 1.5) * 3, 7.5, 0);
+      laser.position.set((i - 1.5) * 3, 8.5, 0);
       laser.rotation.x = Math.PI / 2.3;
       this.scene.add(laser);
       this.laserBeams.push(laser);
@@ -486,15 +493,63 @@ class CinemaScene {
   }
 
   setPartyMode(active) {
-    this.partyMode = active;
-    const intensity = active ? 4.5 : 0;
+    this.partyMode = !!active;
+    this.applyLightingState();
+  }
+
+  setLightsOff(active) {
+    this.lightsOff = !!active;
+    document.body.classList.toggle('lights-off', this.lightsOff);
+    this.applyLightingState();
+  }
+
+  applyLightingState() {
+    if (!this.hasWebGL) return;
+
+    // 1. Base theater room lighting (controlled by lightsOff)
+    if (this.lightsOff) {
+      if (this.ambientLight) this.ambientLight.intensity = this.partyMode ? 0.12 : 0.05;
+      if (this.warmKeyLight) this.warmKeyLight.intensity = 0.04;
+      if (this.wallMat) this.wallMat.color.setHex(0x040504);
+      if (this.floorMat) this.floorMat.color.setHex(0x060706);
+      if (this.screenBackLight) this.screenBackLight.intensity = 0.55;
+    } else {
+      if (this.ambientLight) this.ambientLight.intensity = 0.46;
+      if (this.warmKeyLight) this.warmKeyLight.intensity = 0.65;
+      if (this.wallMat) this.wallMat.color.setHex(0x111311);
+      if (this.floorMat) this.floorMat.color.setHex(0x161816);
+      if (this.screenBackLight) this.screenBackLight.intensity = 1.4;
+    }
+
+    // 2. Party disco spotlights, lasers & neon wall strips (works both when lights are ON or OFF!)
+    const spotIntensity = this.partyMode ? (this.lightsOff ? 6.5 : 4.8) : 0;
     this.spotlights.forEach((spot) => {
-      spot.intensity = intensity;
+      spot.intensity = spotIntensity;
     });
 
     this.laserBeams.forEach((laser) => {
-      laser.material.opacity = active ? 0.65 : 0;
+      laser.material.opacity = this.partyMode ? (this.lightsOff ? 0.85 : 0.65) : 0;
     });
+
+    if (!this.partyMode) {
+      if (this.lightsOff) {
+        if (this.goldTrimMat) {
+          this.goldTrimMat.color.setHex(0x14120c);
+          this.goldTrimMat.emissive.setHex(0x000000);
+          this.goldTrimMat.emissiveIntensity = 0.0;
+        }
+        if (this.stepStripMat) this.stepStripMat.color.setHex(0x2e1f05);
+        if (this.stageEdgeMat) this.stageEdgeMat.color.setHex(0x2e2512);
+      } else {
+        if (this.goldTrimMat) {
+          this.goldTrimMat.color.setHex(0xf2cf78);
+          this.goldTrimMat.emissive.setHex(0x705218);
+          this.goldTrimMat.emissiveIntensity = 0.22;
+        }
+        if (this.stepStripMat) this.stepStripMat.color.setHex(0xf59e0b);
+        if (this.stageEdgeMat) this.stageEdgeMat.color.setHex(0xf2cf78);
+      }
+    }
   }
 
   // Update All 10 Seats for Real Users
@@ -509,7 +564,8 @@ class CinemaScene {
           || prevData.userId !== occupant.userId
           || prevData.avatarId !== occupant.avatarId
           || prevData.name !== occupant.name
-          || prevData.tier !== occupant.tier;
+          || prevData.tier !== occupant.tier
+          || !!prevData.micOn !== !!occupant.micOn;
         if (hasChanged) {
           this.removeAvatarFromSeat(i);
           this.createAvatarAtSeat(i, occupant);
@@ -545,16 +601,19 @@ class CinemaScene {
       userId: user.userId || user.id,
       avatarId: user.avatarId || 'pixel_nerd',
       name: user.name,
-      tier: user.tier
+      tier: user.tier,
+      micOn: !!user.micOn
     };
 
-    // Chibi 16-bit Pixel Art Character Sprite
+    // Chibi 16-bit Pixel Art Character Sprite (seated naturally in chair)
     const charSprite = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42);
     charSprite.position.set(0, 0.72, 0);
     avatarGroup.add(charSprite);
 
-    // Name Tag
-    const nameSprite = this.createNameTagSprite(user.name, user.tier, user.color);
+    // Name Tag (positioned above head)
+    const displayLabel = user.micOn ? `🎙️ ${user.name}` : user.name;
+    const tagColor = user.micOn ? '#10b981' : (user.color || '#f2cf78');
+    const nameSprite = this.createNameTagSprite(displayLabel, user.tier, tagColor);
     nameSprite.position.set(0, 1.68, 0);
     avatarGroup.add(nameSprite);
 
@@ -569,46 +628,10 @@ class CinemaScene {
     }
   }
 
-  updateStageUser(stageUserId, allUsers, meId) {
-    if (!this.hasWebGL) return;
-
-    if (!stageUserId) {
-      if (this.stageAvatar) {
-        this.scene.remove(this.stageAvatar);
-        this.stageAvatar = null;
-      }
-      return;
-    }
-
-    const userData = allUsers.find(u => u.id === stageUserId) || {
-      id: stageUserId,
-      name: stageUserId === meId ? 'Bạn' : 'Người Xem',
-      avatarId: 'pixel_ceo',
-      color: '#f59e0b',
-      tier: 'Khán Giả'
-    };
-
-    const prevStage = this.stageAvatar?.userData;
-    if (!prevStage || prevStage.userId !== stageUserId || prevStage.avatarId !== userData.avatarId) {
-      if (this.stageAvatar) this.scene.remove(this.stageAvatar);
-
-      const avatarGroup = new THREE.Group();
-      avatarGroup.position.set(0, 0.7, -6.6);
-      avatarGroup.userData = {
-        userId: stageUserId,
-        avatarId: userData.avatarId || 'pixel_ceo'
-      };
-
-      const charSprite = this.createPixelCharacterSprite(userData.avatarId || 'pixel_ceo', 1.68);
-      charSprite.position.set(0, 0.85, 0);
-      avatarGroup.add(charSprite);
-
-      const nameSprite = this.createNameTagSprite('🕺 ' + userData.name, 'Đang Quẩy', userData.color);
-      nameSprite.position.set(0, 1.92, 0);
-      avatarGroup.add(nameSprite);
-
-      this.scene.add(avatarGroup);
-      this.stageAvatar = avatarGroup;
+  updateStageUser() {
+    if (this.stageAvatar) {
+      this.scene.remove(this.stageAvatar);
+      this.stageAvatar = null;
     }
   }
 
@@ -638,7 +661,7 @@ class CinemaScene {
     texture.minFilter = THREE.LinearFilter;
     const spriteMat = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(1.9, 0.52, 1);
+    sprite.scale.set(1.45, 0.39, 1);
     return sprite;
   }
 
@@ -704,6 +727,10 @@ class CinemaScene {
   }
 
   spawnEmojiReaction(emoji, seatId, isOnStage) {
+    // 1. DOM floating animation overlay (luôn hiển thị rõ nét trên màn hình)
+    this.spawnDomFloatingEmoji(emoji);
+
+    // 2. 3D WebGL floating sprite (nếu có WebGL)
     if (!this.hasWebGL) return;
     let startPos = new THREE.Vector3(0, 1.8, -6.6);
     if (seatId !== null && this.seatCoords[seatId]) {
@@ -736,38 +763,100 @@ class CinemaScene {
     });
   }
 
-  setCameraMode(mode, mySeatId = null) {
+  spawnDomFloatingEmoji(emoji) {
+    if (this.isDataSaver && Math.random() > 0.35) {
+      // In Data Saver mode, limit floating emoji particles to save CPU/GPU
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'dom-floating-emoji';
+    el.textContent = emoji;
+    const rightDock = 15 + Math.random() * 65;
+    const bottomDock = 60 + Math.random() * 80;
+    const size = 26 + Math.floor(Math.random() * 16);
+    el.style.fontSize = `${size}px`;
+    el.style.right = `${rightDock}px`;
+    el.style.bottom = `${bottomDock}px`;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.remove();
+    }, 2200);
+  }
+
+  setDataSaver(enabled) {
+    this.isDataSaver = !!enabled;
+    if (this.renderer) {
+      this.renderer.setPixelRatio(enabled ? 1.0 : Math.min(window.devicePixelRatio, 2));
+    }
+  }
+
+  setCameraMode(mode) {
+    if (this.cameraMode === mode) return;
+    const prevMode = this.cameraMode;
     this.cameraMode = mode;
     this.mouseOffsetX = 0;
     this.mouseOffsetY = 0;
+    this.targetMouseX = 0;
+    this.targetMouseY = 0;
+    this.markActive();
 
+    let targetPos, targetLook;
     switch (mode) {
       case 'overview':
-        this.camTargetPos.set(0, 8.2, 11.0);
-        this.camTargetLook.set(0, 3.6, -2.5);
-        break;
-
-      case 'seat':
-        if (mySeatId !== null && this.seatCoords[mySeatId]) {
-          const s = this.seatCoords[mySeatId];
-          this.camTargetPos.set(s.x, s.y + 1.25, s.z + 0.1);
-          this.camTargetLook.set(s.x * 0.15, 4.8, -9.6);
-        } else {
-          this.camTargetPos.set(0, 1.75, -1.4);
-          this.camTargetLook.set(0, 4.8, -9.6);
-        }
+        targetPos = new THREE.Vector3(0, 6.2, 9.5);
+        targetLook = new THREE.Vector3(0, 4.0, -6.0);
         break;
 
       case 'screen':
-        this.camTargetPos.set(0, 5.2, -1.8);
-        this.camTargetLook.set(0, 5.2, -9.6);
+        targetPos = new THREE.Vector3(0, 5.2, -1.2);
+        targetLook = new THREE.Vector3(0, 5.2, -9.0);
         break;
 
       case 'audience':
-        this.camTargetPos.set(0, 2.2, -7.0);
-        this.camTargetLook.set(0, 1.8, 2.0);
+        targetPos = new THREE.Vector3(0, 2.2, -6.5);
+        targetLook = new THREE.Vector3(0, 1.6, 2.0);
         break;
+
+      default:
+        targetPos = new THREE.Vector3(0, 6.2, 9.5);
+        targetLook = new THREE.Vector3(0, 4.0, -6.0);
     }
+
+    this.camTargetPos.copy(targetPos);
+    this.camTargetLook.copy(targetLook);
+
+    const isDirectionFlip = (prevMode === 'audience' || mode === 'audience');
+    const vp = document.getElementById('cinema-viewport');
+
+    if (isDirectionFlip) {
+      // Khi quay giữa Khán giả <-> Màn hình / Toàn cảnh (quay ngược 180 độ):
+      // Dùng hiệu ứng chuyển cảnh mềm êm dịu (Soft dissolve cut 140ms):
+      this.isFlipping = true;
+      this.dollyActive = false;
+      if (vp) vp.classList.add('cam-switching');
+
+      setTimeout(() => {
+        this.camera.position.copy(targetPos);
+        this.camCurrentLook.copy(targetLook);
+        this.camera.lookAt(this.camCurrentLook);
+        setTimeout(() => {
+          if (vp) vp.classList.remove('cam-switching');
+          this.isFlipping = false;
+        }, 40);
+      }, 110);
+    } else {
+      // Chuyển giữa Toàn cảnh <-> Màn hình: Lướt Cinematic mượt mà (Ease-in-out 720ms), êm ái tự nhiên, không khựng cứng
+      this.isFlipping = false;
+      this.dollyActive = true;
+      this.dollyStart = performance.now();
+      this.dollyDuration = 720;
+      this.dollyFromPos = this.camera.position.clone();
+      this.dollyFromLook = this.camCurrentLook.clone();
+    }
+  }
+
+  markActive() {
+    this.lastActiveTime = performance.now();
   }
 
   toggleTheater2DMode(forceState = null) {
@@ -815,6 +904,7 @@ class CinemaScene {
   onPointerDown(e) {
     this.isDragging = true;
     this.lastMousePos = { x: e.clientX, y: e.clientY };
+    this.markActive();
   }
 
   onPointerMove(e) {
@@ -832,11 +922,13 @@ class CinemaScene {
       this.targetMouseY += dy * 0.003;
       this.targetMouseY = Math.max(-0.4, Math.min(0.4, this.targetMouseY));
       this.lastMousePos = { x: e.clientX, y: e.clientY };
+      this.markActive();
     }
   }
 
   onPointerUp() {
     this.isDragging = false;
+    this.markActive();
   }
 
   checkSeatHover() {
@@ -911,20 +1003,66 @@ class CinemaScene {
     if (this.isPaused) return;
     this.animationFrameId = requestAnimationFrame(() => this.animate());
 
-    const delta = Math.min(this.clock.getDelta(), 0.1);
-    const time = this.clock.getElapsedTime();
-
-    // Camera Lerp
-    this.mouseOffsetX += (this.targetMouseX - this.mouseOffsetX) * 0.08;
-    this.mouseOffsetY += (this.targetMouseY - this.mouseOffsetY) * 0.08;
-
+    const now = performance.now();
     const targetPos = this.camTargetPos.clone();
     targetPos.x += Math.sin(this.mouseOffsetX) * 3;
     targetPos.y += this.mouseOffsetY * 2;
 
-    this.camera.position.lerp(targetPos, 0.06);
-    this.camCurrentLook.lerp(this.camTargetLook, 0.06);
-    this.camera.lookAt(this.camCurrentLook);
+    // Check if camera is actively moving or interpolating
+    const isCameraMoving = this.dollyActive ||
+                           this.isFlipping ||
+                           this.isDragging ||
+                           Math.abs(this.mouseOffsetX - this.targetMouseX) > 0.002;
+
+    // Check if scene has active dynamic animations (Party mode or floating emoji particles)
+    const isDynamic = this.partyMode || this.floatingParticles.length > 0 || (now - this.lastActiveTime < 1800);
+
+    // Adaptive target FPS: 60 FPS when active/moving, throttled to 24 FPS when idle watching movie
+    const targetFps = (isCameraMoving || isDynamic) ? 60 : 24;
+    const interval = 1000 / targetFps;
+
+    if (now - this.lastRenderTime < interval - 2) {
+      return;
+    }
+    this.lastRenderTime = now;
+
+    const delta = Math.min(this.clock.getDelta(), 0.1);
+    const time = this.clock.getElapsedTime();
+
+    // Camera Interpolation: mượt mà, dứt khoát, không bồng bềnh hay chóng mặt
+    this.mouseOffsetX += (this.targetMouseX - this.mouseOffsetX) * 0.1;
+    this.mouseOffsetY += (this.targetMouseY - this.mouseOffsetY) * 0.1;
+
+    if (this.dollyActive) {
+      const t = Math.min(1, Math.max(0, (now - this.dollyStart) / this.dollyDuration));
+      // Ease-in-out cubic: gia tốc êm ái, chuyển động điện ảnh mượt mà, hạ cánh nhẹ nhàng không khựng
+      const ease = t < 0.5
+        ? 4 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      this.camera.position.lerpVectors(this.dollyFromPos, targetPos, ease);
+      this.camCurrentLook.lerpVectors(this.dollyFromLook, this.camTargetLook, ease);
+      this.camera.lookAt(this.camCurrentLook);
+
+      if (t >= 1) {
+        this.camera.position.copy(targetPos);
+        this.camCurrentLook.copy(this.camTargetLook);
+        this.camera.lookAt(this.camCurrentLook);
+        this.dollyActive = false;
+      }
+    } else if (this.isFlipping) {
+      this.camera.position.copy(targetPos);
+      this.camCurrentLook.copy(this.camTargetLook);
+      this.camera.lookAt(this.camCurrentLook);
+    } else {
+      if (this.isDragging) {
+        this.camera.position.lerp(targetPos, 0.15);
+        this.camCurrentLook.lerp(this.camTargetLook, 0.15);
+      } else {
+        this.camera.position.copy(targetPos);
+        this.camCurrentLook.copy(this.camTargetLook);
+      }
+      this.camera.lookAt(this.camCurrentLook);
+    }
 
     // Disco Ball Rotation & Spotlights
     if (this.discoBallGroup) {
@@ -941,15 +1079,22 @@ class CinemaScene {
       this.laserBeams.forEach((laser, i) => {
         laser.rotation.z = Math.sin(time * 2 + i) * 0.25;
       });
+
+      const hue = (time * 0.25) % 1;
+      if (this.goldTrimMat) {
+        this.goldTrimMat.color.setHSL(hue, 0.85, 0.55);
+        this.goldTrimMat.emissive.setHSL(hue, 0.9, 0.4);
+        this.goldTrimMat.emissiveIntensity = 0.65;
+      }
+      if (this.stepStripMat) {
+        this.stepStripMat.color.setHSL((hue + 0.33) % 1, 0.9, 0.55);
+      }
+      if (this.stageEdgeMat) {
+        this.stageEdgeMat.color.setHSL((hue + 0.66) % 1, 0.9, 0.55);
+      }
     }
 
-    // Stage Dancer
-    if (this.stageAvatar) {
-      this.stageAvatar.position.y = 0.7 + Math.abs(Math.sin(time * 6)) * 0.22;
-      this.stageAvatar.rotation.y = Math.sin(time * 4) * 0.35;
-    }
-
-    // Seated Avatars
+    // Seated Avatars (seated naturally in chair)
     this.avatarMeshes.forEach((av, i) => {
       if (av && this.seatCoords[i]) {
         av.position.y = (this.seatCoords[i].y + 0.35) + Math.sin(time * 2 + i) * 0.015;

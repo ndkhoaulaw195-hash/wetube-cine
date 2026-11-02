@@ -20,6 +20,48 @@ class CinemaApp {
     this.isChatOpen = false;
     this.isHudHidden = false;
 
+    // Interactive Suite: Theater Mode, Data Saver, Polls, Stickers & Gifts
+    this.isTheaterMode = false;
+    this.isDataSaver = false;
+    this.currentPoll = null;
+    this.myVotedOption = null;
+    this.activeStickerTab = 'stickers';
+
+    this.stickersCatalog = [
+      { id: 'stk_popcorn', name: 'Bắp rang bơ', url: 'https://media.giphy.com/media/tFK82Y8fMZCcE/giphy.gif' },
+      { id: 'stk_shock', name: 'Quá sốc', url: 'https://media.giphy.com/media/26ufdipQqU2lhNA4g/giphy.gif' },
+      { id: 'stk_cry', name: 'Khóc ròng', url: 'https://media.giphy.com/media/OPU6wzx8JrHna/giphy.gif' },
+      { id: 'stk_laugh', name: 'Cười xỉu', url: 'https://media.giphy.com/media/10JhviFuU2gWD6/giphy.gif' },
+      { id: 'stk_fire', name: 'Cháy quá', url: 'https://media.giphy.com/media/QMHoU66sBXCAU/giphy.gif' },
+      { id: 'stk_clap', name: 'Vỗ tay', url: 'https://media.giphy.com/media/nbvFVPiEiJH6JOGIok/giphy.gif' },
+      { id: 'stk_cat_cheer', name: 'Mèo quẩy', url: 'https://media.giphy.com/media/jpbnoe3UIa8TU8LM13/giphy.gif' },
+      { id: 'stk_dance', name: 'Nhảy sung', url: 'https://media.giphy.com/media/blSTtZehjAZ8I/giphy.gif' },
+      { id: 'stk_scared', name: 'Sợ hãi', url: 'https://media.giphy.com/media/12Rfz4s8m77JkY/giphy.gif' },
+      { id: 'stk_heart', name: 'Thả tim', url: 'https://media.giphy.com/media/M90mJvfWfd5mbUuFUh/giphy.gif' },
+      { id: 'stk_king', name: 'Đỉnh nóc', url: 'https://media.giphy.com/media/TNb3Ihssb6T5ECUCYB/giphy.gif' },
+      { id: 'stk_pizza', name: 'Ăn pizza', url: 'https://media.giphy.com/media/1108D2tVaUN3eo/giphy.gif' }
+    ];
+
+    this.memesCatalog = [
+      { id: 'meme_doge', name: 'Doge xem phim', url: 'https://media.giphy.com/media/9C1nyePmmaysU/giphy.gif' },
+      { id: 'meme_pepe', name: 'Ếch bất ngờ', url: 'https://media.giphy.com/media/ISOckXUybVfQ4/giphy.gif' },
+      { id: 'meme_cool', name: 'Kính ngầu', url: 'https://media.giphy.com/media/yA5Y3B4Ip13Xy/giphy.gif' },
+      { id: 'meme_mindblown', name: 'Bùng nổ não', url: 'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif' },
+      { id: 'meme_drama', name: 'Hóng drama', url: 'https://media.giphy.com/media/gl0mkIZOW6Nwc/giphy.gif' },
+      { id: 'meme_sleep', name: 'Buồn ngủ ghê', url: 'https://media.giphy.com/media/mguPrVJAnEHIY/giphy.gif' },
+      { id: 'meme_cheers', name: 'Cụng ly', url: 'https://media.giphy.com/media/GCLlQnV7dXZ2E/giphy.gif' },
+      { id: 'meme_confused', name: 'Khó hiểu', url: 'https://media.giphy.com/media/g01ZnwAUvutuK8GIQn/giphy.gif' }
+    ];
+
+    this.virtualGifts = [
+      { id: 'rose', name: 'Hoa Hồng', icon: '🌹', cost: 10, desc: 'Tặng cành hoa tươi thắm' },
+      { id: 'boba', name: 'Trà Sữa', icon: '🧋', cost: 50, desc: 'Mời ly trà sữa full topping' },
+      { id: 'popcorn_vip', name: 'Bắp Dát Vàng', icon: '🍿', cost: 100, desc: 'Bắp rang bơ hoàng gia' },
+      { id: 'crown', name: 'Vương Miện', icon: '👑', cost: 200, desc: 'Tôn vinh rạp phim đỉnh chóp' },
+      { id: 'rocket', name: 'Tên Lửa', icon: '🚀', cost: 500, desc: 'Bắn tên lửa rực sáng rạp phim' },
+      { id: 'supercar', name: 'Siêu Xe', icon: '🏎️', cost: 1000, desc: 'Đại gia cập bến rạp VIP' }
+    ];
+
     this.selectedRegAvatar = 'pixel_nerd';
     this.selectedProfileAvatar = 'pixel_nerd';
     this.selectedColor = '#f2cf78';
@@ -35,6 +77,26 @@ class CinemaApp {
     this.roomsList = [];
 
     this.audioCtx = null;
+
+    // Real-time Two-Way / Multi-User Voice Chat State
+    this.isMicOn = false;
+    this.voiceStream = null;
+    this.voiceCaptureCtx = null;
+    this.voiceSourceNode = null;
+    this.voiceProcessor = null;
+    this.voicePlayCtx = null;
+    this.voiceNextPlayTime = new Map();
+    this.activeSpeakers = new Map();
+    this.lastVoiceSentAt = 0;
+
+    // Unlock Web Audio playback context on first user interaction so incoming voice is always audible
+    const unlockVoiceAudio = () => {
+      if (this.voicePlayCtx && this.voicePlayCtx.state === 'suspended') {
+        this.voicePlayCtx.resume().catch(() => {});
+      }
+    };
+    window.addEventListener('pointerdown', unlockVoiceAudio, { passive: true });
+    window.addEventListener('keydown', unlockVoiceAudio, { passive: true });
 
     // Start 3D scene paused in Lobby for 0% CPU/GPU usage
     this.cinema = new CinemaScene('canvas-container', 'css3d-container', true);
@@ -60,9 +122,9 @@ class CinemaApp {
       }
     };
 
-    this.player.onStateToggled = (isPlaying) => {
+    this.player.onStateToggled = (isPlaying, currentTime) => {
       if (!this.canControlRoom()) return;
-      this.send('toggle-pause', { isPlaying });
+      this.send('toggle-pause', { isPlaying, currentTime });
       this.updatePlayPauseButtonUI(isPlaying);
     };
     this.player.onSeekRequested = (time) => {
@@ -118,6 +180,26 @@ class CinemaApp {
       gain.connect(this.audioCtx.destination);
       osc.start();
       osc.stop(this.audioCtx.currentTime + 0.08);
+    } catch {}
+  }
+
+  playGiftSound() {
+    this.initAudioContext();
+    if (!this.audioCtx || this.audioCtx.state === 'suspended') return;
+    try {
+      const now = this.audioCtx.currentTime;
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.08);
+        gain.gain.setValueAtTime(0.18, now + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.35);
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.start(now + i * 0.08);
+        osc.stop(now + i * 0.08 + 0.35);
+      });
     } catch {}
   }
 
@@ -232,6 +314,15 @@ class CinemaApp {
         this.renderLobbyRooms(this.roomsList);
         this.renderRoomsModal(this.roomsList);
         this.renderLobbyCatalog();
+
+        // If user clicked a room before logging in, continue joining that room automatically
+        if (this.isLoggedIn() && this.pendingJoinRoomId) {
+          const nextRoomId = this.pendingJoinRoomId;
+          const nextRoomPass = this.pendingJoinRoomPass;
+          this.pendingJoinRoomId = null;
+          this.pendingJoinRoomPass = null;
+          this.attemptJoinRoom(nextRoomId, nextRoomPass);
+        }
         break;
       }
 
@@ -262,12 +353,26 @@ class CinemaApp {
         this.cinema.updateStageUser(this.room.stageUser, this.room.realUsers, this.you.id);
         this.cinema.setPartyMode(this.room.partyMode);
         this.updatePartyModeUI(this.room.partyMode);
+        this.cinema.setLightsOff(!!this.room.lightsOff);
+        this.updateLightsModeUI(!!this.room.lightsOff);
 
         this.player.syncVideo(this.room.currentVideo, this.clockOffset);
         this.updateNowPlayingUI();
         this.updateOccupancyUI();
         this.renderSeatMapModal();
         this.renderQueueModal();
+
+        if (payload.room && payload.room.currentPoll) {
+          this.currentPoll = payload.room.currentPoll;
+          this.renderPollOverlay(this.currentPoll);
+        } else {
+          this.hidePollOverlay();
+        }
+
+        if (payload.you && payload.you.coins !== undefined) {
+          this.you.coins = payload.you.coins;
+          this.updateCoinsUI();
+        }
 
         if (payload.availableRooms) {
           this.roomsList = payload.availableRooms;
@@ -280,8 +385,7 @@ class CinemaApp {
           chatFeed.innerHTML = `
             <div class="chat-welcome">
               <div class="welcome-icon">🍿</div>
-              <p>Chào mừng bạn đến với <strong>${this.room.roomName}</strong>!</p>
-              <p class="sub">👑 Chủ phòng: <strong>${this.room.hostName}</strong>. Chỉ Chủ phòng mới có quyền điều khiển màn chiếu.</p>
+              <p>Phòng <strong>${this.room.roomName}</strong> · Host: <strong>${this.room.hostName}</strong></p>
             </div>
           `;
         }
@@ -290,7 +394,8 @@ class CinemaApp {
           payload.recentMessages.forEach((m) => this.appendChatMessage(m, false));
         }
 
-        this.showToast(`Chào mừng bạn vào "${this.room.roomName}"!`, 'success');
+        this.stopVoiceCapture(false);
+        this.updateVoiceSpeakersPill();
         break;
       }
 
@@ -330,17 +435,22 @@ class CinemaApp {
         this.renderSeatMapModal();
         this.updateOccupancyUI();
         this.updateProfileUI();
-
-        if (this.cinema.cameraMode === 'seat') {
-          this.cinema.setCameraMode('seat', this.you.seatId);
-        }
         break;
       }
 
       case 'stage-state': {
         if (!this.room) break;
         this.room.stageUser = payload.stageUser;
-        if (payload.seats) this.room.seats = payload.seats;
+        if (payload.seats) {
+          this.room.seats = payload.seats;
+          this.cinema.updateSeats(this.room.seats);
+          this.renderSeatMapModal();
+          this.updateOccupancyUI();
+        }
+        if (payload.stageUser === this.you.id) {
+          this.you.seatId = null;
+          this.updateProfileUI();
+        }
 
         this.cinema.updateStageUser(this.room.stageUser, this.room.realUsers || [], this.you.id);
         this.updateStageButtonUI();
@@ -366,7 +476,8 @@ class CinemaApp {
             this.room.currentVideo.startedAt = payload.startedAt;
           }
         }
-        this.player.applyPlaybackSync(payload);
+        const isSelfEcho = !!(payload.senderId && this.you && payload.senderId === this.you.id);
+        this.player.applyPlaybackSync(payload, isSelfEcho);
         this.updatePlayPauseButtonUI(payload.isPlaying);
         break;
       }
@@ -403,6 +514,25 @@ class CinemaApp {
         break;
       }
 
+      case 'poll-updated': {
+        this.currentPoll = payload.poll;
+        this.renderPollOverlay(this.currentPoll);
+        break;
+      }
+
+      case 'gift-broadcast': {
+        this.showGiftCelebration(payload);
+        break;
+      }
+
+      case 'coins-updated': {
+        if (this.you) {
+          this.you.coins = payload.coins;
+          this.updateCoinsUI();
+        }
+        break;
+      }
+
       case 'screen-post-started': {
         if (this.room) this.room.screenPost = payload.screenPost;
         this.showScreenPostOverlay(payload.screenPost);
@@ -419,6 +549,13 @@ class CinemaApp {
         if (this.room) this.room.partyMode = payload.partyMode;
         this.cinema.setPartyMode(payload.partyMode);
         this.updatePartyModeUI(payload.partyMode);
+        break;
+      }
+
+      case 'lights-mode-toggled': {
+        if (this.room) this.room.lightsOff = !!payload.lightsOff;
+        this.cinema.setLightsOff(!!payload.lightsOff);
+        this.updateLightsModeUI(!!payload.lightsOff);
         break;
       }
 
@@ -440,9 +577,51 @@ class CinemaApp {
         if (!this.room) break;
         this.room.onlineCount = payload.onlineCount;
         this.room.seats = payload.seats;
+        if (payload.userId) {
+          this.activeSpeakers.delete(payload.userId);
+          this.voiceNextPlayTime.delete(payload.userId);
+          if (Array.isArray(this.room.realUsers)) {
+            this.room.realUsers = this.room.realUsers.filter(u => u.id !== payload.userId);
+          }
+        }
         this.cinema.updateSeats(this.room.seats);
         this.renderSeatMapModal();
         this.updateOccupancyUI();
+        this.updateVoiceSpeakersPill();
+        break;
+      }
+
+      case 'voice-state-changed': {
+        if (!this.room) break;
+        if (payload.seats) {
+          this.room.seats = payload.seats;
+          this.cinema.updateSeats(this.room.seats);
+          this.renderSeatMapModal();
+        }
+        if (Array.isArray(this.room.realUsers)) {
+          const u = this.room.realUsers.find(x => x.id === payload.userId);
+          if (u) u.micOn = !!payload.micOn;
+          else if (payload.userId && payload.name) {
+            this.room.realUsers.push({
+              id: payload.userId,
+              name: payload.name,
+              color: payload.color,
+              seatId: payload.seatId,
+              micOn: !!payload.micOn
+            });
+          }
+        }
+        if (!payload.micOn && payload.userId) {
+          this.activeSpeakers.delete(payload.userId);
+          this.voiceNextPlayTime.delete(payload.userId);
+        }
+        this.updateVoiceSpeakersPill();
+        break;
+      }
+
+      case 'voice-chunk': {
+        if (!this.room || this.inLobby) break;
+        this.handleIncomingVoiceChunk(payload);
         break;
       }
 
@@ -467,8 +646,8 @@ class CinemaApp {
     const hostNameEl = document.getElementById('hud-host-name');
     if (hostNameEl && this.room) {
       hostNameEl.textContent = canControl
-        ? `👑 Bạn là Chủ phòng (${this.room.hostName})`
-        : `👑 Host: ${this.room.hostName}`;
+        ? `Chủ phòng`
+        : `Host: ${this.room.hostName}`;
     }
 
     const passTag = document.getElementById('hud-room-pass-tag');
@@ -489,6 +668,8 @@ class CinemaApp {
     const btnPhotoBottom = document.getElementById('btn-open-photo');
     const btnPartyTop = document.getElementById('btn-toggle-party');
     const btnForceSkip = document.getElementById('btn-force-skip');
+    const btnStopCurrent = document.getElementById('btn-stop-current');
+    const btnBarStop = document.getElementById('btn-bar-stop');
     const formAddVideo = document.getElementById('form-add-video');
 
     if (hostBtns) hostBtns.classList.toggle('playback-disabled', !canControl);
@@ -498,6 +679,8 @@ class CinemaApp {
     if (btnPhotoBottom) btnPhotoBottom.classList.toggle('playback-disabled', !canControl);
     if (btnPartyTop) btnPartyTop.classList.toggle('playback-disabled', !canControl);
     if (btnForceSkip) btnForceSkip.classList.toggle('hidden', !canControl);
+    if (btnStopCurrent) btnStopCurrent.classList.toggle('hidden', !canControl || !this.room?.currentVideo);
+    if (btnBarStop) btnBarStop.classList.toggle('hidden', !canControl);
     if (formAddVideo) formAddVideo.classList.toggle('playback-disabled', !canControl);
   }
 
@@ -575,13 +758,20 @@ class CinemaApp {
   }
 
   leaveToLobby() {
+    this.stopVoiceCapture(true);
+    this.activeSpeakers.clear();
+    this.voiceNextPlayTime.clear();
+    this.updateVoiceSpeakersPill();
+    this.currentRoomId = null;
+    this.room = null;
     this.send('leave-to-lobby', {});
     this.showLobbyUI();
     if (this.player) {
       this.player.pauseVideo();
     }
     this.closeModal('modal-rooms');
-    this.showToast('Bạn đã rời phòng và quay về Sảnh Chờ.', 'info');
+    this.renderLobbyRooms(this.roomsList);
+    this.renderRoomsModal(this.roomsList);
   }
 
   // --- Room Password Prompt ---
@@ -607,14 +797,22 @@ class CinemaApp {
     setTimeout(() => passInput?.focus(), 80);
   }
 
-  attemptJoinRoom(roomId) {
+  attemptJoinRoom(roomId, providedPassword = null) {
+    if (!roomId) return;
     if (!this.isLoggedIn()) {
-      this.showToast('🔑 Vui lòng Đăng nhập hoặc Đăng ký tài khoản trước khi vào phòng chiếu!', 'info');
+      this.pendingJoinRoomId = roomId;
+      this.pendingJoinRoomPass = providedPassword;
+      this.showToast('🔑 Vui lòng Đăng nhập hoặc Đăng ký tài khoản để vào phòng chiếu!', 'info');
       this.openAuthModal();
       return;
     }
 
     const roomInfo = this.roomsList.find(r => r.id === roomId);
+    if (providedPassword) {
+      this.send('join-room', { roomId, password: providedPassword });
+      return;
+    }
+
     if (roomInfo && roomInfo.hasPassword && !roomInfo.canSkipPassword) {
       this.openRoomPasswordModal(roomInfo.id, roomInfo.name);
       return;
@@ -627,10 +825,38 @@ class CinemaApp {
     if (!Array.isArray(roomsList)) return;
 
     const countPill = document.getElementById('lobby-rooms-count-pill');
-    if (countPill) countPill.textContent = `${roomsList.length} / 5 phòng đang mở`;
+    if (countPill) countPill.textContent = `${roomsList.length}/5 phòng`;
 
     const activeCountTag = document.getElementById('lobby-active-count-tag');
-    if (activeCountTag) activeCountTag.textContent = `${roomsList.length} phòng`;
+    if (activeCountTag) countPill && (activeCountTag.textContent = `${roomsList.length} phòng`);
+
+    // Populate Quick Join Room Select in Lobby
+    const quickJoinCard = document.getElementById('lobby-quick-join-card');
+    if (quickJoinCard) {
+      quickJoinCard.classList.toggle('hidden', roomsList.length === 0);
+    }
+    const quickSelect = document.getElementById('lobby-quick-room-select');
+    const quickPassInput = document.getElementById('lobby-quick-room-pass');
+    if (quickSelect) {
+      const prevVal = quickSelect.value;
+      quickSelect.innerHTML = `<option value="" style="background:#11131a;">-- Chọn phòng --</option>` +
+        roomsList.map(r => `<option value="${r.id}" data-skip="${r.canSkipPassword ? '1' : '0'}" style="background:#11131a;">🎬 ${r.name} (${r.seatedCount}/10 ghế)</option>`).join('');
+      if (prevVal && roomsList.some(r => r.id === prevVal)) {
+        quickSelect.value = prevVal;
+      } else if (roomsList.length > 0) {
+        quickSelect.value = roomsList[0].id;
+      }
+      const selectedRoom = roomsList.find(r => r.id === quickSelect.value);
+      if (quickPassInput) {
+        if (selectedRoom && selectedRoom.canSkipPassword) {
+          quickPassInput.placeholder = 'Không cần mật khẩu';
+          quickPassInput.required = false;
+        } else {
+          quickPassInput.placeholder = 'Mật khẩu phòng...';
+          quickPassInput.required = true;
+        }
+      }
+    }
 
     const createBadge = document.getElementById('lobby-create-badge');
     const inputCreate = document.getElementById('lobby-create-room-input');
@@ -638,7 +864,7 @@ class CinemaApp {
     const btnSubmit = document.getElementById('btn-lobby-submit-create');
     const isMax = roomsList.length >= 5;
 
-    if (createBadge) createBadge.textContent = isMax ? 'Đã đạt tối đa 5/5 phòng' : `Đang mở: ${roomsList.length}/5 phòng`;
+    if (createBadge) createBadge.textContent = `${roomsList.length}/5 phòng`;
     if (inputCreate && btnSubmit) {
       inputCreate.disabled = isMax;
       if (inputPass) inputPass.disabled = isMax;
@@ -658,7 +884,7 @@ class CinemaApp {
     if (emptyBox) emptyBox.classList.add('hidden');
 
     grid.innerHTML = roomsList.map((r) => {
-      const isCurrent = this.currentRoomId && r.id === this.currentRoomId;
+      const isCurrent = !this.inLobby && this.currentRoomId && r.id === this.currentRoomId;
       const passBadge = r.roomPassword
         ? `<span style="color:#f2cf78; font-weight:700;">🔑 Pass: ${r.roomPassword}</span>`
         : `<span style="color:#fca5a5;">🔒 Có mật khẩu</span>`;
@@ -681,8 +907,8 @@ class CinemaApp {
           </div>
           <div class="room-card-actions">
             <button class="room-card-btn" data-lobby-join="${r.id}">
-              <i data-lucide="key-round" style="width: 14px; height: 14px;"></i>
-              <span>${r.canSkipPassword ? 'Vào thẳng (Host/Admin)' : 'Nhập Pass & Vào xem'}</span>
+              <i data-lucide="log-in" style="width: 14px; height: 14px;"></i>
+              <span>Vào phòng</span>
             </button>
             ${r.canSkipPassword ? `
               <button class="room-delete-btn" data-lobby-delete="${r.id}" data-room-name="${r.name}" title="Xoá phòng này">
@@ -745,7 +971,7 @@ class CinemaApp {
     if (!grid) return;
 
     grid.innerHTML = roomsList.map((r) => {
-      const isCurrent = r.id === this.currentRoomId;
+      const isCurrent = !this.inLobby && r.id === this.currentRoomId;
       const passInfo = r.roomPassword ? `🔑 Pass: ${r.roomPassword}` : '🔒 Có mật khẩu';
       return `
         <div class="room-card ${isCurrent ? 'active' : ''}">
@@ -761,9 +987,15 @@ class CinemaApp {
             </div>
           </div>
           <div class="room-card-actions">
-            <button class="room-card-btn" data-join-room="${r.id}" ${isCurrent ? 'disabled' : ''}>
-              <span>${isCurrent ? '✓ Đang ở phòng này' : 'Chuyển sang phòng này'}</span>
-            </button>
+            ${isCurrent ? `
+              <button class="room-card-btn" data-out-room="${r.id}" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.5); color: #fca5a5;">
+                <span>🚪 Rời phòng</span>
+              </button>
+            ` : `
+              <button class="room-card-btn" data-join-room="${r.id}">
+                <span>🚪 Vào phòng</span>
+              </button>
+            `}
             ${r.canSkipPassword ? `
               <button class="room-delete-btn" data-delete-room="${r.id}" data-room-name="${r.name}">
                 <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
@@ -777,9 +1009,15 @@ class CinemaApp {
     grid.querySelectorAll('[data-join-room]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const roomId = btn.getAttribute('data-join-room');
-        if (roomId && roomId !== this.currentRoomId) {
+        if (roomId) {
           this.attemptJoinRoom(roomId);
         }
+      });
+    });
+
+    grid.querySelectorAll('[data-out-room]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this.leaveToLobby();
       });
     });
 
@@ -821,7 +1059,7 @@ class CinemaApp {
     const lobbyRoleTag = document.getElementById('lobby-user-role-tag');
     if (lobbyAvImg && avatarDataUrl) lobbyAvImg.src = avatarDataUrl;
     if (lobbyName) {
-      lobbyName.textContent = this.isLoggedIn() ? this.you.name : 'Đăng nhập / Đăng ký';
+      lobbyName.textContent = this.isLoggedIn() ? this.you.name : 'Đăng nhập';
     }
     if (lobbyRoleTag) {
       lobbyRoleTag.className = 'role-mini-tag';
@@ -916,8 +1154,8 @@ class CinemaApp {
     if (btnTheater) {
       btnTheater.addEventListener('click', () => {
         const is2D = this.cinema.toggleTheater2DMode();
-        document.getElementById('theater-mode-label').textContent = is2D ? 'Toàn Cảnh 3D' : 'Tập trung màn hình';
-        this.showToast(is2D ? 'Đã bật chế độ xem rạp cận cảnh' : 'Đã quay lại toàn cảnh rạp 3D', 'info');
+        const label = document.getElementById('theater-mode-label');
+        if (label) label.textContent = is2D ? 'Toàn Cảnh 3D' : 'Màn hình';
       });
     }
 
@@ -926,7 +1164,6 @@ class CinemaApp {
     if (screenIdle) {
       screenIdle.addEventListener('click', () => {
         this.player.unmuteWithGesture();
-        this.showToast('Âm thanh rạp phim đã sẵn sàng!', 'success');
       });
     }
 
@@ -972,23 +1209,54 @@ class CinemaApp {
     document.getElementById('btn-force-skip')?.addEventListener('click', triggerManualNext);
     document.getElementById('btn-player-retry')?.addEventListener('click', triggerManualNext);
 
+    const triggerStopVideo = () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được tắt video đang chiếu trên màn hình!', 'error');
+        return;
+      }
+      this.send('stop-video', {});
+    };
+
+    document.getElementById('btn-stop-current')?.addEventListener('click', triggerStopVideo);
+    document.getElementById('btn-bar-stop')?.addEventListener('click', triggerStopVideo);
+
     const scrubber = document.getElementById('playback-scrubber');
     if (scrubber) {
+      let lastLiveScrubAt = 0;
       scrubber.addEventListener('input', (e) => {
         if (!this.canControlRoom()) return;
         this.player.isSeeking = true;
         const pct = parseFloat(e.target.value) || 0;
         const fill = document.getElementById('scrubber-fill');
         if (fill) fill.style.width = `${pct}%`;
+
+        const dur = this.player.duration
+          || (this.player.isReady && this.player.player && typeof this.player.player.getDuration === 'function' ? this.player.player.getDuration() : 0)
+          || (this.room?.currentVideo?.duration)
+          || 0;
+        if (dur > 0) {
+          const targetSec = (pct / 100) * dur;
+          const curEl = document.getElementById('playback-current-time');
+          if (curEl) curEl.textContent = this.formatTime(targetSec);
+
+          const now = Date.now();
+          if (now - lastLiveScrubAt > 160) {
+            lastLiveScrubAt = now;
+            this.player.seekTo(targetSec, false);
+          }
+        }
       });
 
       scrubber.addEventListener('change', (e) => {
         if (!this.canControlRoom()) return;
         const pct = parseFloat(e.target.value) || 0;
-        const dur = this.player.duration || (this.room?.currentVideo?.duration) || 0;
+        const dur = this.player.duration
+          || (this.player.isReady && this.player.player && typeof this.player.player.getDuration === 'function' ? this.player.player.getDuration() : 0)
+          || (this.room?.currentVideo?.duration)
+          || 0;
         this.player.isSeeking = false;
         if (dur > 0) {
-          this.player.seekTo((pct / 100) * dur);
+          this.player.seekTo((pct / 100) * dur, true);
         }
       });
     }
@@ -1077,9 +1345,39 @@ class CinemaApp {
       this.closeModal('modal-confirm-delete');
     });
 
-    // 10. Back to Lobby
+    // 10. Back to Lobby / Out Room & Quick Join Room
     document.getElementById('btn-back-lobby')?.addEventListener('click', () => this.leaveToLobby());
     document.getElementById('btn-modal-back-lobby')?.addEventListener('click', () => this.leaveToLobby());
+    document.getElementById('btn-bottom-leave-room')?.addEventListener('click', () => this.leaveToLobby());
+
+    const quickRoomSelect = document.getElementById('lobby-quick-room-select');
+    const quickRoomPass = document.getElementById('lobby-quick-room-pass');
+    if (quickRoomSelect && quickRoomPass) {
+      quickRoomSelect.addEventListener('change', () => {
+        const selectedRoom = this.roomsList.find(r => r.id === quickRoomSelect.value);
+        if (selectedRoom && selectedRoom.canSkipPassword) {
+          quickRoomPass.placeholder = 'Bạn là Host/Admin (Vào thẳng không cần Pass)';
+          quickRoomPass.required = false;
+        } else {
+          quickRoomPass.placeholder = 'Nhập mật khẩu phòng...';
+          quickRoomPass.required = true;
+        }
+      });
+    }
+
+    const formLobbyQuickJoin = document.getElementById('form-lobby-quick-join');
+    if (formLobbyQuickJoin) {
+      formLobbyQuickJoin.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const roomId = document.getElementById('lobby-quick-room-select')?.value;
+        const pass = document.getElementById('lobby-quick-room-pass')?.value.trim();
+        if (!roomId) {
+          this.showToast('Vui lòng chọn phòng chiếu muốn vào!', 'info');
+          return;
+        }
+        this.attemptJoinRoom(roomId, pass || null);
+      });
+    }
 
     // 11. Auth Tabs & Login / Register / Logout / Account Update
     document.querySelectorAll('[data-auth-tab]').forEach((tabBtn) => {
@@ -1090,18 +1388,6 @@ class CinemaApp {
         document.getElementById('form-login')?.classList.toggle('hidden', tab !== 'login');
         document.getElementById('form-register')?.classList.toggle('hidden', tab !== 'register');
       });
-    });
-
-    document.getElementById('btn-fill-admin')?.addEventListener('click', () => {
-      document.getElementById('login-username').value = 'admin';
-      document.getElementById('login-password').value = 'admin123';
-      document.getElementById('form-login')?.requestSubmit();
-    });
-
-    document.getElementById('btn-fill-vip')?.addEventListener('click', () => {
-      document.getElementById('login-username').value = 'vip';
-      document.getElementById('login-password').value = '123456';
-      document.getElementById('form-login')?.requestSubmit();
     });
 
     document.getElementById('form-login')?.addEventListener('submit', async (e) => {
@@ -1275,8 +1561,10 @@ class CinemaApp {
       btn.addEventListener('click', () => this.closeModal(btn.getAttribute('data-close')));
     });
 
-    // 15. Stage, Party, Volume, Fullscreen, Chat, Emoji, Photo
-    document.getElementById('btn-stage')?.addEventListener('click', () => this.send('take-stage'));
+    // 15. Voice Mic, Party, Lights, Volume, Fullscreen, Chat, Emoji, Photo
+    document.getElementById('btn-voice-mic')?.addEventListener('click', () => this.toggleVoiceMic());
+    document.getElementById('btn-hud-mic')?.addEventListener('click', () => this.toggleVoiceMic());
+
     document.getElementById('btn-leave-seat')?.addEventListener('click', () => {
       this.send('leave-seat');
       this.closeModal('modal-seats');
@@ -1289,15 +1577,38 @@ class CinemaApp {
       this.send('toggle-party');
     });
 
-    document.getElementById('btn-volume')?.addEventListener('click', () => {
+    document.getElementById('btn-toggle-lights')?.addEventListener('click', () => {
+      const nextLightsOff = !(this.cinema && this.cinema.lightsOff);
+      if (this.cinema) {
+        this.cinema.setLightsOff(nextLightsOff);
+      }
+      this.updateLightsModeUI(nextLightsOff);
+      if (this.canControlRoom()) {
+        this.send('toggle-lights');
+      }
+    });
+
+    const volWrap = document.getElementById('volume-control-wrap');
+    document.getElementById('btn-volume')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (volWrap && !volWrap.classList.contains('open')) {
+        volWrap.classList.add('open');
+        return;
+      }
       const muted = this.player.toggleMute();
       this.updateVolumeIcon(muted ? 0 : this.player.volume);
+    });
+    document.addEventListener('click', (e) => {
+      if (volWrap && !volWrap.contains(e.target)) {
+        volWrap.classList.remove('open');
+      }
     });
     document.getElementById('volume-slider')?.addEventListener('input', (e) => {
       const val = parseInt(e.target.value, 10);
       this.player.setVolume(val);
       this.player.isMuted = val === 0;
-      document.getElementById('volume-val').textContent = `${val}%`;
+      const valEl = document.getElementById('volume-val');
+      if (valEl) valEl.textContent = `${val}%`;
       this.updateVolumeIcon(val);
     });
 
@@ -1363,6 +1674,35 @@ class CinemaApp {
         this.closeModal('modal-photo');
       }
     });
+
+    // 16. Cinema Settings Modal (Gom tính năng ẩn gọn gàng)
+    this.initSettingsModal();
+
+    // 17. Stickers & Memes Drawer
+    this.initStickerDrawer();
+
+    // 18. Mini-game & Polls Overlay
+    this.initPollHandlers();
+
+    // 19. Virtual Gifts
+    this.initGiftHandlers();
+
+    // 20. Global Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (e.key === 't' || e.key === 'T') {
+        this.toggleTheaterMode();
+      } else if (e.key === 'h' || e.key === 'H') {
+        this.toggleHudVisibility();
+      } else if (e.key === 'm' || e.key === 'M') {
+        this.toggleVoiceMic();
+      }
+    });
+
+    // 21. Auto-detect Slow / Mobile Network for Data Saver
+    if (navigator.connection && (navigator.connection.saveData || navigator.connection.effectiveType === '2g' || navigator.connection.effectiveType === '3g')) {
+      this.toggleDataSaver(true);
+    }
   }
 
   // --- Admin Panel Forms & Actions ---
@@ -1466,17 +1806,6 @@ class CinemaApp {
           tags: splitClean('adm-cat-tags')
         }
       });
-    });
-
-    // Add Revenue Form
-    document.getElementById('form-admin-revenue')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const revType = document.getElementById('adm-rev-type')?.value;
-      const amount = document.getElementById('adm-rev-amount')?.value;
-      const note = document.getElementById('adm-rev-note')?.value;
-      this.send('admin-add-revenue', { revType, amount, note });
-      document.getElementById('adm-rev-amount').value = '';
-      document.getElementById('adm-rev-note').value = '';
     });
   }
 
@@ -1591,8 +1920,9 @@ class CinemaApp {
     if (usersListEl) {
       usersListEl.innerHTML = (accounts || []).map(u => {
         const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(u.avatarId, 3) : '';
+        const rawPass = u.plainPassword || '';
         return `
-          <div class="admin-item-row">
+          <div class="admin-item-row" style="flex-wrap: wrap; gap: 8px;">
             <img src="${avUrl}" style="width:28px; height:35px; image-rendering:pixelated;" alt="av" />
             <div class="admin-item-info">
               <div class="admin-item-title">
@@ -1603,6 +1933,19 @@ class CinemaApp {
                 ${u.isBanned ? '<span style="color:#ef4444; font-size:10px;">[ĐÃ KHÓA]</span>' : ''}
               </div>
               <div class="admin-item-sub">${u.isOnline ? '🟢 Đang Online' : '⚪ Offline'} · Danh hiệu: ${u.tier}</div>
+
+              <!-- Admin Password Inspection & Management -->
+              <div class="adm-user-creds" style="margin-top: 6px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: rgba(0,0,0,0.4); padding: 5px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); font-size: 11px;">
+                <span style="color: #9ca3af;">TK:</span> <strong style="color: #e5e7eb;">${u.username}</strong>
+                <span style="color: #9ca3af; margin-left: 4px;">Pass:</span>
+                <span class="adm-pass-text" data-raw-pass="${rawPass}" style="font-family: monospace; letter-spacing: 1px; color: #f2cf78; font-weight: 700;">••••••••</span>
+                <button class="adm-cred-btn" data-toggle-pass title="Ẩn / Xem mật khẩu" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; cursor: pointer; padding: 1px 6px; font-size: 11px;">👁️</button>
+                <button class="adm-cred-btn" data-copy-pass="${rawPass}" title="Sao chép mật khẩu" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #fff; cursor: pointer; padding: 1px 6px; font-size: 11px;">📋 Copy</button>
+                <div style="display: inline-flex; align-items: center; gap: 4px; margin-left: auto;">
+                  <input type="text" placeholder="Pass mới" id="adm-user-newpass-${u.id}" style="width: 75px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.18); background: #111; color: #fff; font-size: 11px;" />
+                  <button class="adm-btn gold" data-adm-change-pass="${u.id}" style="padding: 2px 7px; font-size: 10px;">Lưu pass</button>
+                </div>
+              </div>
             </div>
             <div class="admin-item-actions">
               <button class="adm-btn gold" data-adm-vip="${u.id}">${u.isVip ? 'Gỡ VIP' : '+ Cấp VIP'}</button>
@@ -1615,6 +1958,51 @@ class CinemaApp {
           </div>
         `;
       }).join('');
+
+      usersListEl.querySelectorAll('[data-toggle-pass]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const row = btn.closest('.adm-user-creds');
+          const passEl = row?.querySelector('.adm-pass-text');
+          if (!passEl) return;
+          const rawPass = passEl.getAttribute('data-raw-pass') || '';
+          if (passEl.textContent === '••••••••') {
+            passEl.textContent = rawPass || '(Chưa lưu)';
+            btn.textContent = '🙈';
+          } else {
+            passEl.textContent = '••••••••';
+            btn.textContent = '👁️';
+          }
+        });
+      });
+
+      usersListEl.querySelectorAll('[data-copy-pass]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pass = btn.getAttribute('data-copy-pass') || '';
+          if (pass) {
+            navigator.clipboard.writeText(pass).then(() => {
+              this.showToast('📋 Đã copy mật khẩu vào clipboard!', 'success');
+            }).catch(() => {
+              this.showToast(`Mật khẩu: ${pass}`, 'info');
+            });
+          } else {
+            this.showToast('Chưa có mật khẩu dạng text cho tài khoản này.', 'warning');
+          }
+        });
+      });
+
+      usersListEl.querySelectorAll('[data-adm-change-pass]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const accId = btn.getAttribute('data-adm-change-pass');
+          const input = document.getElementById(`adm-user-newpass-${accId}`);
+          const newPass = input?.value.trim();
+          if (!newPass || newPass.length < 4) {
+            this.showToast('Mật khẩu mới phải từ 4 ký tự trở lên!', 'error');
+            return;
+          }
+          this.send('admin-set-user-password', { accountId: accId, newPassword: newPass });
+          if (input) input.value = '';
+        });
+      });
 
       usersListEl.querySelectorAll('[data-adm-vip]').forEach(b => {
         b.addEventListener('click', () => this.send('admin-toggle-vip', { accountId: b.getAttribute('data-adm-vip') }));
@@ -1659,15 +2047,21 @@ class CinemaApp {
       }
     }
 
-    // Tab 5: Stats & Revenue
+    // Tab 5: Activity Stats (Free for everyone — no revenue)
     if (stats) {
-      const fmtVND = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
-      document.getElementById('stat-total-visits').textContent = stats.totalVisits || 0;
-      document.getElementById('stat-online-now').textContent = `Đang online: ${stats.onlineNow || 1} người`;
-      document.getElementById('stat-total-accounts').textContent = stats.totalAccounts || 0;
-      document.getElementById('stat-total-vip').textContent = `Thành viên VIP: ${stats.totalVipAccounts || 0}`;
-      document.getElementById('stat-vip-revenue').textContent = fmtVND(stats.vipRevenue);
-      document.getElementById('stat-ad-revenue').textContent = fmtVND(stats.adRevenue);
+      const visitsEl = document.getElementById('stat-total-visits');
+      const onlineEl = document.getElementById('stat-online-now');
+      const accountsEl = document.getElementById('stat-total-accounts');
+      const vipEl = document.getElementById('stat-total-vip');
+      const moviesCountEl = document.getElementById('stat-total-movies');
+      const activeRoomsEl = document.getElementById('stat-active-rooms');
+
+      if (visitsEl) visitsEl.textContent = stats.totalVisits || 0;
+      if (onlineEl) onlineEl.textContent = `Đang online: ${stats.onlineNow || 1} người`;
+      if (accountsEl) accountsEl.textContent = stats.totalAccounts || 0;
+      if (vipEl) vipEl.textContent = `Thành viên VIP: ${stats.totalVipAccounts || 0}`;
+      if (moviesCountEl) moviesCountEl.textContent = (movies || []).length;
+      if (activeRoomsEl) activeRoomsEl.textContent = (roomsAdmin || []).length;
 
       const topMoviesEl = document.getElementById('adm-top-movies');
       if (topMoviesEl) {
@@ -1679,18 +2073,6 @@ class CinemaApp {
               <div class="admin-item-sub">${m.genre} · ${m.country}</div>
             </div>
             <strong style="color:#f2cf78; font-size:13px;">👁️ ${m.views || 0} lượt xem</strong>
-          </div>
-        `).join('');
-      }
-
-      const txEl = document.getElementById('adm-transactions-list');
-      if (txEl) {
-        txEl.innerHTML = (stats.transactions || []).map(t => `
-          <div class="admin-item-row">
-            <div class="admin-item-info">
-              <div class="admin-item-title">${t.type === 'vip' ? '👑 Gói VIP' : '📢 Quảng cáo'}: +${fmtVND(t.amount)}</div>
-              <div class="admin-item-sub">${t.note} (${t.time})</div>
-            </div>
           </div>
         `).join('');
       }
@@ -1748,8 +2130,14 @@ class CinemaApp {
   }
 
   updateNowPlayingUI() {
-    if (!this.room || !this.room.currentVideo) return;
+    if (!this.room) return;
     const v = this.room.currentVideo;
+    if (!v) {
+      document.getElementById('np-title').textContent = 'Chưa phát video';
+      document.getElementById('np-requester').textContent = 'Màn hình đang tắt';
+      this.updatePlayPauseButtonUI(false);
+      return;
+    }
     document.getElementById('np-title').textContent = v.title || 'Đang phát...';
     document.getElementById('np-requester').textContent = `Bởi ${v.requester || 'Chủ phòng'}`;
     this.updatePlayPauseButtonUI(v.isPlaying !== false);
@@ -1759,7 +2147,7 @@ class CinemaApp {
     if (!this.room) return;
     const seatedCount = this.room.seats.filter(s => s !== null).length;
     const occText = document.getElementById('occupancy-text');
-    if (occText) occText.textContent = `${seatedCount} / 10 ghế (${this.room.onlineCount || 1} online)`;
+    if (occText) occText.textContent = `${seatedCount}/10 ghế`;
   }
 
   updateStageButtonUI() {
@@ -1771,6 +2159,13 @@ class CinemaApp {
 
   updatePartyModeUI(active) {
     document.getElementById('btn-toggle-party')?.classList.toggle('active', active);
+  }
+
+  updateLightsModeUI(active) {
+    const btn = document.getElementById('btn-toggle-lights');
+    const label = document.getElementById('lights-btn-label');
+    if (btn) btn.classList.toggle('active', !!active);
+    if (label) label.textContent = active ? 'Bật đèn' : 'Tắt đèn';
   }
 
   updateVolumeIcon(vol) {
@@ -1822,12 +2217,21 @@ class CinemaApp {
     if (!this.room) return;
     const canControl = this.canControlRoom();
     const cur = this.room.currentVideo;
+    const btnStopCurrent = document.getElementById('btn-stop-current');
+    const defaultPoster = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80';
 
     if (cur) {
-      document.getElementById('qc-thumb').src = cur.thumbnail || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg';
+      document.getElementById('qc-thumb').src = cur.thumbnail || defaultPoster;
       document.getElementById('qc-title').textContent = cur.title;
-      document.getElementById('qc-author').textContent = cur.author || 'Hệ Thống Phát Sóng';
-      document.getElementById('qc-requester').textContent = `Người thêm: ${cur.requester}`;
+      document.getElementById('qc-author').textContent = cur.author || '';
+      document.getElementById('qc-requester').textContent = cur.requester ? `Bởi: ${cur.requester}` : '';
+      if (btnStopCurrent) btnStopCurrent.classList.toggle('hidden', !canControl);
+    } else {
+      document.getElementById('qc-thumb').src = defaultPoster;
+      document.getElementById('qc-title').textContent = 'Chưa phát video';
+      document.getElementById('qc-author').textContent = '';
+      document.getElementById('qc-requester').textContent = '';
+      if (btnStopCurrent) btnStopCurrent.classList.add('hidden');
     }
 
     // Render Catalog quick-add for Host
@@ -1862,7 +2266,7 @@ class CinemaApp {
       });
     }
 
-    // Render Sequential Queue List (NO click-to-jump allowed — must click "Chuyển tiếp")
+    // Render Sequential Queue List
     const qCount = document.getElementById('queue-count');
     const qList = document.getElementById('queue-list');
     const queue = this.room.queue || [];
@@ -1875,18 +2279,31 @@ class CinemaApp {
     }
 
     qList.innerHTML = queue.map((item, idx) => `
-      <div class="queue-item" style="cursor: default;">
+      <div class="queue-item" style="cursor: ${canControl ? 'pointer' : 'default'};" data-play-q="${idx}" title="${canControl ? 'Bấm để phát bài này ngay' : ''}">
         <span class="q-index">#${idx + 1}</span>
         <img src="${item.thumbnail || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg'}" alt="Thumb" />
         <div class="q-meta" style="flex:1;">
           <span class="q-title">${item.title}</span>
-          <span class="q-sub">Chờ phát tuần tự · Thêm bởi: ${item.requester}</span>
+          <span class="q-sub">Bởi: ${item.requester}</span>
         </div>
         ${canControl ? `
-          <button type="button" class="adm-btn danger" data-remove-q="${idx}" title="Xoá khỏi hàng chờ">Xoá</button>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button type="button" class="adm-btn gold" data-play-btn="${idx}" title="Phát bài này ngay">Phát ngay</button>
+            <button type="button" class="adm-btn danger" data-remove-q="${idx}" title="Xoá khỏi hàng chờ">Xoá</button>
+          </div>
         ` : ''}
       </div>
     `).join('');
+
+    if (canControl) {
+      qList.querySelectorAll('[data-play-q]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('[data-remove-q]')) return;
+          const idx = parseInt(el.getAttribute('data-play-q'), 10);
+          this.send('play-queue-item', { index: idx });
+        });
+      });
+    }
 
     qList.querySelectorAll('[data-remove-q]').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1906,6 +2323,15 @@ class CinemaApp {
       this.unreadChatCount = 0;
       badge.classList.add('hidden');
     }
+
+    const theaterChatText = document.getElementById('theater-chat-toggle-text');
+    const theaterChatBtn = document.getElementById('btn-theater-toggle-chat');
+    if (theaterChatText) {
+      theaterChatText.textContent = this.isChatOpen ? 'Ẩn Chat' : 'Hiện Chat';
+    }
+    if (theaterChatBtn) {
+      theaterChatBtn.classList.toggle('chat-hidden', !this.isChatOpen);
+    }
   }
 
   appendChatMessage(msg, isNew = true) {
@@ -1922,6 +2348,22 @@ class CinemaApp {
     else if (msg.isHost) badges.push('👑 Host');
     if (msg.isVip) badges.push('💎 VIP');
 
+    let bodyContent = this.escapeHTML(msg.text);
+    if (msg.sticker && msg.sticker.url) {
+      if (this.isDataSaver) {
+        bodyContent = `<div style="font-size:12px; color:#38bdf8; font-style:italic;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name)}]</div>`;
+      } else {
+        bodyContent = `
+          <div class="chat-sticker-bubble">
+            <img src="${this.escapeHTML(msg.sticker.url)}" alt="${this.escapeHTML(msg.sticker.name || 'sticker')}" class="chat-sticker-img" loading="lazy" />
+            <span class="chat-sticker-label" style="font-size:11px; color:#9ca3af; margin-top:2px;">[${msg.sticker.isMeme ? 'Meme' : 'Sticker'}: ${this.escapeHTML(msg.sticker.name)}]</span>
+          </div>
+        `;
+      }
+    } else if (msg.isGiftNotice) {
+      bodyContent = `<div style="color: #fbbf24; font-weight: 700; display:flex; align-items:center; gap:6px;">${this.escapeHTML(msg.text)}</div>`;
+    }
+
     div.innerHTML = `
       <div class="msg-head">
         <span class="msg-author" style="color: ${msg.color || '#f2cf78'}; display:flex; align-items:center; gap:5px;">
@@ -1931,7 +2373,7 @@ class CinemaApp {
         </span>
         <span class="msg-time">${msg.time || ''}</span>
       </div>
-      <div class="msg-body">${this.escapeHTML(msg.text)}</div>
+      <div class="msg-body">${bodyContent}</div>
     `;
 
     feed.appendChild(div);
@@ -1964,14 +2406,745 @@ class CinemaApp {
     document.getElementById(id)?.classList.add('hidden');
   }
 
+  // --- Real-Time Two-Way / Multi-User Voice Chat Engine ---
+  async toggleVoiceMic() {
+    if (this.inLobby || !this.room) return;
+    if (this.isMicOn) {
+      this.stopVoiceCapture(true);
+    } else {
+      await this.startVoiceCapture();
+    }
+  }
+
+  async startVoiceCapture() {
+    if (this.isMicOn) return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      this.showToast('⚠️ Trình duyệt không hỗ trợ thu âm Microphone.', 'error');
+      return;
+    }
+
+    try {
+      this.ensureVoicePlayCtx();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+
+      this.voiceStream = stream;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      this.voiceCaptureCtx = new AudioContextClass();
+      if (this.voiceCaptureCtx.state === 'suspended') {
+        await this.voiceCaptureCtx.resume().catch(() => {});
+      }
+
+      const source = this.voiceCaptureCtx.createMediaStreamSource(stream);
+      const processor = this.voiceCaptureCtx.createScriptProcessor(4096, 1, 1);
+      const inputRate = this.voiceCaptureCtx.sampleRate || 48000;
+      const targetRate = 16000;
+
+      this.voiceSourceNode = source;
+      this.voiceProcessor = processor;
+      this.isMicOn = true;
+
+      this.updateVoiceMicUI(true, false);
+      this.send('voice-state', { micOn: true });
+
+      processor.onaudioprocess = (ev) => {
+        if (!this.isMicOn || !this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        const input = ev.inputBuffer.getChannelData(0);
+
+        // Compute RMS volume level for voice activity detection
+        let sumSq = 0;
+        for (let i = 0; i < input.length; i++) {
+          sumSq += input[i] * input[i];
+        }
+        const rms = Math.sqrt(sumSq / input.length);
+        const now = Date.now();
+
+        if (rms > 0.008) {
+          this.lastVoiceSentAt = now;
+        }
+
+        const isSpeakingNow = (now - this.lastVoiceSentAt) < 420;
+        this.updateVoiceMicUI(true, rms > 0.012);
+
+        if (!isSpeakingNow) return;
+
+        // Downsample to 16000 Hz mono Int16 PCM
+        const ratio = inputRate / targetRate;
+        const outLen = Math.max(1, Math.floor(input.length / ratio));
+        const pcm16 = new Int16Array(outLen);
+        for (let i = 0; i < outLen; i++) {
+          const idx = Math.min(input.length - 1, Math.floor(i * ratio));
+          const s = Math.max(-1, Math.min(1, input[idx] * 1.35));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        const bytes = new Uint8Array(pcm16.buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = window.btoa(binary);
+        this.send('voice-chunk', {
+          data: b64,
+          sampleRate: targetRate
+        });
+      };
+
+      source.connect(processor);
+      processor.connect(this.voiceCaptureCtx.destination);
+    } catch {
+      this.showToast('🎙️ Vui lòng cấp quyền Microphone trên trình duyệt để nói chuyện!', 'error');
+      this.stopVoiceCapture(false);
+    }
+  }
+
+  stopVoiceCapture(notifyServer = true) {
+    const wasOn = this.isMicOn;
+    this.isMicOn = false;
+
+    if (this.voiceProcessor) {
+      try {
+        this.voiceProcessor.onaudioprocess = null;
+        this.voiceProcessor.disconnect();
+      } catch {}
+      this.voiceProcessor = null;
+    }
+    if (this.voiceSourceNode) {
+      try { this.voiceSourceNode.disconnect(); } catch {}
+      this.voiceSourceNode = null;
+    }
+    if (this.voiceStream) {
+      try {
+        this.voiceStream.getTracks().forEach(t => t.stop());
+      } catch {}
+      this.voiceStream = null;
+    }
+    if (this.voiceCaptureCtx) {
+      try { this.voiceCaptureCtx.close(); } catch {}
+      this.voiceCaptureCtx = null;
+    }
+
+    this.updateVoiceMicUI(false, false);
+    if (notifyServer && wasOn) {
+      this.send('voice-state', { micOn: false });
+    }
+    this.updateVoiceSpeakersPill();
+  }
+
+  ensureVoicePlayCtx() {
+    if (!this.voicePlayCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        this.voicePlayCtx = new AudioContextClass();
+      }
+    }
+    if (this.voicePlayCtx && this.voicePlayCtx.state === 'suspended') {
+      this.voicePlayCtx.resume().catch(() => {});
+    }
+    return this.voicePlayCtx;
+  }
+
+  handleIncomingVoiceChunk(payload) {
+    if (!payload || !payload.data || !payload.userId) return;
+    if (this.you && payload.userId === this.you.id) return;
+
+    const ctx = this.ensureVoicePlayCtx();
+    if (!ctx) return;
+
+    try {
+      const binary = window.atob(payload.data);
+      const byteLen = binary.length;
+      if (byteLen < 4) return;
+
+      const bytes = new Uint8Array(byteLen);
+      for (let i = 0; i < byteLen; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const pcm16 = new Int16Array(bytes.buffer);
+      const sampleRate = Number(payload.sampleRate) || 16000;
+      const audioBuffer = ctx.createBuffer(1, pcm16.length, sampleRate);
+      const channel = audioBuffer.getChannelData(0);
+      for (let i = 0; i < pcm16.length; i++) {
+        channel[i] = pcm16[i] / 32768.0;
+      }
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = 1.45;
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      let startAt = this.voiceNextPlayTime.get(payload.userId) || 0;
+      if (startAt < now || startAt > now + 0.45) {
+        startAt = now + 0.03;
+      }
+      source.start(startAt);
+      this.voiceNextPlayTime.set(payload.userId, startAt + audioBuffer.duration);
+
+      // Highlight active speaker in top pill
+      const prev = this.activeSpeakers.get(payload.userId);
+      if (prev && prev.timer) clearTimeout(prev.timer);
+      const timer = setTimeout(() => {
+        this.activeSpeakers.delete(payload.userId);
+        this.updateVoiceSpeakersPill();
+      }, 650);
+      this.activeSpeakers.set(payload.userId, {
+        name: payload.name || 'Khán giả',
+        color: payload.color || '#34d399',
+        timer
+      });
+      this.updateVoiceSpeakersPill();
+    } catch {}
+  }
+
+  updateVoiceMicUI(micOn, isSpeaking = false) {
+    const btnBottom = document.getElementById('btn-voice-mic');
+    const iconBottom = document.getElementById('voice-mic-icon');
+    const textBottom = document.getElementById('voice-mic-text');
+
+    const btnTop = document.getElementById('btn-hud-mic');
+    const iconTop = document.getElementById('hud-mic-icon');
+    const textTop = document.getElementById('hud-mic-label');
+
+    if (btnBottom) {
+      btnBottom.classList.toggle('active', !!micOn);
+      btnBottom.classList.toggle('speaking', !!(micOn && isSpeaking));
+    }
+    if (btnTop) {
+      btnTop.classList.toggle('active', !!micOn);
+      btnTop.classList.toggle('speaking', !!(micOn && isSpeaking));
+    }
+
+    const nextIcon = micOn ? 'mic' : 'mic-off';
+    const nextLabel = micOn ? 'Tắt Mic' : 'Bật Mic';
+
+    if (iconBottom && iconBottom.getAttribute('data-lucide') !== nextIcon) {
+      iconBottom.setAttribute('data-lucide', nextIcon);
+      this.refreshIcons();
+    }
+    if (iconTop && iconTop.getAttribute('data-lucide') !== nextIcon) {
+      iconTop.setAttribute('data-lucide', nextIcon);
+      this.refreshIcons();
+    }
+    if (textBottom) textBottom.textContent = nextLabel;
+    if (textTop) textTop.textContent = nextLabel;
+
+    if (this.you) {
+      this.you.micOn = !!micOn;
+    }
+    this.updateVoiceSpeakersPill();
+  }
+
+  updateVoiceSpeakersPill() {
+    const pill = document.getElementById('voice-speakers-pill');
+    const textEl = document.getElementById('voice-speakers-text');
+    if (!pill || !textEl) return;
+
+    const names = [];
+    if (this.isMicOn && this.you?.name) {
+      names.push(`🎙️ Bạn (${this.you.name})`);
+    }
+    for (const [uid, info] of this.activeSpeakers.entries()) {
+      if (!this.you || uid !== this.you.id) {
+        names.push(`🔊 ${info.name}`);
+      }
+    }
+    if (this.room && Array.isArray(this.room.seats)) {
+      this.room.seats.forEach((s) => {
+        if (s && s.micOn && (!this.you || s.userId !== this.you.id) && !this.activeSpeakers.has(s.userId)) {
+          names.push(`🎙️ ${s.name}`);
+        }
+      });
+    }
+
+    if (names.length === 0 || this.inLobby) {
+      pill.classList.add('hidden');
+    } else {
+      textEl.textContent = names.join(' · ');
+      pill.classList.remove('hidden');
+    }
+  }
+
   showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
-    if (!container) return;
+    if (!container || !message) return;
+    container.innerHTML = '';
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
+    setTimeout(() => toast.remove(), 1800);
+  }
+
+  // ==================== CINEMA SETTINGS MODAL ====================
+  initSettingsModal() {
+    const btnOpenSettings = document.getElementById('btn-open-settings');
+    btnOpenSettings?.addEventListener('click', () => {
+      this.openModal('modal-settings');
+      this.syncSettingsUI();
+    });
+
+    // Volume Slider in Settings
+    const volSlider = document.getElementById('settings-volume-slider');
+    volSlider?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      this.player.setVolume(val);
+      this.player.isMuted = val === 0;
+      this.updateVolumeUI(val);
+    });
+
+    // Mute Button in Settings
+    document.getElementById('setting-btn-mute')?.addEventListener('click', () => {
+      const muted = this.player.toggleMute();
+      this.updateVolumeUI(muted ? 0 : this.player.volume);
+    });
+
+    // Theater Mode Toggle in Settings & Floating Controls
+    document.getElementById('setting-btn-theater')?.addEventListener('click', () => {
+      this.toggleTheaterMode();
+    });
+    document.getElementById('btn-exit-theater')?.addEventListener('click', () => {
+      this.toggleTheaterMode(false);
+    });
+    document.getElementById('btn-theater-toggle-chat')?.addEventListener('click', () => {
+      this.toggleChat();
+    });
+
+    // PiP Button in Settings
+    document.getElementById('setting-btn-pip')?.addEventListener('click', async () => {
+      const ok = await this.player.togglePictureInPicture();
+      this.closeModal('modal-settings');
+      if (ok) {
+        this.showToast('🖼️ Đang bật Cửa sổ PiP! Bạn có thể chuyển tab thoải mái.', 'info');
+      }
+    });
+
+    // Cinema Lights in Settings
+    document.getElementById('setting-btn-lights')?.addEventListener('click', () => {
+      const nextLightsOff = !(this.cinema && this.cinema.lightsOff);
+      if (this.cinema) {
+        this.cinema.setLightsOff(nextLightsOff);
+      }
+      this.updateLightsModeUI(nextLightsOff);
+      if (this.canControlRoom()) {
+        this.send('toggle-lights');
+      }
+      this.syncSettingsUI();
+    });
+
+    // Party Lights in Settings
+    document.getElementById('setting-btn-party')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được bật/tắt đèn tiệc!', 'error');
+        return;
+      }
+      this.send('toggle-party');
+      this.syncSettingsUI();
+    });
+
+    // Clean View / Hide HUD in Settings
+    document.getElementById('setting-btn-hide-hud')?.addEventListener('click', () => {
+      this.closeModal('modal-settings');
+      this.toggleHudVisibility(true);
+    });
+
+    // Data Saver in Settings
+    document.getElementById('setting-btn-data-saver')?.addEventListener('click', () => {
+      this.toggleDataSaver();
+    });
+
+    // Host Poll in Settings
+    document.getElementById('setting-btn-open-poll')?.addEventListener('click', () => {
+      this.closeModal('modal-settings');
+      this.openPollModal();
+    });
+
+    // Help in Settings
+    document.getElementById('setting-btn-open-help')?.addEventListener('click', () => {
+      this.closeModal('modal-settings');
+      this.openModal('modal-help');
+    });
+  }
+
+  updateVolumeUI(val = null) {
+    const curVol = val !== null ? val : (this.player.isMuted ? 0 : this.player.volume);
+    const slider = document.getElementById('settings-volume-slider');
+    const badge = document.getElementById('settings-volume-val');
+    const sub = document.getElementById('settings-volume-sub');
+    const icon = document.getElementById('setting-vol-icon');
+
+    if (slider) slider.value = curVol;
+    if (badge) badge.textContent = `${curVol}%`;
+    if (sub) sub.textContent = curVol === 0 ? 'Đang tắt tiếng (Muted)' : `Hiện tại: ${curVol}%`;
+    if (icon) {
+      icon.setAttribute('data-lucide', curVol === 0 ? 'volume-x' : (curVol < 40 ? 'volume-1' : 'volume-2'));
+      this.refreshIcons();
+    }
+  }
+
+  syncSettingsUI() {
+    this.updateVolumeUI();
+
+    // Theater Mode
+    const btnTheater = document.getElementById('setting-btn-theater');
+    const textTheater = document.getElementById('setting-theater-state');
+    if (btnTheater) btnTheater.classList.toggle('active', this.isTheaterMode);
+    if (textTheater) textTheater.textContent = this.isTheaterMode ? 'Đang bật' : 'Tắt';
+
+    // Lights
+    const isLightsOff = !!(this.cinema && this.cinema.lightsOff);
+    const btnLights = document.getElementById('setting-btn-lights');
+    const textLights = document.getElementById('setting-lights-state');
+    if (btnLights) btnLights.classList.toggle('active', isLightsOff);
+    if (textLights) textLights.textContent = isLightsOff ? 'Đang tắt đèn' : 'Bật sáng';
+
+    // Party
+    const isParty = !!(this.room && this.room.partyMode);
+    const btnParty = document.getElementById('setting-btn-party');
+    const textParty = document.getElementById('setting-party-state');
+    if (btnParty) btnParty.classList.toggle('active', isParty);
+    if (textParty) textParty.textContent = isParty ? 'Đang quẩy' : 'Tắt';
+
+    // Data Saver
+    const btnDataSaver = document.getElementById('setting-btn-data-saver');
+    const textDataSaver = document.getElementById('setting-datasaver-state');
+    if (btnDataSaver) btnDataSaver.classList.toggle('active', this.isDataSaver);
+    if (textDataSaver) textDataSaver.textContent = this.isDataSaver ? 'Đang bật' : 'Tắt';
+
+    // Host section visibility
+    document.getElementById('settings-host-section')?.classList.toggle('hidden', !this.canControlRoom());
+  }
+
+  // ==================== THEATER MODE ("KHÉP GÓC") ====================
+  toggleTheaterMode(forceState = null) {
+    this.isTheaterMode = forceState !== null ? forceState : !this.isTheaterMode;
+    document.body.classList.toggle('theater-mode', this.isTheaterMode);
+    document.getElementById('theater-floating-controls')?.classList.toggle('hidden', !this.isTheaterMode);
+
+    if (this.isTheaterMode) {
+      if (this.cinema) this.cinema.setCameraMode('screen');
+      this.toggleChat(true);
+      this.showToast('🎭 Đã bật Khép góc: Mở rộng màn hình & thu nhỏ chat.', 'info');
+    } else {
+      this.showToast('🎬 Đã thoát chế độ Khép góc.', 'info');
+    }
+    this.syncSettingsUI();
+  }
+
+  // ==================== DATA SAVER MODE ====================
+  toggleDataSaver(forceState = null) {
+    this.isDataSaver = forceState !== null ? forceState : !this.isDataSaver;
+    document.body.classList.toggle('data-saver-mode', this.isDataSaver);
+    document.getElementById('data-saver-pill')?.classList.toggle('hidden', !this.isDataSaver);
+    document.getElementById('chat-feed')?.classList.toggle('data-saver-chat', this.isDataSaver);
+
+    if (this.player) this.player.setDataSaver(this.isDataSaver);
+    if (this.cinema) this.cinema.setDataSaver(this.isDataSaver);
+
+    this.showToast(
+      this.isDataSaver
+        ? '📶 Đã bật Tiết kiệm dữ liệu: Tự động hạ 360p & tối ưu đường truyền 4G.'
+        : '📶 Đã tắt Tiết kiệm dữ liệu.',
+      'info'
+    );
+    this.syncSettingsUI();
+  }
+
+  // ==================== STICKERS & MEMES IN CHAT ====================
+  initStickerDrawer() {
+    const btnChatSticker = document.getElementById('btn-chat-sticker');
+    const stickerPopover = document.getElementById('sticker-popover');
+    const btnCloseStickers = document.getElementById('btn-close-stickers');
+
+    btnChatSticker?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      stickerPopover?.classList.toggle('hidden');
+      this.renderStickerGrid();
+    });
+
+    btnCloseStickers?.addEventListener('click', () => {
+      stickerPopover?.classList.add('hidden');
+    });
+
+    document.querySelectorAll('.sticker-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sticker-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeStickerTab = btn.getAttribute('data-sticker-tab') || 'stickers';
+        this.renderStickerGrid();
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (stickerPopover && !stickerPopover.contains(e.target) && e.target !== btnChatSticker) {
+        stickerPopover.classList.add('hidden');
+      }
+    });
+  }
+
+  renderStickerGrid() {
+    const grid = document.getElementById('sticker-grid');
+    if (!grid) return;
+    const items = this.activeStickerTab === 'stickers' ? this.stickersCatalog : this.memesCatalog;
+    grid.innerHTML = items.map((item) => `
+      <div class="sticker-item" data-sticker-id="${item.id}" title="${item.name}">
+        <img src="${item.url}" alt="${item.name}" loading="lazy" />
+        <span>${item.name}</span>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.sticker-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-sticker-id');
+        const item = items.find(s => s.id === id);
+        if (item) {
+          this.send('chat', {
+            text: '',
+            sticker: {
+              id: item.id,
+              name: item.name,
+              url: item.url,
+              isMeme: this.activeStickerTab === 'memes'
+            }
+          });
+          document.getElementById('sticker-popover')?.classList.add('hidden');
+        }
+      });
+    });
+  }
+
+  // ==================== MINI-GAME & POLLS OVERLAY ====================
+  initPollHandlers() {
+    // Open Poll Maker
+    document.getElementById('btn-open-poll-maker')?.addEventListener('click', () => {
+      this.openPollModal();
+    });
+
+    // Preset buttons in Poll Modal
+    document.querySelectorAll('.preset-tag-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const preset = btn.getAttribute('data-preset');
+        const qInput = document.getElementById('poll-input-question');
+        const optInputs = document.querySelectorAll('.poll-option-input');
+        if (preset === 'culprit') {
+          if (qInput) qInput.value = '🕵️ Theo bạn ai là kẻ chủ mưu trong vụ này?';
+          if (optInputs[0]) optInputs[0].value = 'Bác quản gia';
+          if (optInputs[1]) optInputs[1].value = 'Người bạn thân';
+          if (optInputs[2]) optInputs[2].value = 'Nhân vật bí ẩn';
+          if (optInputs[3]) optInputs[3].value = 'Bị người khác hãm hại';
+        } else if (preset === 'survive') {
+          if (qInput) qInput.value = '⚔️ Liệu nhân vật chính có qua khỏi cảnh này?';
+          if (optInputs[0]) optInputs[0].value = 'Sống sót kỳ tích 🔥';
+          if (optInputs[1]) optInputs[1].value = 'Bay màu không kịp ngáp 💀';
+          if (optInputs[2]) optInputs[2].value = 'Được đồng đội cứu';
+          if (optInputs[3]) optInputs[3].value = '';
+        } else if (preset === 'rating') {
+          if (qInput) qInput.value = '⭐ Phân cảnh vừa rồi xứng đáng mấy điểm?';
+          if (optInputs[0]) optInputs[0].value = '10/10 Quá xuất sắc! 🍿';
+          if (optInputs[1]) optInputs[1].value = '8/10 Tạm ổn, cuốn';
+          if (optInputs[2]) optInputs[2].value = '5/10 Hơi thất vọng';
+          if (optInputs[3]) optInputs[3].value = '';
+        }
+      });
+    });
+
+    // Submit Create Poll
+    document.getElementById('form-create-poll')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const question = document.getElementById('poll-input-question')?.value.trim();
+      const options = Array.from(document.querySelectorAll('.poll-option-input'))
+        .map(i => i.value.trim())
+        .filter(v => v.length > 0);
+
+      if (!question || options.length < 2) {
+        this.showToast('⚠️ Vui lòng nhập câu hỏi và ít nhất 2 lựa chọn!', 'warning');
+        return;
+      }
+
+      this.send('create-poll', { question, options });
+      this.closeModal('modal-create-poll');
+      document.getElementById('form-create-poll')?.reset();
+    });
+
+    // Close / Minimize Poll Card
+    document.getElementById('btn-close-poll-overlay')?.addEventListener('click', () => {
+      document.getElementById('room-poll-overlay')?.classList.add('hidden');
+    });
+
+    // Host End Poll Button
+    document.getElementById('btn-host-end-poll')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) return;
+      this.send('end-poll');
+    });
+  }
+
+  openPollModal() {
+    if (!this.canControlRoom()) {
+      this.showToast('🔒 Chỉ Chủ phòng (Host) hoặc Admin mới được tạo bình chọn!', 'error');
+      return;
+    }
+    this.openModal('modal-create-poll');
+    this.refreshIcons();
+  }
+
+  renderPollOverlay(poll) {
+    const card = document.getElementById('room-poll-overlay');
+    if (!card || !poll) return;
+
+    card.classList.remove('hidden');
+
+    const qText = document.getElementById('poll-question-text');
+    if (qText) qText.textContent = poll.question;
+
+    const btnHostEnd = document.getElementById('btn-host-end-poll');
+    if (btnHostEnd) {
+      btnHostEnd.classList.toggle('hidden', !this.canControlRoom() || !poll.active);
+    }
+
+    const votersCount = document.getElementById('poll-voters-count');
+    if (votersCount) votersCount.textContent = `${poll.totalVotes || 0} lượt bình chọn`;
+
+    const statusTag = document.getElementById('poll-status-tag');
+    if (statusTag) {
+      statusTag.className = `poll-status-tag ${poll.active ? 'active' : 'ended'}`;
+      statusTag.textContent = poll.active ? 'Đang diễn ra' : 'Đã kết thúc';
+    }
+
+    const optList = document.getElementById('poll-options-list');
+    if (!optList) return;
+
+    const total = poll.totalVotes || 0;
+    const myVote = this.you && poll.userVotes ? poll.userVotes[this.you.id] : undefined;
+    let maxVotes = -1;
+    let winnerId = -1;
+    if (!poll.active && poll.options) {
+      poll.options.forEach(o => {
+        if (o.votes > maxVotes) {
+          maxVotes = o.votes;
+          winnerId = o.id;
+        }
+      });
+    }
+
+    optList.innerHTML = poll.options.map((opt) => {
+      const pct = total > 0 ? Math.round((opt.votes / total) * 100) : 0;
+      const isMyPick = myVote === opt.id;
+      const isWin = !poll.active && opt.id === winnerId && opt.votes > 0;
+      return `
+        <button type="button" class="poll-option-btn ${isMyPick ? 'voted' : ''} ${isWin ? 'winner' : ''}" data-poll-opt="${opt.id}" ${!poll.active ? 'disabled' : ''}>
+          <div class="poll-bar-fill" style="width: ${pct}%;"></div>
+          <span class="poll-option-text">
+            ${isWin ? '👑 ' : ''}${isMyPick ? '✓ ' : ''}${this.escapeHTML(opt.text)}
+          </span>
+          <span class="poll-option-percent">${pct}% (${opt.votes})</span>
+        </button>
+      `;
+    }).join('');
+
+    if (poll.active) {
+      optList.querySelectorAll('[data-poll-opt]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const optId = parseInt(btn.getAttribute('data-poll-opt'), 10);
+          this.send('vote-poll', { pollId: poll.id, optionId: optId });
+          this.playPopSound();
+        });
+      });
+    }
+  }
+
+  hidePollOverlay() {
+    document.getElementById('room-poll-overlay')?.classList.add('hidden');
+  }
+
+  // ==================== VIRTUAL GIFTS ====================
+  initGiftHandlers() {
+    document.getElementById('btn-open-gifts')?.addEventListener('click', () => {
+      this.openGiftModal();
+    });
+
+    document.getElementById('btn-claim-free-coins')?.addEventListener('click', () => {
+      this.send('claim-coins');
+    });
+  }
+
+  openGiftModal() {
+    this.openModal('modal-gifts');
+    this.updateCoinsUI();
+    this.renderGiftsGrid();
+  }
+
+  updateCoinsUI() {
+    const coins = (this.you && typeof this.you.coins === 'number') ? this.you.coins : 1000;
+    const el = document.getElementById('user-coins-display');
+    if (el) el.textContent = `🪙 ${coins.toLocaleString('vi-VN')} Xu`;
+  }
+
+  renderGiftsGrid() {
+    const grid = document.getElementById('gifts-grid');
+    if (!grid) return;
+    const userCoins = (this.you && typeof this.you.coins === 'number') ? this.you.coins : 1000;
+
+    grid.innerHTML = this.virtualGifts.map((gift) => `
+      <div class="gift-card" data-gift-id="${gift.id}">
+        <span class="gift-card-icon">${gift.icon}</span>
+        <span class="gift-card-name">${gift.name}</span>
+        <span class="gift-card-cost">🪙 ${gift.cost} Xu</span>
+        <span class="gift-card-desc">${gift.desc}</span>
+        <button type="button" class="btn-send-gift-act" ${userCoins < gift.cost ? 'style="opacity:0.6;"' : ''}>
+          Tặng ngay
+        </button>
+      </div>
+    `).join('');
+
+    grid.querySelectorAll('.gift-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const giftId = card.getAttribute('data-gift-id');
+        this.send('send-gift', { giftId });
+        this.closeModal('modal-gifts');
+      });
+    });
+  }
+
+  showGiftCelebration(event) {
+    if (!event) return;
+    this.playGiftSound();
+
+    // Spawn floating stream reaction
+    if (this.cinema) {
+      this.cinema.spawnDomFloatingEmoji(event.giftIcon);
+      setTimeout(() => this.cinema.spawnDomFloatingEmoji(event.giftIcon), 250);
+      setTimeout(() => this.cinema.spawnDomFloatingEmoji(event.giftIcon), 500);
+    }
+
+    // Streamer gift banner across screen
+    const overlay = document.getElementById('gift-banner-overlay');
+    if (!overlay) return;
+
+    const banner = document.createElement('div');
+    banner.className = 'gift-broadcast-banner';
+    banner.innerHTML = `
+      <span class="gift-banner-icon">${event.giftIcon}</span>
+      <div class="gift-banner-content">
+        <span class="gift-banner-sender">✨ ${this.escapeHTML(event.senderName)} đã tặng Chủ phòng</span>
+        <span class="gift-banner-title">${this.escapeHTML(event.giftName)} (+${event.giftCost} Xu)!</span>
+      </div>
+    `;
+
+    overlay.appendChild(banner);
+    setTimeout(() => {
+      banner.remove();
+    }, 4600);
   }
 
   escapeHTML(str) {

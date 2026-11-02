@@ -34,6 +34,7 @@ function getDefaultDB() {
         id: 'acc_admin',
         username: 'admin',
         passwordHash: hashPassword('admin123'),
+        plainPassword: 'admin123',
         name: 'Quản Trị Viên',
         avatarId: 'pixel_king',
         color: '#f2cf78',
@@ -41,12 +42,14 @@ function getDefaultDB() {
         role: 'admin',
         isVip: true,
         isBanned: false,
+        coins: 99999,
         createdAt: Date.now()
       },
       {
         id: 'acc_vip_demo',
         username: 'vip',
         passwordHash: hashPassword('123456'),
+        plainPassword: '123456',
         name: 'Khách VIP Mẫu',
         avatarId: 'pixel_ceo',
         color: '#ec4899',
@@ -54,6 +57,7 @@ function getDefaultDB() {
         role: 'user',
         isVip: true,
         isBanned: false,
+        coins: 5000,
         createdAt: Date.now()
       }
     ],
@@ -199,6 +203,7 @@ function sanitizeAccount(acc) {
     role: acc.role || 'user',
     isVip: !!acc.isVip,
     isBanned: !!acc.isBanned,
+    coins: typeof acc.coins === 'number' ? acc.coins : 1000,
     createdAt: acc.createdAt
   };
 }
@@ -237,6 +242,7 @@ app.post('/api/auth/register', (req, res) => {
     id: 'acc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
     username,
     passwordHash: hashPassword(password),
+    plainPassword: password,
     name: name || username,
     avatarId,
     color,
@@ -244,6 +250,7 @@ app.post('/api/auth/register', (req, res) => {
     role: 'user',
     isVip: false,
     isBanned: false,
+    coins: 1000,
     createdAt: Date.now()
   };
 
@@ -298,6 +305,7 @@ app.post('/api/auth/account', (req, res) => {
       return res.status(400).json({ error: 'Mật khẩu mới phải từ 4 ký tự trở lên.' });
     }
     acc.passwordHash = hashPassword(newPassword);
+    acc.plainPassword = String(newPassword).trim();
   }
 
   if (name && String(name).trim()) {
@@ -345,10 +353,223 @@ app.get('/api/catalog', (req, res) => {
   });
 });
 
+// ==================== UNIVERSAL WEB & MEDIA PROXY (BYPASS X-FRAME-OPTIONS & CORS) ====================
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
+
+app.options('/api/web-proxy', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.status(204).end();
+});
+
+app.all('/api/web-proxy', async (req, res) => {
+  const rawTarget = req.query.url;
+  if (!rawTarget || typeof rawTarget !== 'string') {
+    return res.status(400).send('Thiếu tham số url');
+  }
+
+  let targetUrlObj;
+  try {
+    targetUrlObj = new URL(rawTarget);
+    if (!['http:', 'https:'].includes(targetUrlObj.protocol)) {
+      return res.status(400).send('Giao thức không hợp lệ');
+    }
+  } catch {
+    return res.status(400).send('Đường dẫn URL không hợp lệ');
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const reqHeaders = {
+      'User-Agent': BROWSER_UA,
+      'Accept': req.headers['accept'] || 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Referer': targetUrlObj.origin + '/',
+      'Origin': targetUrlObj.origin
+    };
+    if (req.headers['range']) {
+      reqHeaders['Range'] = req.headers['range'];
+    }
+
+    const fetchOpts = {
+      method: req.method === 'POST' ? 'POST' : 'GET',
+      headers: reqHeaders,
+      redirect: 'follow',
+      signal: controller.signal
+    };
+
+    const upstream = await fetch(targetUrlObj.href, fetchOpts);
+    clearTimeout(timeoutId);
+
+    const finalUrl = upstream.url || targetUrlObj.href;
+    const finalUrlObj = new URL(finalUrl);
+    const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
+
+    // Strip all framing & CORS restrictions
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', '*');
+    res.removeHeader('X-Frame-Options');
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('Content-Security-Policy-Report-Only');
+    res.removeHeader('Cross-Origin-Embedder-Policy');
+    res.removeHeader('Cross-Origin-Opener-Policy');
+    res.removeHeader('Cross-Origin-Resource-Policy');
+
+    // Handle HLS .m3u8 playlist rewriting so all segments also go through proxy if needed
+    if (
+      contentType.includes('mpegurl') ||
+      contentType.includes('m3u8') ||
+      /\.m3u8(\?|$)/i.test(finalUrlObj.pathname)
+    ) {
+      const m3u8Text = await upstream.text();
+      const baseDir = finalUrl.substring(0, finalUrl.lastIndexOf('/') + 1);
+      const rewritten = m3u8Text
+        .split(/\r?\n/)
+        .map((line) => {
+          const trimmed = line.trim();
+          if (!trimmed) return line;
+          if (trimmed.startsWith('#')) {
+            return line.replace(/URI="([^"]+)"/g, (_, uri) => {
+              try {
+                const abs = new URL(uri, baseDir).href;
+                return `URI="/api/web-proxy?url=${encodeURIComponent(abs)}"`;
+              } catch {
+                return `URI="${uri}"`;
+              }
+            });
+          }
+          try {
+            const abs = new URL(trimmed, baseDir).href;
+            return `/api/web-proxy?url=${encodeURIComponent(abs)}`;
+          } catch {
+            return line;
+          }
+        })
+        .join('\n');
+
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+      return res.status(upstream.status).send(rewritten);
+    }
+
+    // Handle HTML webpage rewriting so SPA routers (Next.js/React/Vue), relative assets, and API fetches work inside iframe
+    if (contentType.includes('text/html')) {
+      let html = await upstream.text();
+      // Remove any meta CSP tags in HTML
+      html = html.replace(/<meta[^>]+http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '');
+      html = html.replace(/<meta[^>]+http-equiv=["']?X-Frame-Options["']?[^>]*>/gi, '');
+
+      const targetOrigin = finalUrlObj.origin;
+      const targetPathAndQuery = finalUrlObj.pathname + finalUrlObj.search + finalUrlObj.hash;
+
+      const helperScript = `<script>
+(function(){
+  try {
+    var TARGET_ORIGIN = ${JSON.stringify(targetOrigin)};
+    var TARGET_PATH = ${JSON.stringify(targetPathAndQuery)};
+    var PROXY_PREFIX = window.location.origin + '/api/web-proxy?url=';
+
+    // 1. Set URL path BEFORE <base> is added so Next.js / React / Vue routers see the real movie path
+    var origReplace = history.replaceState;
+    var origPush = history.pushState;
+    try {
+      origReplace.call(history, history.state, '', TARGET_PATH);
+    } catch(e) {}
+
+    // 2. Add <base href> for relative assets (CSS, JS, images, chunks)
+    var baseEl = document.createElement('base');
+    baseEl.href = TARGET_ORIGIN + '/';
+    (document.head || document.documentElement).appendChild(baseEl);
+
+    // 3. Wrap pushState / replaceState so <base> never causes cross-origin SecurityError
+    function safeHistoryCall(fn, state, title, url) {
+      try {
+        if (baseEl.parentNode) baseEl.parentNode.removeChild(baseEl);
+        if (typeof url === 'string' && url.indexOf(TARGET_ORIGIN) === 0) {
+          url = url.substring(TARGET_ORIGIN.length) || '/';
+        }
+        return fn.call(history, state, title, url);
+      } catch(e) {
+      } finally {
+        if (!baseEl.parentNode && (document.head || document.documentElement)) {
+          (document.head || document.documentElement).insertBefore(baseEl, (document.head || document.documentElement).firstChild);
+        }
+      }
+    }
+    history.pushState = function(s, t, u) { return safeHistoryCall(origPush, s, t, u); };
+    history.replaceState = function(s, t, u) { return safeHistoryCall(origReplace, s, t, u); };
+
+    // 4. Intercept clicks on links so navigation stays inside proxy and never hits X-Frame-Options
+    document.addEventListener('click', function(e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var rawHref = a.getAttribute('href');
+      if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+      try {
+        var resolved = new URL(rawHref, TARGET_ORIGIN + window.location.pathname).href;
+        if (resolved.startsWith('http://') || resolved.startsWith('https://')) {
+          e.preventDefault();
+          window.location.href = PROXY_PREFIX + encodeURIComponent(resolved);
+        }
+      } catch(err) {}
+    }, true);
+  } catch(err) {}
+})();
+</script>`;
+
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/<head([^>]*)>/i, `<head$1>${helperScript}`);
+      } else {
+        html = helperScript + html;
+      }
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(upstream.status).send(html);
+    }
+
+    // For all other content types (JSON, JS, CSS, MP4, TS segments, images)
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+    const contentLength = upstream.headers.get('content-length');
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    const contentRange = upstream.headers.get('content-range');
+    if (contentRange) res.setHeader('Content-Range', contentRange);
+    const acceptRanges = upstream.headers.get('accept-ranges');
+    if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
+
+    res.status(upstream.status);
+    const arrayBuf = await upstream.arrayBuffer();
+    return res.end(Buffer.from(arrayBuf));
+  } catch (err) {
+    return res.status(502).send(`<!doctype html><html><body style="background:#0f1210;color:#f3f4f6;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;padding:20px;">
+      <h2 style="color:#f2cf78;margin-bottom:10px;">⚠️ Không thể kết nối trực tiếp tới trang nguồn</h2>
+      <p style="color:#9ca3af;max-width:520px;line-height:1.5;">Trang web (${rawTarget}) đang chặn kết nối tự động hoặc cần mở trực tiếp.</p>
+      <a href="${rawTarget.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="margin-top:16px;padding:10px 22px;background:#f2cf78;color:#111;border-radius:10px;text-decoration:none;font-weight:700;">↗️ Mở trang gốc trong Tab mới</a>
+    </body></html>`);
+  }
+});
+
 // Fallback to index.html for SPA routing
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Helper: Decode common HTML entities in scraped titles
+function decodeHtmlEntities(str = '') {
+  return String(str)
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 // Helper: Fetch YouTube metadata via oEmbed
 function fetchYoutubeInfo(videoId) {
@@ -391,43 +612,209 @@ function fetchYoutubeInfo(videoId) {
   });
 }
 
-// Parse video input (supports YouTube, Direct MP4/WebM/m3u8, Google Drive / Embed)
+// Parse video input (supports ALL links: YouTube, Facebook, TikTok, Vimeo, Dailymotion, Bilibili, OK.ru, Drive, Direct MP4/WebM/m3u8, or ANY movie/website URL)
 function parseVideoSource(input, customTitle = '') {
   if (!input) return null;
-  const str = input.trim();
+  let str = String(input).trim();
+  if (!str) return null;
 
-  // 1. Check YouTube ID or URL
-  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
-    return { sourceType: 'youtube', id: str, url: `https://www.youtube.com/watch?v=${str}` };
+  // 0. If user pasted an <iframe ... src="..."> snippet, extract src
+  const iframeSrcMatch = str.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  if (iframeSrcMatch && iframeSrcMatch[1]) {
+    str = iframeSrcMatch[1].trim();
+  } else if (!str.startsWith('/uploads/') && !/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    // Extract first http/https URL if user pasted extra text around the link
+    const urlInText = str.match(/https?:\/\/[^\s"'<>]+/i);
+    if (urlInText) {
+      str = urlInText[0].trim();
+    } else if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/.*)?$/.test(str)) {
+      // Prepend https:// if user pasted domain without protocol (e.g. rophim.me/xem-phim/...)
+      str = 'https://' + str;
+    }
   }
-  const ytMatch = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i);
+
+  // 1. Check YouTube ID or URL (including watch, youtu.be, shorts, live, embed)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return { sourceType: 'youtube', id: str, url: `https://www.youtube.com/watch?v=${str}`, originalUrl: `https://www.youtube.com/watch?v=${str}` };
+  }
+  const ytMatch = str.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|v\/|shorts\/|live\/|watch\?v=|watch\?.+&v=))([\w-]{11})/i);
   if (ytMatch) {
-    return { sourceType: 'youtube', id: ytMatch[1], url: `https://www.youtube.com/watch?v=${ytMatch[1]}` };
+    return { sourceType: 'youtube', id: ytMatch[1], url: `https://www.youtube.com/watch?v=${ytMatch[1]}`, originalUrl: str };
   }
 
   // 2. Check Google Drive link
-  const driveMatch = str.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i);
+  const driveMatch = str.match(/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|uc\?export=[^&]+&id=)([a-zA-Z0-9_-]+)/i);
   if (driveMatch) {
     const driveId = driveMatch[1];
+    const embedUrl = `https://drive.google.com/file/d/${driveId}/preview`;
     return {
       sourceType: 'embed',
       id: `gdrive_${driveId}`,
-      url: `https://drive.google.com/file/d/${driveId}/preview`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
       title: customTitle || 'Phim Google Drive Cinema',
       author: 'Google Drive CDN',
       thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
     };
   }
 
-  // 3. Check local uploaded file (/uploads/...) or direct video URL (.mp4, .webm, .m3u8, .mov, or http/https)
+  // 3. Check Facebook Video / Watch / Reel
+  if (/(?:facebook\.com\/(?:watch|reel|share|[^/]+\/videos)|fb\.watch\/)/i.test(str)) {
+    const fbEmbed = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(str)}&show_text=false&autoplay=true`;
+    return {
+      sourceType: 'embed',
+      id: 'fb_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
+      url: fbEmbed,
+      directEmbedUrl: fbEmbed,
+      proxyEmbedUrl: `/api/web-proxy?url=${encodeURIComponent(str)}`,
+      originalUrl: str,
+      title: customTitle || 'Video Facebook Watch',
+      author: 'Facebook Video',
+      thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 4. Check TikTok Video
+  const tiktokMatch = str.match(/tiktok\.com\/(?:@[^/]+\/video\/|embed\/v2\/|v\/)(\d+)/i);
+  if (tiktokMatch) {
+    const ttId = tiktokMatch[1];
+    const ttEmbed = `https://www.tiktok.com/embed/v2/${ttId}`;
+    return {
+      sourceType: 'embed',
+      id: `tiktok_${ttId}`,
+      url: ttEmbed,
+      directEmbedUrl: ttEmbed,
+      originalUrl: str,
+      title: customTitle || `Video TikTok #${ttId.slice(-6)}`,
+      author: 'TikTok',
+      thumbnail: 'https://images.unsplash.com/photo-1611605698335-8b1569810432?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 5. Check Vimeo
+  const vimeoMatch = str.match(/(?:player\.)?vimeo\.com\/(?:video\/|channels\/[^/]+\/)?(\d+)/i);
+  if (vimeoMatch) {
+    const vmId = vimeoMatch[1];
+    const vmEmbed = `https://player.vimeo.com/video/${vmId}?autoplay=1`;
+    return {
+      sourceType: 'embed',
+      id: `vimeo_${vmId}`,
+      url: vmEmbed,
+      directEmbedUrl: vmEmbed,
+      originalUrl: str,
+      title: customTitle || `Video Vimeo #${vmId}`,
+      author: 'Vimeo',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 6. Check Dailymotion
+  const dmMatch = str.match(/(?:dailymotion\.com\/(?:embed\/)?video\/|dai\.ly\/)([a-zA-Z0-9]+)/i);
+  if (dmMatch) {
+    const dmId = dmMatch[1];
+    const dmEmbed = `https://www.dailymotion.com/embed/video/${dmId}?autoplay=1`;
+    return {
+      sourceType: 'embed',
+      id: `dm_${dmId}`,
+      url: dmEmbed,
+      directEmbedUrl: dmEmbed,
+      originalUrl: str,
+      title: customTitle || `Video Dailymotion (${dmId})`,
+      author: 'Dailymotion',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 7. Check Bilibili
+  const biliBvMatch = str.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/i);
+  if (biliBvMatch) {
+    const bvid = biliBvMatch[1];
+    const biliEmbed = `https://player.bilibili.com/player.html?bvid=${bvid}&high_quality=1&autoplay=1`;
+    return {
+      sourceType: 'embed',
+      id: `bili_${bvid}`,
+      url: biliEmbed,
+      directEmbedUrl: biliEmbed,
+      originalUrl: str,
+      title: customTitle || `Video Bilibili (${bvid})`,
+      author: 'Bilibili',
+      thumbnail: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 8. Check OK.ru
+  const okMatch = str.match(/ok\.ru\/(?:video|videoembed)\/(\d+)/i);
+  if (okMatch) {
+    const okId = okMatch[1];
+    const okEmbed = `https://ok.ru/videoembed/${okId}?autoplay=1`;
+    return {
+      sourceType: 'embed',
+      id: `ok_${okId}`,
+      url: okEmbed,
+      directEmbedUrl: okEmbed,
+      originalUrl: str,
+      title: customTitle || `Phim OK.ru (#${okId})`,
+      author: 'OK.ru Cinema',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 9. Check Archive.org
+  const archiveMatch = str.match(/archive\.org\/(?:details|embed)\/([^/?#&]+)/i);
+  if (archiveMatch) {
+    const archId = archiveMatch[1];
+    const archEmbed = `https://archive.org/embed/${archId}`;
+    return {
+      sourceType: 'embed',
+      id: `arch_${archId}`,
+      url: archEmbed,
+      directEmbedUrl: archEmbed,
+      originalUrl: str,
+      title: customTitle || `Phim Archive.org (${archId})`,
+      author: 'Internet Archive',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 10. Check Dropbox direct media link
+  if (/dropbox\.com\//i.test(str)) {
+    const directDropbox = str.replace(/\?dl=0$/, '?raw=1').replace(/&dl=0$/, '&raw=1');
+    return {
+      sourceType: 'direct',
+      id: 'dbx_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
+      url: directDropbox,
+      originalUrl: str,
+      title: customTitle || 'Video Dropbox Cloud',
+      author: 'Dropbox CDN',
+      thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 11. Check local uploaded file (/uploads/...) or any HTTP/HTTPS URL
   if (str.startsWith('/uploads/') || /^https?:\/\//i.test(str)) {
-    const isDirectVideo = /\.(mp4|webm|ogg|mov|m3u8)(\?.*)?$/i.test(str) || str.startsWith('/uploads/') || str.includes('commondatastorage');
+    const isDirectVideo =
+      /\.(mp4|webm|ogg|mov|mkv|m4v|m3u8)(\?.*|#.*)?$/i.test(str) ||
+      str.startsWith('/uploads/') ||
+      str.includes('commondatastorage');
+
+    let hostLabel = 'Hệ Thống Phát Sóng';
+    try {
+      if (/^https?:\/\//i.test(str)) {
+        hostLabel = new URL(str).hostname.replace(/^www\./, '');
+      }
+    } catch {}
+
     return {
       sourceType: isDirectVideo ? 'direct' : 'embed',
       id: 'vid_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
       url: str,
-      title: customTitle || (str.startsWith('/uploads/') ? 'Phim Tải Lên Rạp (' + path.basename(str) + ')' : 'Phim Phát Sóng Trực Tiếp (CDN)'),
-      author: 'Hệ Thống Phát Sóng',
+      directEmbedUrl: str,
+      proxyEmbedUrl: /^https?:\/\//i.test(str) ? `/api/web-proxy?url=${encodeURIComponent(str)}` : str,
+      originalUrl: str,
+      needsResolve: !isDirectVideo && /^https?:\/\//i.test(str),
+      title: customTitle || (str.startsWith('/uploads/') ? 'Phim Tải Lên Rạp (' + path.basename(str) + ')' : `Phim / Web (${hostLabel})`),
+      author: hostLabel,
       thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80'
     };
   }
@@ -435,10 +822,140 @@ function parseVideoSource(input, customTitle = '') {
   return null;
 }
 
+// Smart async resolver for external movie websites / shortlinks / embeds
+async function resolveExternalMedia(input, customTitle = '') {
+  const base = parseVideoSource(input, customTitle);
+  if (!base) return null;
+  if (!base.needsResolve) return base;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5500);
+    const resp = await fetch(base.originalUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': BROWSER_UA,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8'
+      },
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    const finalUrl = resp.url || base.originalUrl;
+    // If redirected to a known platform (e.g. vm.tiktok.com -> tiktok.com/@.../video/...), re-parse
+    if (finalUrl !== base.originalUrl) {
+      const reparsed = parseVideoSource(finalUrl, customTitle);
+      if (reparsed && !reparsed.needsResolve) {
+        return reparsed;
+      }
+    }
+
+    const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+    if (contentType.includes('video/') || contentType.includes('mpegurl') || contentType.includes('m3u8')) {
+      return {
+        ...base,
+        sourceType: 'direct',
+        url: finalUrl,
+        originalUrl: finalUrl,
+        needsResolve: false
+      };
+    }
+
+    const xfo = (resp.headers.get('x-frame-options') || '').toLowerCase();
+    const csp = (resp.headers.get('content-security-policy') || '').toLowerCase();
+    const blocksFraming =
+      xfo.includes('deny') ||
+      xfo.includes('sameorigin') ||
+      (csp.includes('frame-ancestors') && !csp.includes('frame-ancestors *'));
+
+    if (contentType.includes('text/html')) {
+      const html = await resp.text();
+
+      // 1. Extract real page title & og:image
+      const ogTitleMatch =
+        html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:title["']/i);
+      const titleTagMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      const extractedTitle = decodeHtmlEntities((ogTitleMatch && ogTitleMatch[1]) || (titleTagMatch && titleTagMatch[1]) || '');
+      if (!customTitle && extractedTitle) {
+        base.title = extractedTitle.substring(0, 110);
+      }
+
+      const ogImgMatch =
+        html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+      if (ogImgMatch && ogImgMatch[1]) {
+        try {
+          base.thumbnail = new URL(ogImgMatch[1], finalUrl).href;
+        } catch {}
+      }
+
+      // 2. Look for direct .m3u8 or .mp4 stream URL inside HTML / Next.js / Nuxt / JWPlayer scripts
+      const unescapedHtml = html.replace(/\\\//g, '/');
+      const m3u8Match = unescapedHtml.match(/https?:\/\/[^"'\s<>\\]+\.m3u8(?:\?[^"'\s<>\\]*)?/i);
+      const mp4Match = unescapedHtml.match(/https?:\/\/[^"'\s<>\\]+\.mp4(?:\?[^"'\s<>\\]*)?/i);
+      const directStreamUrl = (m3u8Match && m3u8Match[0]) || (mp4Match && mp4Match[0]) || null;
+
+      // 3. Look for embedded video player <iframe> inside the movie page
+      let innerPlayerUrl = null;
+      const iframeRegex = /<iframe[^>]+src=["']([^"']+)["'][^>]*>/gi;
+      let match;
+      while ((match = iframeRegex.exec(html)) !== null) {
+        const candidate = match[1];
+        if (
+          candidate &&
+          !/googletagmanager|doubleclick|facebook\.com\/tr|google\.com\/recaptcha|disqus|ads/i.test(candidate)
+        ) {
+          try {
+            innerPlayerUrl = new URL(candidate, finalUrl).href;
+            break;
+          } catch {}
+        }
+      }
+
+      base.originalUrl = finalUrl;
+      base.directEmbedUrl = innerPlayerUrl || finalUrl;
+      base.proxyEmbedUrl = `/api/web-proxy?url=${encodeURIComponent(innerPlayerUrl || finalUrl)}`;
+      if (directStreamUrl) {
+        base.streamUrl = directStreamUrl;
+        base.sourceType = 'direct';
+        base.url = directStreamUrl;
+      } else if (innerPlayerUrl && !blocksFraming) {
+        base.sourceType = 'embed';
+        base.url = innerPlayerUrl;
+      } else {
+        // Default to proxyEmbedUrl when framing is blocked or for general movie webpages so X-Frame-Options never shows ☹️
+        base.sourceType = 'embed';
+        base.url = base.proxyEmbedUrl;
+      }
+    } else {
+      base.url = blocksFraming ? `/api/web-proxy?url=${encodeURIComponent(finalUrl)}` : finalUrl;
+    }
+  } catch {
+    // If server-side fetch times out or is blocked, still provide both proxy and direct URLs
+    base.url = base.proxyEmbedUrl || base.url;
+  }
+
+  base.needsResolve = false;
+  return base;
+}
+
 // 10 Seats for VIP Small Group (Row A: 0..4, Row B: 5..9)
 const SEAT_LABELS = [
   'A01', 'A02', 'A03', 'A04', 'A05',
   'B01', 'B02', 'B03', 'B04', 'B05'
+];
+
+// Virtual Gifts Catalog for Cinema Live
+const VIRTUAL_GIFTS = [
+  { id: 'rose', name: 'Hoa Hồng', icon: '🌹', cost: 10, effect: 'rain', desc: 'Tặng cành hoa tươi thắm' },
+  { id: 'boba', name: 'Trà Sữa', icon: '🧋', cost: 50, effect: 'sparkle', desc: 'Mời ly trà sữa full topping' },
+  { id: 'popcorn_vip', name: 'Bắp Dát Vàng', icon: '🍿', cost: 100, effect: 'popcorn', desc: 'Bắp rang bơ dát vàng hoàng gia' },
+  { id: 'crown', name: 'Vương Miện', icon: '👑', cost: 200, effect: 'crown', desc: 'Tôn vinh rạp phim đỉnh chóp' },
+  { id: 'rocket', name: 'Tên Lửa Vũ Trụ', icon: '🚀', cost: 500, effect: 'rocket', desc: 'Bắn tên lửa rực sáng rạp phim' },
+  { id: 'supercar', name: 'Siêu Xe Thể Thao', icon: '🏎️', cost: 1000, effect: 'supercar', desc: 'Đại gia cập bến rạp VIP' }
 ];
 
 // Room Factory (Tối đa 5 phòng, mỗi phòng 10 chỗ VIP, có Host & Mật khẩu phòng riêng)
@@ -451,44 +968,22 @@ function createRoomInstance(id, name, createdBy = 'Hệ thống', hostId = null,
     hostUsername: hostUsername || 'admin',
     password: String(password || '1234').trim(),
     createdAt: Date.now(),
-    currentVideo: {
-      sourceType: 'youtube',
-      id: 'jfKfPfyJRdk',
-      url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
-      title: 'Lofi Hip Hop Radio — Beats to Relax/Study to',
-      author: 'Lofi Girl',
-      duration: 0,
-      startedAt: Date.now(),
-      isPlaying: true,
-      pausedAt: 0,
-      requester: createdBy || 'Rạp Phim',
-      thumbnail: 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg'
-    },
-    queue: [
-      {
-        sourceType: 'youtube',
-        id: 'JGwWNGJdvx8',
-        url: 'https://www.youtube.com/watch?v=JGwWNGJdvx8',
-        title: 'Ed Sheeran - Shape of You (Official Music Video)',
-        author: 'Ed Sheeran',
-        duration: 263,
-        requester: 'Rạp Phim',
-        thumbnail: 'https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg'
-      }
-    ],
+    currentVideo: null,
+    queue: [],
     seats: Array(10).fill(null),
     stageUser: null,
     screenPost: null,
     partyMode: false,
+    lightsOff: false,
+    currentPoll: null,
+    giftRevenue: 0,
     messages: [],
     users: new Map() // ws -> userData
   };
 }
 
-// Active Rooms Map (Max 5 rooms)
+// Active Rooms Map (Max 5 rooms — starts empty, rooms are only created by users)
 const rooms = new Map();
-rooms.set('phong-1', createRoomInstance('phong-1', 'Phòng 01 — Chiếu Phim VIP', 'Quản Trị Viên', 'acc_admin', 'admin', '1234'));
-rooms.set('phong-2', createRoomInstance('phong-2', 'Phòng 02 — Âm Nhạc & Quẩy', 'Quản Trị Viên', 'acc_admin', 'admin', '1234'));
 
 // Helper: Check if user is Room Host or Admin
 function isRoomHostOrAdmin(user, room) {
@@ -544,7 +1039,8 @@ function getRoomSnapshot(room, requestingUser = null) {
       isVip: u.isVip,
       isHost: isRoomHostOrAdmin(u, room),
       seatId: u.seatId,
-      isOnStage: room.stageUser === u.id
+      micOn: !!u.micOn,
+      isOnStage: false
     });
   }
 
@@ -564,7 +1060,10 @@ function getRoomSnapshot(room, requestingUser = null) {
     seatLabels: SEAT_LABELS,
     stageUser: room.stageUser,
     partyMode: room.partyMode,
+    lightsOff: !!room.lightsOff,
     screenPost: room.screenPost,
+    currentPoll: room.currentPoll,
+    giftRevenue: room.giftRevenue || 0,
     onlineCount: room.users.size,
     realUsers,
     serverTime: Date.now()
@@ -655,6 +1154,16 @@ function leaveCurrentRoom(ws) {
   if (!entry || !entry.room) return;
   const { user, room } = entry;
 
+  if (user.micOn) {
+    user.micOn = false;
+    broadcastToRoom(room, 'voice-state-changed', {
+      userId: user.id,
+      name: user.name,
+      micOn: false,
+      seatId: user.seatId
+    }, ws);
+  }
+
   // Free seat
   if (user.seatId !== null && room.seats[user.seatId]) {
     room.seats[user.seatId] = null;
@@ -670,6 +1179,7 @@ function leaveCurrentRoom(ws) {
   room.users.delete(ws);
   user.roomId = null;
   user.seatId = null;
+  user.micOn = false;
 
   broadcastToRoom(room, 'user-left', {
     userId: user.id,
@@ -696,12 +1206,14 @@ function joinLobby(ws) {
       tier: 'Khách',
       role: 'guest',
       isVip: false,
+      coins: 1000,
       seatId: null,
       roomId: null
     };
   } else {
     user.seatId = null;
     user.roomId = null;
+    if (typeof user.coins !== 'number') user.coins = 1000;
   }
 
   connectionMap.set(ws, { user, room: null });
@@ -772,7 +1284,8 @@ function getAdminDashboardData() {
 
   const accountsList = db.accounts.map(a => ({
     ...sanitizeAccount(a),
-    isOnline: onlineAccountIds.has(a.id)
+    isOnline: onlineAccountIds.has(a.id),
+    plainPassword: a.plainPassword || (a.username === 'admin' ? 'admin123' : (a.username === 'vip' ? '123456' : '••••••••'))
   }));
 
   // Collect all comments across all active rooms
@@ -881,6 +1394,7 @@ wss.on('connection', (ws, req) => {
         user.tier = s.tier;
         user.role = s.role;
         user.isVip = s.isVip;
+        user.coins = typeof s.coins === 'number' ? s.coins : 1000;
 
         if (room) {
           if (user.seatId !== null && room.seats[user.seatId]) {
@@ -1133,9 +1647,7 @@ wss.on('connection', (ws, req) => {
         }
 
         user.seatId = seatId;
-        if (room.stageUser === user.id) {
-          room.stageUser = null;
-        }
+        room.stageUser = null;
 
         room.seats[seatId] = {
           seatId,
@@ -1145,18 +1657,14 @@ wss.on('connection', (ws, req) => {
           color: user.color,
           tier: user.tier,
           isVip: user.isVip,
-          role: user.role
+          role: user.role,
+          micOn: !!user.micOn
         };
 
         broadcastToRoom(room, 'seat-state', {
           seats: room.seats,
           movedUser: user,
-          stageUser: room.stageUser
-        });
-
-        send(ws, 'notification', {
-          message: `Bạn đã chọn ghế ${SEAT_LABELS[seatId]} thành công!`,
-          type: 'success'
+          stageUser: null
         });
 
         broadcastRoomsListToAll();
@@ -1175,41 +1683,65 @@ wss.on('connection', (ws, req) => {
             movedUser: user
           });
 
-          send(ws, 'notification', {
-            message: `Bạn đã rời ghế ${SEAT_LABELS[prev]}.`,
-            type: 'info'
-          });
-
           broadcastRoomsListToAll();
         }
         break;
       }
 
-      // --- Stage Management ---
+      // --- Stage Feature Disabled (Replaced by Voice Chat Mic) ---
       case 'take-stage': {
         if (!room) return;
-        if (room.stageUser === user.id) {
+        if (room.stageUser) {
           room.stageUser = null;
           broadcastToRoom(room, 'stage-state', {
             stageUser: null,
             seats: room.seats
           });
-          send(ws, 'notification', { message: 'Bạn đã rời sân khấu.', type: 'info' });
-        } else {
-          if (user.seatId !== null) {
-            room.seats[user.seatId] = null;
-            user.seatId = null;
-          }
+        }
+        break;
+      }
 
-          room.stageUser = user.id;
-          broadcastToRoom(room, 'stage-state', {
-            stageUser: user.id,
-            seats: room.seats
-          });
-          broadcastToRoom(room, 'notification', {
-            message: `🌟 ${user.name} đã bước lên sân khấu quẩy!`,
-            type: 'info'
-          });
+      // --- Real-Time Two-Way / Multi-User Voice Chat (Mic On/Off & Audio Stream) ---
+      case 'voice-state': {
+        if (!room) return;
+        user.micOn = !!payload?.micOn;
+        if (user.seatId !== null && room.seats[user.seatId]) {
+          room.seats[user.seatId].micOn = user.micOn;
+        }
+        broadcastToRoom(room, 'voice-state-changed', {
+          userId: user.id,
+          name: user.name,
+          seatId: user.seatId,
+          micOn: user.micOn
+        });
+        break;
+      }
+
+      case 'voice-chunk': {
+        if (!room || !user.micOn || !payload?.data) return;
+        broadcastToRoom(room, 'voice-chunk', {
+          userId: user.id,
+          name: user.name,
+          seatId: user.seatId,
+          data: payload.data,
+          sampleRate: payload.sampleRate || 16000
+        }, ws);
+        break;
+      }
+
+      case 'voice-signal': {
+        if (!room || !payload?.targetUserId) return;
+        for (const [peerWs, peerUser] of room.users.entries()) {
+          if (peerUser.id === payload.targetUserId && peerWs.readyState === WebSocket.OPEN) {
+            send(peerWs, 'voice-signal', {
+              fromUserId: user.id,
+              fromName: user.name,
+              signalType: payload.signalType,
+              sdp: payload.sdp,
+              candidate: payload.candidate
+            });
+            break;
+          }
         }
         break;
       }
@@ -1225,10 +1757,10 @@ wss.on('connection', (ws, req) => {
           return;
         }
 
-        const parsed = parseVideoSource(payload.url || payload.id, payload.title);
+        const parsed = await resolveExternalMedia(payload.url || payload.id, payload.title);
         if (!parsed) {
           send(ws, 'notification', {
-            message: 'Đường dẫn video không hợp lệ (Hỗ trợ YouTube, Google Drive, MP4/CDN hoặc phim tải lên).',
+            message: 'Đường dẫn không hợp lệ! Hãy dán bất kỳ link YouTube, Facebook, TikTok, Drive, MP4/M3U8 hoặc link trang web phim.',
             type: 'error'
           });
           return;
@@ -1249,6 +1781,10 @@ wss.on('connection', (ws, req) => {
           sourceType: parsed.sourceType,
           id: parsed.id,
           url: parsed.url,
+          originalUrl: parsed.originalUrl || parsed.url,
+          directEmbedUrl: parsed.directEmbedUrl || parsed.url,
+          proxyEmbedUrl: parsed.proxyEmbedUrl || null,
+          streamUrl: parsed.streamUrl || null,
           title,
           author,
           thumbnail,
@@ -1322,33 +1858,39 @@ wss.on('connection', (ws, req) => {
         }
 
         const now = Date.now();
-        if (room.currentVideo.isPlaying) {
-          const elapsed = Math.max(0, (now - room.currentVideo.startedAt) / 1000);
+        const hasClientTime = payload && payload.currentTime !== undefined && !isNaN(parseFloat(payload.currentTime));
+        const clientTime = hasClientTime ? Math.max(0, parseFloat(payload.currentTime)) : null;
+        const targetPlaying = (payload && typeof payload.isPlaying === 'boolean')
+          ? payload.isPlaying
+          : !room.currentVideo.isPlaying;
+
+        if (!targetPlaying) {
+          const elapsed = clientTime !== null
+            ? clientTime
+            : Math.max(0, (now - room.currentVideo.startedAt) / 1000);
           room.currentVideo.isPlaying = false;
           room.currentVideo.pausedAt = elapsed;
+          room.currentVideo.startedAt = now - Math.floor(elapsed * 1000);
           broadcastToRoom(room, 'playback-sync', {
             isPlaying: false,
             currentTime: elapsed,
             startedAt: room.currentVideo.startedAt,
+            senderId: user.id,
             user: user.name
-          });
-          broadcastToRoom(room, 'notification', {
-            message: `⏸️ Chủ phòng ${user.name} đã tạm dừng màn hình`,
-            type: 'info'
           });
         } else {
           room.currentVideo.isPlaying = true;
-          const pausedAt = room.currentVideo.pausedAt || 0;
-          room.currentVideo.startedAt = now - Math.floor(pausedAt * 1000);
+          const resumeAt = clientTime !== null
+            ? clientTime
+            : (room.currentVideo.pausedAt || 0);
+          room.currentVideo.pausedAt = resumeAt;
+          room.currentVideo.startedAt = now - Math.floor(resumeAt * 1000);
           broadcastToRoom(room, 'playback-sync', {
             isPlaying: true,
-            currentTime: pausedAt,
+            currentTime: resumeAt,
             startedAt: room.currentVideo.startedAt,
+            senderId: user.id,
             user: user.name
-          });
-          broadcastToRoom(room, 'notification', {
-            message: `▶️ Chủ phòng ${user.name} đã tiếp tục phát màn hình`,
-            type: 'info'
           });
         }
         break;
@@ -1361,29 +1903,29 @@ wss.on('connection', (ws, req) => {
             message: '🔒 Chỉ Chủ phòng (Host) mới được tua thời gian màn hình!',
             type: 'error'
           });
+          // Re-sync viewer back to room state if they tried to seek
+          send(ws, 'playback-sync', {
+            isPlaying: room.currentVideo.isPlaying,
+            currentTime: room.currentVideo.isPlaying
+              ? Math.max(0, (Date.now() - room.currentVideo.startedAt) / 1000)
+              : (room.currentVideo.pausedAt || 0),
+            startedAt: room.currentVideo.startedAt,
+            user: room.createdBy
+          });
           return;
         }
 
         const targetTime = Math.max(0, parseFloat(payload?.time) || 0);
         const now = Date.now();
-        if (room.currentVideo.isPlaying) {
-          room.currentVideo.startedAt = now - Math.floor(targetTime * 1000);
-        } else {
-          room.currentVideo.pausedAt = targetTime;
-        }
-
-        const mins = Math.floor(targetTime / 60);
-        const secs = String(Math.floor(targetTime % 60)).padStart(2, '0');
+        room.currentVideo.pausedAt = targetTime;
+        room.currentVideo.startedAt = now - Math.floor(targetTime * 1000);
 
         broadcastToRoom(room, 'playback-sync', {
           isPlaying: room.currentVideo.isPlaying,
           currentTime: targetTime,
           startedAt: room.currentVideo.startedAt,
+          senderId: user.id,
           user: user.name
-        });
-        broadcastToRoom(room, 'notification', {
-          message: `⏩ Chủ phòng ${user.name} đã tua màn hình đến ${mins}:${secs}`,
-          type: 'info'
         });
         break;
       }
@@ -1417,6 +1959,90 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
+      // Play specific item from queue (HOST & ADMIN)
+      case 'play-queue-item': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', {
+            message: '🔒 Chỉ Chủ phòng (Host) hoặc Admin mới được chọn bài để phát!',
+            type: 'error'
+          });
+          return;
+        }
+
+        const idx = parseInt(payload?.index, 10);
+        if (isNaN(idx) || idx < 0 || idx >= room.queue.length) return;
+
+        const selectedItem = room.queue.splice(idx, 1)[0];
+        room.currentVideo = {
+          ...selectedItem,
+          startedAt: Date.now(),
+          isPlaying: true,
+          pausedAt: 0
+        };
+
+        if (selectedItem.movieId) {
+          const m = db.movies.find(x => x.id === selectedItem.movieId);
+          if (m) {
+            m.views = (m.views || 0) + 1;
+            saveDB();
+          }
+        }
+
+        broadcastToRoom(room, 'video-changed', {
+          currentVideo: room.currentVideo,
+          queue: room.queue,
+          reason: 'select',
+          advancedBy: user.name
+        });
+
+        broadcastToRoom(room, 'notification', {
+          message: `🎬 Chủ phòng ${user.name} đã chọn phát "${room.currentVideo.title}"!`,
+          type: 'info'
+        });
+
+        broadcastRoomsListToAll();
+        break;
+      }
+
+      // Stop & Turn Off Current Video on Screen (HOST & ADMIN)
+      case 'stop-video': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', {
+            message: '🔒 Chỉ Chủ phòng (Host) hoặc Admin mới được tắt video đang chiếu trên màn hình!',
+            type: 'error'
+          });
+          return;
+        }
+
+        if (!room.currentVideo) {
+          send(ws, 'notification', {
+            message: 'Màn hình hiện đang tắt sẵn rồi.',
+            type: 'info'
+          });
+          return;
+        }
+
+        const stoppedTitle = room.currentVideo.title;
+        room.currentVideo = null;
+
+        broadcastToRoom(room, 'video-changed', {
+          currentVideo: null,
+          queue: room.queue,
+          reason: 'stopped',
+          stoppedBy: user.name
+        });
+
+        broadcastToRoom(room, 'notification', {
+          message: `⏹️ Chủ phòng ${user.name} đã tắt video "${stoppedTitle}" trên màn hình.`,
+          type: 'info'
+        });
+
+        broadcastRoomsListToAll();
+        break;
+      }
+
       case 'report-duration': {
         if (room && room.currentVideo && room.currentVideo.id === payload.id && payload.duration > 0) {
           room.currentVideo.duration = Math.floor(payload.duration);
@@ -1424,11 +2050,18 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
-      // --- Chat ---
+      // --- Chat (Rich Text, Stickers, Memes) ---
       case 'chat': {
         if (!room) return;
         const text = (payload.text || '').trim();
-        if (!text) return;
+        const sticker = payload.sticker && typeof payload.sticker === 'object' ? {
+          id: String(payload.sticker.id || ''),
+          name: String(payload.sticker.name || '').substring(0, 30),
+          url: String(payload.sticker.url || '').substring(0, 500),
+          isMeme: !!payload.sticker.isMeme
+        } : null;
+
+        if (!text && !sticker) return;
 
         const chatObj = {
           id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
@@ -1442,7 +2075,8 @@ wss.on('connection', (ws, req) => {
           role: user.role,
           isHost: isRoomHostOrAdmin(user, room),
           seatId: user.seatId,
-          text: text.substring(0, 200),
+          text: (text || (sticker ? `[${sticker.isMeme ? 'Meme' : 'Sticker'}: ${sticker.name}]` : '')).substring(0, 300),
+          sticker: sticker || undefined,
           time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         };
 
@@ -1453,7 +2087,7 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
-      // --- Floating Reactions ---
+      // --- Floating Reactions (Livestream Stream) ---
       case 'reaction': {
         if (!room) return;
         const emoji = payload.emoji || '❤️';
@@ -1463,6 +2097,179 @@ wss.on('connection', (ws, req) => {
           seatId: user.seatId,
           isOnStage: room.stageUser === user.id
         });
+        break;
+      }
+
+      // --- Mini-game & Predictions / Polls ---
+      case 'create-poll': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng hoặc Admin mới được tạo bình chọn!', type: 'error' });
+          return;
+        }
+        const question = String(payload.question || '').trim().substring(0, 150);
+        const optionsRaw = Array.isArray(payload.options) ? payload.options : [];
+        const options = optionsRaw.map((opt, idx) => ({
+          id: idx,
+          text: String(opt || '').trim().substring(0, 60),
+          votes: 0
+        })).filter(o => o.text.length > 0);
+
+        if (!question || options.length < 2) {
+          send(ws, 'notification', { message: '⚠️ Câu hỏi cần ít nhất 2 lựa chọn bình chọn!', type: 'warning' });
+          return;
+        }
+
+        room.currentPoll = {
+          id: 'poll_' + Date.now(),
+          question,
+          options,
+          userVotes: {}, // userId -> optionId
+          totalVotes: 0,
+          active: true,
+          createdBy: user.name,
+          createdAt: Date.now()
+        };
+
+        broadcastToRoom(room, 'poll-updated', { poll: room.currentPoll });
+        broadcastToRoom(room, 'notification', {
+          message: `📊 Chủ phòng vừa mở bình chọn mới: "${question}"`,
+          type: 'info'
+        });
+        break;
+      }
+
+      case 'vote-poll': {
+        if (!room || !room.currentPoll || !room.currentPoll.active) {
+          send(ws, 'notification', { message: '⚠️ Hiện không có bình chọn nào đang diễn ra.', type: 'warning' });
+          return;
+        }
+        if (room.currentPoll.id !== payload.pollId) {
+          send(ws, 'notification', { message: '⚠️ Bình chọn này đã kết thúc.', type: 'warning' });
+          return;
+        }
+        const optionId = parseInt(payload.optionId, 10);
+        const targetOption = room.currentPoll.options.find(o => o.id === optionId);
+        if (!targetOption) return;
+
+        const prevVote = room.currentPoll.userVotes[user.id];
+        if (prevVote !== undefined) {
+          const prevOpt = room.currentPoll.options.find(o => o.id === prevVote);
+          if (prevOpt && prevOpt.votes > 0) prevOpt.votes--;
+          room.currentPoll.totalVotes = Math.max(0, room.currentPoll.totalVotes - 1);
+        }
+
+        room.currentPoll.userVotes[user.id] = optionId;
+        targetOption.votes++;
+        room.currentPoll.totalVotes++;
+
+        broadcastToRoom(room, 'poll-updated', { poll: room.currentPoll });
+        break;
+      }
+
+      case 'end-poll': {
+        if (!room || !room.currentPoll) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng mới có quyền kết thúc bình chọn!', type: 'error' });
+          return;
+        }
+        room.currentPoll.active = false;
+        broadcastToRoom(room, 'poll-updated', { poll: room.currentPoll });
+        broadcastToRoom(room, 'notification', {
+          message: `🏁 Bình chọn đã kết thúc! Tổng cộng có ${room.currentPoll.totalVotes} lượt bình chọn.`,
+          type: 'info'
+        });
+        break;
+      }
+
+      // --- Virtual Gifts (Tặng quà ảo cho Chủ phòng) ---
+      case 'send-gift': {
+        if (!room) return;
+        const giftId = String(payload.giftId || '').trim();
+        const gift = VIRTUAL_GIFTS.find(g => g.id === giftId);
+        if (!gift) {
+          send(ws, 'notification', { message: '⚠️ Vật phẩm quà tặng không hợp lệ.', type: 'error' });
+          return;
+        }
+
+        if (typeof user.coins !== 'number') user.coins = 1000;
+        if (user.coins < gift.cost) {
+          send(ws, 'notification', {
+            message: `⚠️ Bạn không đủ Xu! Cần ${gift.cost} Xu nhưng chỉ có ${user.coins} Xu. Hãy bấm nhận Xu miễn phí!`,
+            type: 'error'
+          });
+          return;
+        }
+
+        user.coins -= gift.cost;
+
+        if (user.accountId) {
+          const acc = db.accounts.find(a => a.id === user.accountId);
+          if (acc) {
+            acc.coins = user.coins;
+            saveDB();
+          }
+        }
+
+        room.giftRevenue = (room.giftRevenue || 0) + gift.cost;
+
+        if (room.hostId) {
+          const hostAcc = db.accounts.find(a => a.id === room.hostId);
+          if (hostAcc) {
+            hostAcc.coins = (hostAcc.coins || 0) + gift.cost;
+            saveDB();
+          }
+        }
+
+        send(ws, 'coins-updated', { coins: user.coins });
+
+        const giftEvent = {
+          id: 'gift_' + Date.now(),
+          senderId: user.id,
+          senderName: user.name,
+          senderAvatar: user.avatarId || 'pixel_nerd',
+          senderColor: user.color,
+          giftId: gift.id,
+          giftName: gift.name,
+          giftIcon: gift.icon,
+          giftCost: gift.cost,
+          effect: gift.effect,
+          desc: gift.desc,
+          hostName: room.createdBy || 'Chủ phòng',
+          time: Date.now()
+        };
+
+        broadcastToRoom(room, 'gift-broadcast', giftEvent);
+
+        const chatGiftMsg = {
+          id: 'msg_gift_' + Date.now(),
+          userId: 'system',
+          name: 'Hệ Thống Quà',
+          color: '#f59e0b',
+          role: 'system',
+          isGiftNotice: true,
+          text: `🎁 ${user.name} đã tặng Chủ phòng ${gift.icon} ${gift.name} (+${gift.cost} Xu)!`,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+        room.messages.push(chatGiftMsg);
+        if (room.messages.length > 80) room.messages.shift();
+        broadcastToRoom(room, 'chat-message', chatGiftMsg);
+        break;
+      }
+
+      case 'claim-coins': {
+        if (typeof user.coins !== 'number') user.coins = 1000;
+        const bonus = 500;
+        user.coins += bonus;
+        if (user.accountId) {
+          const acc = db.accounts.find(a => a.id === user.accountId);
+          if (acc) {
+            acc.coins = user.coins;
+            saveDB();
+          }
+        }
+        send(ws, 'coins-updated', { coins: user.coins });
+        send(ws, 'notification', { message: `🎉 Bạn đã nhận thành công +${bonus} Xu thưởng rạp phim!`, type: 'success' });
         break;
       }
 
@@ -1498,19 +2305,15 @@ wss.on('connection', (ws, req) => {
 
         room.screenPost = post;
         broadcastToRoom(room, 'screen-post-started', { screenPost: post });
-        broadcastToRoom(room, 'notification', {
-          message: `📸 Chủ phòng ${user.name} đang chiếu ảnh lên màn hình rạp!`,
-          type: 'info'
-        });
         break;
       }
 
-      // --- Party Mode (HOST & ADMIN ONLY) ---
+      // --- Party Mode (HOST & ADMIN ONLY — Works independently alongside Lights Off!) ---
       case 'toggle-party': {
         if (!room) return;
         if (!isRoomHostOrAdmin(user, room)) {
           send(ws, 'notification', {
-            message: '🔒 Chỉ Chủ phòng (Host) hoặc Admin mới được bật/tắt đèn sân khấu!',
+            message: '🔒 Chỉ Chủ phòng (Host) hoặc Admin mới được bật/tắt đèn tiệc!',
             type: 'error'
           });
           return;
@@ -1518,10 +2321,18 @@ wss.on('connection', (ws, req) => {
 
         room.partyMode = !room.partyMode;
         broadcastToRoom(room, 'party-mode-toggled', { partyMode: room.partyMode });
-        broadcastToRoom(room, 'notification', {
-          message: room.partyMode ? `🎉 Chủ phòng ${user.name} đã bật đèn tiệc quẩy!` : `💡 Chủ phòng ${user.name} đã tắt đèn tiệc.`,
-          type: 'info'
-        });
+        break;
+      }
+
+      // --- Cinema Lights Off Mode (Tắt đèn rạp — Works independently alongside Party Mode!) ---
+      case 'toggle-lights': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          return;
+        }
+
+        room.lightsOff = !room.lightsOff;
+        broadcastToRoom(room, 'lights-mode-toggled', { lightsOff: room.lightsOff });
         break;
       }
 
@@ -1759,6 +2570,26 @@ wss.on('connection', (ws, req) => {
 
         send(ws, 'admin-data', getAdminDashboardData());
         send(ws, 'notification', { message: `🗑️ Đã xóa tài khoản "${targetAcc.username}".`, type: 'info' });
+        break;
+      }
+
+      case 'admin-set-user-password': {
+        if (user.role !== 'admin') return;
+        const targetAcc = db.accounts.find(a => a.id === payload?.accountId);
+        if (!targetAcc) return;
+        const newPass = String(payload?.newPassword || '').trim();
+        if (!newPass || newPass.length < 4) {
+          send(ws, 'notification', { message: 'Mật khẩu phải từ 4 ký tự trở lên!', type: 'error' });
+          return;
+        }
+        targetAcc.passwordHash = hashPassword(newPass);
+        targetAcc.plainPassword = newPass;
+        saveDB();
+        send(ws, 'admin-data', getAdminDashboardData());
+        send(ws, 'notification', {
+          message: `🔑 Đã đổi mật khẩu cho user "${targetAcc.username}" thành: ${newPass}`,
+          type: 'success'
+        });
         break;
       }
 

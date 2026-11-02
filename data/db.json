@@ -1,0 +1,111 @@
+{
+  "accounts": [
+    {
+      "id": "acc_admin",
+      "username": "admin",
+      "passwordHash": "eca7cb5f78cdac8981aee2ddb32b4b6b2172f839341df9f6086a1f2779578ccf",
+      "plainPassword": "admin123",
+      "name": "Quản Trị Viên",
+      "avatarId": "pixel_nerd",
+      "color": "#f2cf78",
+      "tier": "Khán Giả VIP",
+      "role": "admin",
+      "isVip": true,
+      "isBanned": false,
+      "createdAt": 1793614276332,
+      "coins": 6000
+    },
+    {
+      "id": "acc_1793633789200_vrez",
+      "username": "khoa195",
+      "passwordHash": "38a2941a7081c05efad67a8aa410fb7407f4a7700aad1e99e8ee03539b567e8c",
+      "name": "Anh iu của bé Huế",
+      "avatarId": "pixel_detective",
+      "color": "#f2cf78",
+      "tier": "Khán Giả",
+      "role": "user",
+      "isVip": false,
+      "isBanned": false,
+      "createdAt": 1793633789200,
+      "plainPassword": "190502"
+    },
+    {
+      "id": "acc_1793637395177_5v18",
+      "username": "phamphuonghue",
+      "passwordHash": "0b041dc1b8db44e645ef77bbddc2fd405f789eb42fae20b1153d77287f4f01d2",
+      "plainPassword": "8924",
+      "name": "khongyeu",
+      "avatarId": "pixel_gamer",
+      "color": "#f2cf78",
+      "tier": "Khán Giả",
+      "role": "user",
+      "isVip": false,
+      "isBanned": false,
+      "coins": 1500,
+      "createdAt": 1793637395177
+    }
+  ],
+  "categories": {
+    "genres": [
+      "Hành động",
+      "Tình cảm",
+      "Hoạt hình / Anime",
+      "Kinh dị",
+      "Âm nhạc / MV",
+      "Khoa học viễn tưởng",
+      "Hài hước"
+    ],
+    "countries": [
+      "Việt Nam",
+      "Hàn Quốc",
+      "Mỹ",
+      "Nhật Bản",
+      "Trung Quốc",
+      "Âu Mỹ"
+    ],
+    "years": [
+      "2026",
+      "2025",
+      "2024",
+      "2023",
+      "Trước 2023"
+    ],
+    "tags": [
+      "Chiếu Rạp",
+      "Bom Tấn",
+      "Thuyết Minh",
+      "Vietsub",
+      "4K Ultra HD",
+      "VIP Exclusive"
+    ]
+  },
+  "movies": [],
+  "stats": {
+    "totalVisits": 402,
+    "vipRevenue": 1500000,
+    "adRevenue": 850000,
+    "transactions": [
+      {
+        "id": "tx_1",
+        "type": "vip",
+        "amount": 500000,
+        "note": "Cấp gói VIP Nửa Năm - Khách VIP Mẫu",
+        "time": "2/11/2026"
+      },
+      {
+        "id": "tx_2",
+        "type": "vip",
+        "amount": 1000000,
+        "note": "Doanh thu gói VIP tháng",
+        "time": "2/11/2026"
+      },
+      {
+        "id": "tx_3",
+        "type": "ad",
+        "amount": 850000,
+        "note": "Doanh thu tài trợ Banner & Pre-roll Rạp",
+        "time": "2/11/2026"
+      }
+    ]
+  }
+}
