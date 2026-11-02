@@ -4,7 +4,7 @@
  */
 
 class CinemaScene {
-  constructor(containerId, cssContainerId) {
+  constructor(containerId, cssContainerId, startPaused = false) {
     this.container = document.getElementById(containerId);
     this.cssContainer = document.getElementById(cssContainerId);
 
@@ -15,9 +15,13 @@ class CinemaScene {
     this.cssRenderer = null;
     this.cssScreenObject = null;
     this.hasWebGL = false;
+    this.isPaused = !!startPaused;
+    this.animationFrameId = null;
+    this.lastHoverCheck = 0;
+    this.wasPausedByTab = false;
 
     // Quality setting: 'high' | 'smooth'
-    this.quality = 'high';
+    this.quality = 'smooth';
     this.partyMode = false;
 
     // Camera state & targets for smooth interpolation (lerp)
@@ -82,23 +86,29 @@ class CinemaScene {
     this.camera.position.set(0, 8.2, 11.0);
     this.camera.lookAt(this.camCurrentLook);
 
-    // 2. Safe WebGL Renderer initialization with fallback
+    // 2. Optimized Ultra-Smooth WebGL Renderer
     try {
-      this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'default' });
+      this.renderer = new THREE.WebGLRenderer({
+        antialias: false,
+        alpha: false,
+        powerPreference: 'high-performance',
+        precision: 'mediump',
+        stencil: false
+      });
       this.renderer.setSize(width, height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+      this.renderer.shadowMap.enabled = false;
       this.container.appendChild(this.renderer.domElement);
       this.hasWebGL = true;
     } catch (e1) {
       try {
-        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+        this.renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false });
         this.renderer.setSize(width, height);
+        this.renderer.setPixelRatio(1);
         this.container.appendChild(this.renderer.domElement);
         this.hasWebGL = true;
       } catch (e2) {
-        console.warn('WebGL không khả dụng trên trình duyệt này, chuyển sang chế độ phẳng:', e2);
+        console.warn('WebGL không khả dụng, chuyển sang chế độ phẳng:', e2);
         this.hasWebGL = false;
       }
     }
@@ -126,14 +136,29 @@ class CinemaScene {
     this.buildScreenAndCSS3D();
 
     // Event Listeners
-    window.addEventListener('resize', () => this.onWindowResize());
-    this.container.addEventListener('pointerdown', (e) => this.onPointerDown(e));
-    this.container.addEventListener('pointermove', (e) => this.onPointerMove(e));
-    this.container.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    window.addEventListener('resize', () => this.onWindowResize(), { passive: true });
+    this.container.addEventListener('pointerdown', (e) => this.onPointerDown(e), { passive: true });
+    this.container.addEventListener('pointermove', (e) => this.onPointerMove(e), { passive: true });
+    this.container.addEventListener('pointerup', (e) => this.onPointerUp(e), { passive: true });
     this.container.addEventListener('click', (e) => this.onClick(e));
 
+    // Pause when tab is hidden to save 100% background CPU
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (!this.isPaused) {
+          this.wasPausedByTab = true;
+          this.pause();
+        }
+      } else if (this.wasPausedByTab) {
+        this.wasPausedByTab = false;
+        this.resume();
+      }
+    });
+
     // Animation Loop
-    this.animate();
+    if (!this.isPaused) {
+      this.animate();
+    }
   }
 
   buildTheaterEnvironment() {
@@ -223,7 +248,7 @@ class CinemaScene {
     rightWall.position.set(hallWidth / 2, hallHeight / 2 - 0.2, 0);
     this.scene.add(rightWall);
 
-    // Decorative wall ribs & aisle lights
+    // Decorative wall ribs
     for (let z = -7; z <= 10; z += 3.5) {
       const ribGeo = new THREE.BoxGeometry(0.2, hallHeight - 2, 1.2);
       const ribLeft = new THREE.Mesh(ribGeo, goldTrimMat);
@@ -233,14 +258,6 @@ class CinemaScene {
       const ribRight = new THREE.Mesh(ribGeo, goldTrimMat);
       ribRight.position.set(hallWidth / 2 - 0.25, hallHeight / 2, z);
       this.scene.add(ribRight);
-
-      const downLight = new THREE.PointLight(0xf2cf78, 0.4, 6);
-      downLight.position.set(-hallWidth / 2 + 0.6, 0.6, z);
-      this.scene.add(downLight);
-
-      const downLightR = new THREE.PointLight(0xf2cf78, 0.4, 6);
-      downLightR.position.set(hallWidth / 2 - 0.6, 0.6, z);
-      this.scene.add(downLightR);
     }
 
     const ceilingGeo = new THREE.BoxGeometry(hallWidth + 2, 0.4, hallLength);
@@ -756,10 +773,27 @@ class CinemaScene {
     const is2D = forceState !== null ? forceState : !viewport.classList.contains('theater-2d-mode');
     if (is2D) {
       viewport.classList.add('theater-2d-mode');
+      this.pause();
     } else {
       viewport.classList.remove('theater-2d-mode');
+      this.resume();
     }
     return is2D;
+  }
+
+  pause() {
+    this.isPaused = true;
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+  }
+
+  resume() {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    this.clock.start();
+    this.animate();
   }
 
   setQuality(quality) {
@@ -769,8 +803,8 @@ class CinemaScene {
         this.renderer.setPixelRatio(1);
         this.renderer.shadowMap.enabled = false;
       } else {
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-        this.renderer.shadowMap.enabled = true;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+        this.renderer.shadowMap.enabled = false;
       }
     }
   }
@@ -781,7 +815,7 @@ class CinemaScene {
   }
 
   onPointerMove(e) {
-    if (!this.hasWebGL) return;
+    if (!this.hasWebGL || this.isPaused) return;
     const rect = this.container.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -803,9 +837,17 @@ class CinemaScene {
   }
 
   checkSeatHover() {
-    if (!this.hasWebGL) return;
+    if (!this.hasWebGL || this.isPaused) return;
+
+    // Throttle seat hover checks to max 13fps (~75ms)
+    const now = performance.now();
+    if (now - this.lastHoverCheck < 75) return;
+    this.lastHoverCheck = now;
+
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    // Raycast only seat meshes (10 objects) instead of the entire scene tree (hundreds of objects)
+    const targets = this.seatMeshes.filter(Boolean);
+    const intersects = this.raycaster.intersectObjects(targets, true);
 
     let foundSeat = null;
     for (const hit of intersects) {
@@ -826,9 +868,10 @@ class CinemaScene {
   }
 
   onClick(e) {
-    if (!this.hasWebGL) return;
+    if (!this.hasWebGL || this.isPaused) return;
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+    const targets = this.seatMeshes.filter(Boolean);
+    const intersects = this.raycaster.intersectObjects(targets, true);
 
     for (const hit of intersects) {
       let obj = hit.object;
@@ -862,9 +905,10 @@ class CinemaScene {
   }
 
   animate() {
-    requestAnimationFrame(() => this.animate());
+    if (this.isPaused) return;
+    this.animationFrameId = requestAnimationFrame(() => this.animate());
 
-    const delta = this.clock.getDelta();
+    const delta = Math.min(this.clock.getDelta(), 0.1);
     const time = this.clock.getElapsedTime();
 
     // Camera Lerp
@@ -904,7 +948,7 @@ class CinemaScene {
 
     // Seated Avatars
     this.avatarMeshes.forEach((av, i) => {
-      if (av) {
+      if (av && this.seatCoords[i]) {
         av.position.y = (this.seatCoords[i].y + 0.35) + Math.sin(time * 2 + i) * 0.015;
       }
     });

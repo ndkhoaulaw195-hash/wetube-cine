@@ -22,8 +22,8 @@ class CinemaApp {
     // Web Audio Synthesizer for UI sound effects
     this.audioCtx = null;
 
-    // Initialize 3D Engine & Player safely
-    this.cinema = new CinemaScene('canvas-container', 'css3d-container');
+    // Initialize 3D Engine & Player safely (start paused if in lobby to eliminate 100% idle load)
+    this.cinema = new CinemaScene('canvas-container', 'css3d-container', this.inLobby);
     this.player = new CinemaPlayer();
 
     // Hook Player & Cinema callbacks
@@ -487,6 +487,11 @@ class CinemaApp {
     const lobbyScreen = document.getElementById('lobby-screen');
     if (lobbyScreen) lobbyScreen.classList.remove('hidden');
 
+    // Pause WebGL rendering loop when in Lobby to drop GPU/CPU usage to 0%
+    if (this.cinema) {
+      this.cinema.pause();
+    }
+
     const url = new URL(window.location.href);
     url.searchParams.delete('room');
     window.history.replaceState({}, '', url.pathname);
@@ -505,6 +510,11 @@ class CinemaApp {
     document.body.classList.remove('in-lobby');
     const lobbyScreen = document.getElementById('lobby-screen');
     if (lobbyScreen) lobbyScreen.classList.add('hidden');
+
+    // Resume WebGL rendering loop when entering cinema room
+    if (this.cinema) {
+      this.cinema.resume();
+    }
     this.refreshIcons();
   }
 
