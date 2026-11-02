@@ -1,57 +1,80 @@
 /**
- * wetube ciné mini - Main Application Controller
- * Multi-Room (Max 5 rooms, 10 VIP seats each, 100% real users)
- * Full synchronized playback (Play/Pause/Seek) and Auto-Hide HUD
+ * wetube ciné - Main Application Controller
+ * Features:
+ * 1. Auth & Account Management (Login, Register, Change Password, VIP/Admin badges)
+ * 2. 12 Chibi 16-bit Pixel Art Characters (2D & 3D WebGL Sprite integration)
+ * 3. Room Password Protection (Every room has a password; Host & Admin bypass/manage)
+ * 4. Strict Host Screen Control (Only room creator Host or Admin can control playback/screen)
+ * 5. Sequential Queue (No auto-advance, no random queue jumping — Host must click "Chuyển tiếp")
+ * 6. Full 5-Module Admin Control Panel (Movies, Broadcast/Upload, Categories, Users/Spam, Stats/Revenue)
  */
 
 class CinemaApp {
   constructor() {
     this.ws = null;
+    this.authToken = localStorage.getItem('wetube_token') || null;
     this.you = null;
     this.room = null;
     this.clockOffset = 0;
     this.unreadChatCount = 0;
     this.isChatOpen = false;
+    this.isHudHidden = false;
 
-    // Room Selection (URL query parameter or default to Lobby)
+    this.selectedRegAvatar = 'pixel_nerd';
+    this.selectedProfileAvatar = 'pixel_nerd';
+    this.selectedColor = '#f2cf78';
+    this.pendingDeleteRoomId = null;
+
+    this.catalog = { movies: [], categories: { genres: [], countries: [], years: [], tags: [] } };
+    this.adminData = null;
+
     const urlParams = new URLSearchParams(window.location.search);
-    this.currentRoomId = urlParams.get('room') || null;
-    this.inLobby = !this.currentRoomId;
+    this.requestedRoomFromUrl = urlParams.get('room') || null;
+    this.currentRoomId = null;
+    this.inLobby = true;
     this.roomsList = [];
 
-    // Web Audio Synthesizer for UI sound effects
     this.audioCtx = null;
 
-    // Initialize 3D Engine & Player safely (start paused if in lobby to eliminate 100% idle load)
-    this.cinema = new CinemaScene('canvas-container', 'css3d-container', this.inLobby);
+    // Start 3D scene paused in Lobby for 0% CPU/GPU usage
+    this.cinema = new CinemaScene('canvas-container', 'css3d-container', true);
     this.player = new CinemaPlayer();
 
-    // Hook Player & Cinema callbacks
     this.cinema.onSeatClick = (seatId) => this.handleSeatSelection(seatId);
     this.player.onDurationDiscovered = (id, dur) => this.reportDuration(id, dur);
     this.player.onAudioBlocked = () => this.showAudioBlockedBanner();
-    this.player.onVideoEnded = () => this.send('skip-now', {});
-    this.player.onPlaybackError = (id, err) => {
-      this.send('skip-now', {});
-      this.showToast('⚠️ Video không phát được, đang tự động chuyển bài tiếp theo...', 'info');
+
+    // IMPORTANT: Do NOT auto-skip when video ends! Wait for Host to click "Chuyển tiếp"
+    this.player.onVideoEnded = () => {
+      this.updatePlayPauseButtonUI(false);
+      if (this.canControlRoom()) {
+        this.showToast('🎬 Video đã phát xong! Hãy bấm nút "Chuyển tiếp" để qua bài tiếp theo trong hàng chờ.', 'info');
+      } else {
+        this.showToast('🎬 Video đã kết thúc. Đang chờ Chủ phòng (Host) bấm "Chuyển tiếp"...', 'info');
+      }
     };
 
-    // Playback sync callbacks
+    this.player.onPlaybackError = () => {
+      if (this.canControlRoom()) {
+        this.showToast('⚠️ Video này không hỗ trợ phát nhúng. Chủ phòng hãy bấm "Chuyển tiếp" sang bài kế nhé!', 'error');
+      }
+    };
+
     this.player.onStateToggled = (isPlaying) => {
+      if (!this.canControlRoom()) return;
       this.send('toggle-pause', { isPlaying });
       this.updatePlayPauseButtonUI(isPlaying);
     };
     this.player.onSeekRequested = (time) => {
+      if (!this.canControlRoom()) return;
       this.send('seek-video', { time });
     };
     this.player.onProgressUpdate = (cur, dur, percent) => {
       this.updatePlaybackBarUI(cur, dur, percent);
     };
 
-    if (this.inLobby) {
-      this.showLobbyUI();
-    }
-
+    this.showLobbyUI();
+    this.renderAvatarPickerGrids();
     this.initWebSocket();
     this.bindUIEvents();
     this.refreshIcons();
@@ -63,13 +86,20 @@ class CinemaApp {
     }
   }
 
+  canControlRoom() {
+    if (!this.you || !this.room) return false;
+    return !!(this.room.canControl || this.you.role === 'admin' || this.you.isHost);
+  }
+
+  isLoggedIn() {
+    return !!(this.you && this.you.username);
+  }
+
   // --- Web Audio SFX ---
   initAudioContext() {
     if (!this.audioCtx) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        this.audioCtx = new AudioContext();
-      }
+      if (AudioContext) this.audioCtx = new AudioContext();
     }
   }
 
@@ -82,7 +112,7 @@ class CinemaApp {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(420, this.audioCtx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(840, this.audioCtx.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.18, this.audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
       gain.gain.linearRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.08);
       osc.connect(gain);
       gain.connect(this.audioCtx.destination);
@@ -91,35 +121,19 @@ class CinemaApp {
     } catch {}
   }
 
-  playChimeSound() {
-    this.initAudioContext();
-    if (!this.audioCtx || this.audioCtx.state === 'suspended') return;
-    try {
-      const osc = this.audioCtx.createOscillator();
-      const gain = this.audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(587.33, this.audioCtx.currentTime);
-      osc.frequency.setValueAtTime(880, this.audioCtx.currentTime + 0.06);
-      gain.gain.setValueAtTime(0.15, this.audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(this.audioCtx.destination);
-      osc.start();
-      osc.stop(this.audioCtx.currentTime + 0.35);
-    } catch {}
-  }
-
   // --- WebSocket Connection & Sync ---
   initWebSocket() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const roomParam = this.currentRoomId ? `?room=${encodeURIComponent(this.currentRoomId)}` : '';
-    const wsUrl = `${protocol}//${window.location.host}/${roomParam}`;
+    const tokenQuery = this.authToken ? `?token=${encodeURIComponent(this.authToken)}` : '';
+    const wsUrl = `${protocol}//${window.location.host}/${tokenQuery}`;
 
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
-      console.log('🎬 Đã kết nối với máy chủ rạp phim!');
       this.syncClock();
+      if (this.authToken) {
+        this.send('bind-auth', { token: this.authToken });
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -133,7 +147,6 @@ class CinemaApp {
     };
 
     this.ws.onclose = () => {
-      console.warn('Mất kết nối máy chủ, đang thử kết nối lại sau 3s...');
       setTimeout(() => this.initWebSocket(), 3000);
     };
 
@@ -170,11 +183,45 @@ class CinemaApp {
         break;
       }
 
+      case 'auth-error': {
+        this.authToken = null;
+        localStorage.removeItem('wetube_token');
+        break;
+      }
+
+      case 'account-banned': {
+        this.authToken = null;
+        localStorage.removeItem('wetube_token');
+        this.showToast(payload?.message || '🚫 Tài khoản đã bị khóa!', 'error');
+        this.showLobbyUI();
+        this.openAuthModal();
+        break;
+      }
+
+      case 'require-login': {
+        this.showToast(payload?.message || '🔑 Vui lòng đăng nhập tài khoản trước!', 'info');
+        this.openAuthModal();
+        break;
+      }
+
+      case 'room-password-prompt': {
+        this.openRoomPasswordModal(payload.roomId, payload.roomName);
+        break;
+      }
+
+      case 'room-password-error': {
+        this.openRoomPasswordModal(payload.roomId, payload.roomName, payload.message);
+        break;
+      }
+
       case 'lobby-init': {
         this.inLobby = true;
         this.you = payload.you;
         this.currentRoomId = null;
         this.roomsList = payload.availableRooms || [];
+        if (payload.catalog) {
+          this.catalog = payload.catalog;
+        }
 
         if (this.player) {
           this.player.pauseVideo();
@@ -184,6 +231,7 @@ class CinemaApp {
         this.updateProfileUI();
         this.renderLobbyRooms(this.roomsList);
         this.renderRoomsModal(this.roomsList);
+        this.renderLobbyCatalog();
         break;
       }
 
@@ -192,10 +240,14 @@ class CinemaApp {
         this.you = payload.you;
         this.room = payload.room;
         this.currentRoomId = payload.room.roomId;
+        if (payload.catalog) {
+          this.catalog = payload.catalog;
+        }
 
+        this.closeModal('modal-room-pass');
+        this.closeModal('modal-rooms');
         this.hideLobbyUI();
 
-        // Update URL to ?room=phong-X without reloading
         const url = new URL(window.location.href);
         url.searchParams.set('room', this.currentRoomId);
         window.history.replaceState({}, '', url.toString());
@@ -203,6 +255,7 @@ class CinemaApp {
         const roomBadgeText = document.getElementById('current-room-name');
         if (roomBadgeText) roomBadgeText.textContent = payload.room.roomName || 'Phòng 01';
 
+        this.updateHostAndPermissionsUI();
         this.updateProfileUI();
 
         this.cinema.updateSeats(this.room.seats);
@@ -213,9 +266,9 @@ class CinemaApp {
         this.player.syncVideo(this.room.currentVideo, this.clockOffset);
         this.updateNowPlayingUI();
         this.updateOccupancyUI();
-        this.updateSkipVoteUI();
         this.renderSeatMapModal();
         this.renderQueueModal();
+
         if (payload.availableRooms) {
           this.roomsList = payload.availableRooms;
           this.renderRoomsModal(payload.availableRooms);
@@ -228,7 +281,7 @@ class CinemaApp {
             <div class="chat-welcome">
               <div class="welcome-icon">🍿</div>
               <p>Chào mừng bạn đến với <strong>${this.room.roomName}</strong>!</p>
-              <p class="sub">Rạp 10 ghế người thật. Bấm nút <strong>"Mời bạn bè"</strong> để gửi link phòng này cho bạn bè nhé!</p>
+              <p class="sub">👑 Chủ phòng: <strong>${this.room.hostName}</strong>. Chỉ Chủ phòng mới có quyền điều khiển màn chiếu.</p>
             </div>
           `;
         }
@@ -248,17 +301,25 @@ class CinemaApp {
         break;
       }
 
+      case 'catalog-updated': {
+        this.catalog = payload || this.catalog;
+        this.renderLobbyCatalog();
+        this.renderQueueModal();
+        break;
+      }
+
       case 'profile-updated': {
         this.you = payload;
+        if (this.room) {
+          this.room.canControl = !!(this.you.role === 'admin' || this.you.isHost);
+        }
         this.updateProfileUI();
-        const lobbyName = document.getElementById('lobby-user-name');
-        const lobbyColor = document.getElementById('lobby-user-color');
-        if (lobbyName) lobbyName.textContent = this.you.name;
-        if (lobbyColor) lobbyColor.style.background = this.you.color;
+        this.updateHostAndPermissionsUI();
         break;
       }
 
       case 'seat-state': {
+        if (!this.room) break;
         this.room.seats = payload.seats;
         if (payload.stageUser !== undefined) this.room.stageUser = payload.stageUser;
         if (payload.movedUser && payload.movedUser.id === this.you.id) {
@@ -277,6 +338,7 @@ class CinemaApp {
       }
 
       case 'stage-state': {
+        if (!this.room) break;
         this.room.stageUser = payload.stageUser;
         if (payload.seats) this.room.seats = payload.seats;
 
@@ -286,56 +348,52 @@ class CinemaApp {
       }
 
       case 'video-changed': {
+        if (!this.room) break;
         this.room.currentVideo = payload.currentVideo;
         this.room.queue = payload.queue;
-        this.room.skipVotesCount = 0;
 
         this.player.syncVideo(this.room.currentVideo, this.clockOffset);
         this.updateNowPlayingUI();
-        this.updateSkipVoteUI();
         this.renderQueueModal();
         break;
       }
 
       case 'playback-sync': {
+        if (this.room && this.room.currentVideo) {
+          this.room.currentVideo.isPlaying = payload.isPlaying;
+          this.room.currentVideo.pausedAt = payload.currentTime;
+          if (payload.startedAt) {
+            this.room.currentVideo.startedAt = payload.startedAt;
+          }
+        }
         this.player.applyPlaybackSync(payload);
         this.updatePlayPauseButtonUI(payload.isPlaying);
         break;
       }
 
       case 'queue-updated': {
+        if (!this.room) break;
         this.room.queue = payload.queue;
         this.renderQueueModal();
         break;
       }
 
-      case 'skip-votes-updated': {
-        this.room.skipVotesCount = payload.votesCount;
-        this.room.requiredSkipVotes = payload.required;
-        this.updateSkipVoteUI();
-        break;
-      }
-
-      case 'party-mode-toggled': {
-        this.room.partyMode = payload.partyMode;
-        this.cinema.setPartyMode(this.room.partyMode);
-        this.updatePartyModeUI(this.room.partyMode);
-        break;
-      }
-
-      case 'screen-post-started': {
-        this.showScreenProjection(payload.screenPost);
-        break;
-      }
-
-      case 'screen-post-ended': {
-        this.hideScreenProjection();
-        break;
-      }
-
       case 'chat-message': {
         this.appendChatMessage(payload, true);
-        this.cinema.showSpeechBubble(payload.userId, payload.text, payload.seatId, this.room.stageUser === payload.userId);
+        if (this.room) {
+          this.cinema.showSpeechBubble(
+            payload.userId,
+            payload.text,
+            payload.seatId,
+            this.room.stageUser === payload.userId
+          );
+        }
+        break;
+      }
+
+      case 'chat-message-deleted': {
+        const msgEl = document.querySelector(`[data-chat-id="${payload?.messageId}"]`);
+        if (msgEl) msgEl.remove();
         break;
       }
 
@@ -345,138 +403,143 @@ class CinemaApp {
         break;
       }
 
-      case 'notification': {
-        this.showToast(payload.message, payload.type || 'info');
+      case 'screen-post-started': {
+        if (this.room) this.room.screenPost = payload.screenPost;
+        this.showScreenPostOverlay(payload.screenPost);
+        break;
+      }
+
+      case 'screen-post-ended': {
+        if (this.room) this.room.screenPost = null;
+        this.hideScreenPostOverlay();
+        break;
+      }
+
+      case 'party-mode-toggled': {
+        if (this.room) this.room.partyMode = payload.partyMode;
+        this.cinema.setPartyMode(payload.partyMode);
+        this.updatePartyModeUI(payload.partyMode);
         break;
       }
 
       case 'user-joined': {
+        if (!this.room) break;
         this.room.onlineCount = payload.onlineCount;
-        if (payload.seats) this.room.seats = payload.seats;
+        this.room.seats = payload.seats;
+        if (payload.user) {
+          this.room.realUsers = this.room.realUsers || [];
+          const idx = this.room.realUsers.findIndex(u => u.id === payload.user.id);
+          if (idx === -1) this.room.realUsers.push(payload.user);
+          else this.room.realUsers[idx] = payload.user;
+        }
         this.updateOccupancyUI();
-        this.renderSeatMapModal();
-        this.showToast(`👋 ${payload.user.name} vừa vào rạp!`, 'info');
         break;
       }
 
       case 'user-left': {
+        if (!this.room) break;
         this.room.onlineCount = payload.onlineCount;
-        if (payload.seats) this.room.seats = payload.seats;
-        if (payload.stageUser !== undefined) this.room.stageUser = payload.stageUser;
-
+        this.room.seats = payload.seats;
         this.cinema.updateSeats(this.room.seats);
-        this.cinema.updateStageUser(this.room.stageUser, this.room.realUsers || [], this.you?.id);
-        this.updateOccupancyUI();
         this.renderSeatMapModal();
+        this.updateOccupancyUI();
+        break;
+      }
+
+      case 'admin-data': {
+        this.adminData = payload;
+        this.renderAdminDashboard();
+        break;
+      }
+
+      case 'notification': {
+        this.showToast(payload.message, payload.type || 'info');
         break;
       }
     }
   }
 
-  // --- Copy Invite Link Helper ---
-  copyInviteLink() {
-    const url = new URL(window.location.href);
-    url.searchParams.set('room', this.currentRoomId);
-    const inviteUrl = url.toString();
+  // --- Host & Screen Control Permissions UI ---
+  updateHostAndPermissionsUI() {
+    const canControl = this.canControlRoom();
+    this.player.canControl = canControl;
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(inviteUrl).then(() => {
-        this.showToast(`📋 Đã sao chép link "${this.room?.roomName || 'Rạp Chiếu'}"! Hãy gửi cho bạn bè để cùng vào phòng này nhé.`, 'success');
-      }).catch(() => {
-        this.fallbackCopy(inviteUrl);
-      });
-    } else {
-      this.fallbackCopy(inviteUrl);
+    const hostNameEl = document.getElementById('hud-host-name');
+    if (hostNameEl && this.room) {
+      hostNameEl.textContent = canControl
+        ? `👑 Bạn là Chủ phòng (${this.room.hostName})`
+        : `👑 Host: ${this.room.hostName}`;
     }
-  }
 
-  fallbackCopy(text) {
-    const input = document.createElement('input');
-    input.value = text;
-    document.body.appendChild(input);
-    input.select();
-    try {
-      document.execCommand('copy');
-      this.showToast('📋 Đã sao chép link phòng! Hãy gửi cho bạn bè để cùng vào xem nhé.', 'success');
-    } catch {
-      prompt('Sao chép đường dẫn này để gửi cho bạn bè:', text);
-    }
-    document.body.removeChild(input);
-  }
-
-  // --- Multi-Room Directory Rendering & Switching ---
-  renderRoomsModal(roomsList) {
-    if (!Array.isArray(roomsList)) return;
-    this.roomsList = roomsList;
-
-    const countBadge = document.getElementById('rooms-count-badge');
-    if (countBadge) countBadge.textContent = `${roomsList.length} / 5 phòng`;
-
-    const btnSubmitCreate = document.getElementById('btn-submit-create-room');
-    const inputCreate = document.getElementById('create-room-input');
-    if (btnSubmitCreate && inputCreate) {
-      const isMax = roomsList.length >= 5;
-      btnSubmitCreate.disabled = isMax;
-      inputCreate.disabled = isMax;
-      if (isMax) {
-        inputCreate.placeholder = 'Đã đạt giới hạn tối đa 5 phòng (Xoá bớt để tạo mới)';
+    const passTag = document.getElementById('hud-room-pass-tag');
+    if (passTag) {
+      if (canControl && this.room?.roomPassword) {
+        passTag.textContent = `Pass: ${this.room.roomPassword}`;
+        passTag.classList.remove('hidden');
       } else {
-        inputCreate.placeholder = 'Nhập tên phòng (VD: Hội Bạn Thân, Cày Phim Đêm...)';
+        passTag.classList.add('hidden');
       }
     }
 
-    const grid = document.getElementById('rooms-grid');
-    if (!grid) return;
+    // Lock or unlock playback bar buttons for viewers
+    const hostBtns = document.getElementById('host-playback-btns');
+    const scrubber = document.getElementById('playback-scrubber');
+    const hostNotice = document.getElementById('playback-host-notice');
+    const btnSkipBottom = document.getElementById('btn-skip-vote');
+    const btnPhotoBottom = document.getElementById('btn-open-photo');
+    const btnPartyTop = document.getElementById('btn-toggle-party');
+    const btnForceSkip = document.getElementById('btn-force-skip');
+    const formAddVideo = document.getElementById('form-add-video');
 
-    grid.innerHTML = roomsList.map((r) => {
-      const isCurrent = this.currentRoomId && r.id === this.currentRoomId;
-      return `
-        <div class="room-card ${isCurrent ? 'active' : ''}">
-          <div class="room-card-head">
-            <span class="room-card-title">${r.name}</span>
-            <span class="room-card-occupancy">
-              <i data-lucide="users" style="width: 14px; height: 14px;"></i>
-              ${r.seatedCount}/10 ghế
-            </span>
-          </div>
-          <div class="room-card-body">
-            <img class="room-card-thumb" src="${r.currentVideoThumb || 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'}" alt="Thumb" />
-            <div class="room-card-info">
-              <div class="room-card-np" title="${r.currentVideoTitle}">${r.currentVideoTitle}</div>
-              <small style="color: #9ca3af; font-size: 11px;">${r.usersCount} người · Tạo bởi: ${r.createdBy || 'Hệ thống'}</small>
-            </div>
-          </div>
-          <div class="room-card-actions">
-            <button class="room-card-btn ${isCurrent ? 'active-room' : ''}" data-room="${r.id}" ${isCurrent ? 'disabled' : ''}>
-              ${isCurrent ? '✓ Đang ở phòng này' : 'Vào phòng này'}
-            </button>
-            <button class="room-delete-btn" data-delete-room="${r.id}" data-room-name="${r.name}" title="Xoá phòng này">
-              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-              <span>Xoá</span>
-            </button>
-          </div>
-        </div>
-      `;
-    }).join('');
+    if (hostBtns) hostBtns.classList.toggle('playback-disabled', !canControl);
+    if (scrubber) scrubber.disabled = !canControl;
+    if (hostNotice) hostNotice.classList.toggle('hidden', canControl);
+    if (btnSkipBottom) btnSkipBottom.classList.toggle('playback-disabled', !canControl);
+    if (btnPhotoBottom) btnPhotoBottom.classList.toggle('playback-disabled', !canControl);
+    if (btnPartyTop) btnPartyTop.classList.toggle('playback-disabled', !canControl);
+    if (btnForceSkip) btnForceSkip.classList.toggle('hidden', !canControl);
+    if (formAddVideo) formAddVideo.classList.toggle('playback-disabled', !canControl);
+  }
 
-    this.refreshIcons();
+  // --- Pixel Art Avatar Grids ---
+  renderAvatarPickerGrids() {
+    if (!window.PixelAvatars) return;
+    const templates = window.PixelAvatars.templates;
 
-    // Bind switch buttons
-    grid.querySelectorAll('.room-card-btn:not(.active-room)').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const targetRoomId = btn.dataset.room;
-        this.switchRoom(targetRoomId);
+    const renderGrid = (containerId, currentSelected, onSelect) => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = templates.map((t) => {
+        const isSel = t.id === currentSelected;
+        const imgUrl = window.PixelAvatars.getDataUrl(t.id, 4);
+        return `
+          <div class="pixel-avatar-card ${isSel ? 'selected' : ''}" data-avatar-id="${t.id}" title="${t.desc}">
+            <img src="${imgUrl}" alt="${t.name}" />
+            <span class="av-name">${t.name}</span>
+            <span class="av-badge">${t.badge}</span>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.pixel-avatar-card').forEach((card) => {
+        card.addEventListener('click', () => {
+          const avId = card.getAttribute('data-avatar-id');
+          onSelect(avId);
+          renderGrid(containerId, avId, onSelect);
+        });
       });
+    };
+
+    renderGrid('reg-avatar-grid', this.selectedRegAvatar, (avId) => {
+      this.selectedRegAvatar = avId;
     });
 
-    // Bind delete buttons
-    grid.querySelectorAll('.room-delete-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const roomId = btn.dataset.deleteRoom;
-        const roomName = btn.dataset.roomName;
-        this.askDeleteRoom(roomId, roomName);
-      });
+    renderGrid('profile-avatar-grid', this.selectedProfileAvatar, (avId) => {
+      this.selectedProfileAvatar = avId;
+      const previewImg = document.getElementById('account-preview-img');
+      if (previewImg && window.PixelAvatars) {
+        previewImg.src = window.PixelAvatars.getDataUrl(avId, 5);
+      }
     });
   }
 
@@ -487,7 +550,6 @@ class CinemaApp {
     const lobbyScreen = document.getElementById('lobby-screen');
     if (lobbyScreen) lobbyScreen.classList.remove('hidden');
 
-    // Pause WebGL rendering loop when in Lobby to drop GPU/CPU usage to 0%
     if (this.cinema) {
       this.cinema.pause();
     }
@@ -496,12 +558,7 @@ class CinemaApp {
     url.searchParams.delete('room');
     window.history.replaceState({}, '', url.pathname);
 
-    if (this.you) {
-      const nameEl = document.getElementById('lobby-user-name');
-      const colorEl = document.getElementById('lobby-user-color');
-      if (nameEl) nameEl.textContent = this.you.name;
-      if (colorEl) colorEl.style.background = this.you.color;
-    }
+    this.updateProfileUI();
     this.refreshIcons();
   }
 
@@ -511,7 +568,6 @@ class CinemaApp {
     const lobbyScreen = document.getElementById('lobby-screen');
     if (lobbyScreen) lobbyScreen.classList.add('hidden');
 
-    // Resume WebGL rendering loop when entering cinema room
     if (this.cinema) {
       this.cinema.resume();
     }
@@ -528,6 +584,45 @@ class CinemaApp {
     this.showToast('Bạn đã rời phòng và quay về Sảnh Chờ.', 'info');
   }
 
+  // --- Room Password Prompt ---
+  openRoomPasswordModal(roomId, roomName, errorMsg = '') {
+    const idInput = document.getElementById('pass-modal-room-id');
+    const nameEl = document.getElementById('pass-modal-room-name');
+    const passInput = document.getElementById('pass-modal-input');
+    const errEl = document.getElementById('pass-modal-error');
+
+    if (idInput) idInput.value = roomId;
+    if (nameEl) nameEl.textContent = roomName || roomId;
+    if (passInput) passInput.value = '';
+    if (errEl) {
+      if (errorMsg) {
+        errEl.textContent = errorMsg;
+        errEl.classList.remove('hidden');
+      } else {
+        errEl.classList.add('hidden');
+      }
+    }
+
+    this.openModal('modal-room-pass');
+    setTimeout(() => passInput?.focus(), 80);
+  }
+
+  attemptJoinRoom(roomId) {
+    if (!this.isLoggedIn()) {
+      this.showToast('🔑 Vui lòng Đăng nhập hoặc Đăng ký tài khoản trước khi vào phòng chiếu!', 'info');
+      this.openAuthModal();
+      return;
+    }
+
+    const roomInfo = this.roomsList.find(r => r.id === roomId);
+    if (roomInfo && roomInfo.hasPassword && !roomInfo.canSkipPassword) {
+      this.openRoomPasswordModal(roomInfo.id, roomInfo.name);
+      return;
+    }
+
+    this.send('join-room', { roomId });
+  }
+
   renderLobbyRooms(roomsList) {
     if (!Array.isArray(roomsList)) return;
 
@@ -539,18 +634,15 @@ class CinemaApp {
 
     const createBadge = document.getElementById('lobby-create-badge');
     const inputCreate = document.getElementById('lobby-create-room-input');
+    const inputPass = document.getElementById('lobby-create-room-pass');
     const btnSubmit = document.getElementById('btn-lobby-submit-create');
     const isMax = roomsList.length >= 5;
 
     if (createBadge) createBadge.textContent = isMax ? 'Đã đạt tối đa 5/5 phòng' : `Đang mở: ${roomsList.length}/5 phòng`;
     if (inputCreate && btnSubmit) {
       inputCreate.disabled = isMax;
+      if (inputPass) inputPass.disabled = isMax;
       btnSubmit.disabled = isMax;
-      if (isMax) {
-        inputCreate.placeholder = 'Đã đạt giới hạn tối đa 5 phòng (Xoá bớt phòng để tạo mới)';
-      } else {
-        inputCreate.placeholder = 'Nhập tên phòng chiếu (VD: Hội Bạn Cày Phim, Nghe Nhạc Chill...)';
-      }
     }
 
     const emptyBox = document.getElementById('lobby-empty-rooms');
@@ -567,6 +659,10 @@ class CinemaApp {
 
     grid.innerHTML = roomsList.map((r) => {
       const isCurrent = this.currentRoomId && r.id === this.currentRoomId;
+      const passBadge = r.roomPassword
+        ? `<span style="color:#f2cf78; font-weight:700;">🔑 Pass: ${r.roomPassword}</span>`
+        : `<span style="color:#fca5a5;">🔒 Có mật khẩu</span>`;
+
       return `
         <div class="room-card ${isCurrent ? 'active' : ''}">
           <div class="room-card-head">
@@ -577,88 +673,245 @@ class CinemaApp {
             </span>
           </div>
           <div class="room-card-body">
-            <img class="room-card-thumb" src="${r.currentVideoThumb || 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'}" alt="Thumb" />
+            <img class="room-card-thumb" src="${r.currentVideoThumb || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg'}" alt="Thumb" />
             <div class="room-card-info">
               <div class="room-card-np" title="${r.currentVideoTitle}">${r.currentVideoTitle}</div>
-              <small style="color: #9ca3af; font-size: 11px;">${r.usersCount} người · Tạo bởi: ${r.createdBy || 'Hệ thống'}</small>
+              <small style="color: #9ca3af; font-size: 11px;">👑 Host: <strong>${r.createdBy}</strong> · ${passBadge}</small>
             </div>
           </div>
           <div class="room-card-actions">
             <button class="room-card-btn" data-lobby-join="${r.id}">
-              <i data-lucide="ticket" style="width: 14px; height: 14px;"></i>
-              <span>Vào xem ngay</span>
+              <i data-lucide="key-round" style="width: 14px; height: 14px;"></i>
+              <span>${r.canSkipPassword ? 'Vào thẳng (Host/Admin)' : 'Nhập Pass & Vào xem'}</span>
             </button>
-            <button class="room-delete-btn" data-delete-room="${r.id}" data-room-name="${r.name}" title="Xoá phòng này">
-              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-              <span>Xoá</span>
-            </button>
+            ${r.canSkipPassword ? `
+              <button class="room-delete-btn" data-lobby-delete="${r.id}" data-room-name="${r.name}" title="Xoá phòng này">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+              </button>
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
 
-    this.refreshIcons();
-
-    // Bind join buttons
     grid.querySelectorAll('[data-lobby-join]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const roomId = btn.dataset.lobbyJoin;
-        this.switchRoom(roomId);
+        const roomId = btn.getAttribute('data-lobby-join');
+        this.attemptJoinRoom(roomId);
       });
     });
 
-    // Bind delete buttons
-    grid.querySelectorAll('.room-delete-btn').forEach((btn) => {
+    grid.querySelectorAll('[data-lobby-delete]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const roomId = btn.dataset.deleteRoom;
-        const roomName = btn.dataset.roomName;
-        this.askDeleteRoom(roomId, roomName);
+        const roomId = btn.getAttribute('data-lobby-delete');
+        const roomName = btn.getAttribute('data-room-name') || 'phòng này';
+        this.promptDeleteRoom(roomId, roomName);
       });
     });
-  }
 
-  askDeleteRoom(roomId, roomName) {
-    if (!roomId) return;
-    this.pendingDeleteRoomId = roomId;
-    const targetNameEl = document.getElementById('delete-room-target-name');
-    if (targetNameEl) {
-      targetNameEl.textContent = `"${roomName}"`;
-    }
-    this.openModal('modal-confirm-delete');
     this.refreshIcons();
   }
 
-  confirmDeleteRoom() {
-    if (!this.pendingDeleteRoomId) return;
-    this.send('delete-room', { roomId: this.pendingDeleteRoomId });
-    this.closeModal('modal-confirm-delete');
-    this.pendingDeleteRoomId = null;
-    this.showToast('Đang tiến hành xoá phòng...', 'info');
+  renderLobbyCatalog() {
+    const grid = document.getElementById('lobby-catalog-grid');
+    const countTag = document.getElementById('lobby-catalog-count-tag');
+    const movies = this.catalog?.movies || [];
+    if (countTag) countTag.textContent = `${movies.length} bộ phim`;
+    if (!grid) return;
+
+    grid.innerHTML = movies.map((m) => `
+      <div class="catalog-movie-card">
+        <div class="catalog-movie-poster">
+          <img src="${m.poster}" alt="${m.title}" />
+          ${m.isVipOnly ? `<span class="catalog-vip-ribbon">👑 VIP EXCLUSIVE</span>` : ''}
+        </div>
+        <div class="catalog-movie-body">
+          <div class="catalog-movie-title">${m.title}</div>
+          <div class="catalog-movie-meta">${m.genre} · ${m.country} · ${m.year} · 👁️ ${m.views || 0} lượt xem</div>
+          <p class="catalog-movie-desc">${m.description || ''}</p>
+        </div>
+      </div>
+    `).join('');
   }
 
-  switchRoom(roomId) {
-    if (!roomId) return;
-    this.currentRoomId = roomId;
+  renderRoomsModal(roomsList) {
+    if (!Array.isArray(roomsList)) return;
 
-    const url = new URL(window.location.href);
-    url.searchParams.set('room', roomId);
-    window.history.replaceState({}, '', url.toString());
+    const countBadge = document.getElementById('rooms-count-badge');
+    if (countBadge) countBadge.textContent = `${roomsList.length} / 5 phòng`;
 
-    this.send('join-room', { roomId });
-    this.closeModal('modal-rooms');
-    this.showToast('Đang vào phòng chiếu...', 'info');
-  }
+    const grid = document.getElementById('rooms-grid');
+    if (!grid) return;
 
-  // --- UI Bindings ---
-  bindUIEvents() {
-    // 1. Copy Invite Link
-    const copyInviteBtns = [document.getElementById('btn-copy-invite'), document.getElementById('btn-modal-copy-invite')];
-    copyInviteBtns.forEach((b) => {
-      if (b) b.addEventListener('click', () => this.copyInviteLink());
+    grid.innerHTML = roomsList.map((r) => {
+      const isCurrent = r.id === this.currentRoomId;
+      const passInfo = r.roomPassword ? `🔑 Pass: ${r.roomPassword}` : '🔒 Có mật khẩu';
+      return `
+        <div class="room-card ${isCurrent ? 'active' : ''}">
+          <div class="room-card-head">
+            <span class="room-card-title">${r.name}</span>
+            <span class="room-card-occupancy">${r.seatedCount}/10 ghế</span>
+          </div>
+          <div class="room-card-body">
+            <img class="room-card-thumb" src="${r.currentVideoThumb || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg'}" alt="Thumb" />
+            <div class="room-card-info">
+              <div class="room-card-np">${r.currentVideoTitle}</div>
+              <small style="color: #9ca3af; font-size: 11px;">👑 Host: ${r.createdBy} · ${passInfo}</small>
+            </div>
+          </div>
+          <div class="room-card-actions">
+            <button class="room-card-btn" data-join-room="${r.id}" ${isCurrent ? 'disabled' : ''}>
+              <span>${isCurrent ? '✓ Đang ở phòng này' : 'Chuyển sang phòng này'}</span>
+            </button>
+            ${r.canSkipPassword ? `
+              <button class="room-delete-btn" data-delete-room="${r.id}" data-room-name="${r.name}">
+                <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('[data-join-room]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const roomId = btn.getAttribute('data-join-room');
+        if (roomId && roomId !== this.currentRoomId) {
+          this.attemptJoinRoom(roomId);
+        }
+      });
     });
 
-    // 1b. Theater 2D / 3D Mode Toggle
+    grid.querySelectorAll('[data-delete-room]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.promptDeleteRoom(btn.getAttribute('data-delete-room'), btn.getAttribute('data-room-name'));
+      });
+    });
+
+    this.refreshIcons();
+  }
+
+  promptDeleteRoom(roomId, roomName) {
+    this.pendingDeleteRoomId = roomId;
+    const targetNameEl = document.getElementById('delete-room-target-name');
+    if (targetNameEl) targetNameEl.textContent = `"${roomName}"`;
+    this.openModal('modal-confirm-delete');
+  }
+
+  // --- Auth & Account Modal UI ---
+  openAuthModal() {
+    this.updateProfileUI();
+    this.openModal('modal-profile');
+  }
+
+  updateProfileUI() {
+    if (!this.you) return;
+
+    const avId = this.you.avatarId || 'pixel_nerd';
+    this.selectedProfileAvatar = avId;
+    this.selectedColor = this.you.color || '#f2cf78';
+
+    const avatarDataUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(avId, 4) : '';
+
+    // Update Lobby Header Pill
+    const lobbyAvImg = document.getElementById('lobby-user-avatar-img');
+    const lobbyName = document.getElementById('lobby-user-name');
+    const lobbyRoleTag = document.getElementById('lobby-user-role-tag');
+    if (lobbyAvImg && avatarDataUrl) lobbyAvImg.src = avatarDataUrl;
+    if (lobbyName) {
+      lobbyName.textContent = this.isLoggedIn() ? this.you.name : 'Đăng nhập / Đăng ký';
+    }
+    if (lobbyRoleTag) {
+      lobbyRoleTag.className = 'role-mini-tag';
+      if (this.you.role === 'admin') {
+        lobbyRoleTag.textContent = '🛡️ Admin';
+        lobbyRoleTag.classList.add('admin');
+      } else if (this.you.isVip) {
+        lobbyRoleTag.textContent = '👑 VIP';
+        lobbyRoleTag.classList.add('vip');
+      } else if (this.isLoggedIn()) {
+        lobbyRoleTag.textContent = 'Thành viên';
+      } else {
+        lobbyRoleTag.textContent = 'Khách';
+      }
+    }
+
+    // Show/Hide Admin Buttons (Strictly ONLY for Admin)
+    const isAdmin = this.you.role === 'admin';
+    const btnLobbyAdmin = document.getElementById('btn-lobby-admin');
+    const btnHudAdmin = document.getElementById('btn-hud-admin');
+    if (btnLobbyAdmin) btnLobbyAdmin.classList.toggle('hidden', !isAdmin);
+    if (btnHudAdmin) btnHudAdmin.classList.toggle('hidden', !isAdmin);
+
+    // Update Bottom HUD Profile Button
+    const hudAvImg = document.getElementById('hud-user-avatar-img');
+    const hudName = document.getElementById('user-display-name');
+    if (hudAvImg && avatarDataUrl) hudAvImg.src = avatarDataUrl;
+    if (hudName) hudName.textContent = this.you.name;
+
+    // Update Seat Button
+    const seatBtnText = document.getElementById('my-seat-status');
+    if (seatBtnText) {
+      if (this.you.seatId !== null && this.room?.seatLabels) {
+        seatBtnText.textContent = `Ghế ${this.room.seatLabels[this.you.seatId]}`;
+      } else {
+        seatBtnText.textContent = 'Chọn ghế';
+      }
+    }
+
+    // Toggle Guest vs Logged-in view inside #modal-profile
+    const guestSec = document.getElementById('auth-guest-section');
+    const userSec = document.getElementById('auth-user-section');
+    if (this.isLoggedIn()) {
+      if (guestSec) guestSec.classList.add('hidden');
+      if (userSec) userSec.classList.remove('hidden');
+
+      const previewImg = document.getElementById('account-preview-img');
+      const infoName = document.getElementById('account-info-name');
+      const infoUser = document.getElementById('account-info-username');
+      const infoBadge = document.getElementById('account-info-badge');
+      const nameInput = document.getElementById('profile-name-input');
+
+      if (previewImg && window.PixelAvatars) previewImg.src = window.PixelAvatars.getDataUrl(avId, 5);
+      if (infoName) infoName.textContent = this.you.name;
+      if (infoUser) infoUser.textContent = `@${this.you.username}`;
+      if (nameInput) nameInput.value = this.you.name;
+
+      if (infoBadge) {
+        infoBadge.className = 'role-badge';
+        if (this.you.role === 'admin') {
+          infoBadge.textContent = '🛡️ QUẢN TRỊ VIÊN (ADMIN)';
+          infoBadge.classList.add('admin');
+        } else if (this.you.isVip) {
+          infoBadge.textContent = '👑 THÀNH VIÊN VIP';
+          infoBadge.classList.add('vip');
+        } else {
+          infoBadge.textContent = 'THÀNH VIÊN';
+        }
+      }
+
+      this.renderAvatarPickerGrids();
+    } else {
+      if (guestSec) guestSec.classList.remove('hidden');
+      if (userSec) userSec.classList.add('hidden');
+    }
+  }
+
+  // --- UI Event Bindings ---
+  bindUIEvents() {
+    // 1. Camera Mode Buttons
+    document.querySelectorAll('.cam-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.getAttribute('data-camera');
+        this.cinema.setCameraMode(mode, this.you ? this.you.seatId : null);
+      });
+    });
+
+    // 2. Theater 2D / 3D Mode Toggle
     const btnTheater = document.getElementById('btn-theater-mode');
     if (btnTheater) {
       btnTheater.addEventListener('click', () => {
@@ -668,7 +921,7 @@ class CinemaApp {
       });
     }
 
-    // 1c. Screen Click to Play & Unmute
+    // 3. Screen Click to Unmute
     const screenIdle = document.getElementById('screen-idle');
     if (screenIdle) {
       screenIdle.addEventListener('click', () => {
@@ -677,90 +930,14 @@ class CinemaApp {
       });
     }
 
-    const btnPlayCenter = document.getElementById('btn-screen-play-center');
-    if (btnPlayCenter) {
-      btnPlayCenter.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.player.unmuteWithGesture();
-        this.showToast('Âm thanh rạp phim đã sẵn sàng!', 'success');
-      });
-    }
-
-    const btnPlayerRetry = document.getElementById('btn-player-retry');
-    if (btnPlayerRetry) {
-      btnPlayerRetry.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.send('skip-now', {});
-      });
-    }
-
-    // 1d. Room Picker & Creator Form
-    const btnOpenRooms = document.getElementById('btn-open-rooms');
-    if (btnOpenRooms) {
-      btnOpenRooms.addEventListener('click', () => this.openModal('modal-rooms'));
-    }
-
-    const formCreateRoom = document.getElementById('form-create-room');
-    if (formCreateRoom) {
-      formCreateRoom.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('create-room-input');
-        const name = input.value.trim();
-        if (name) {
-          this.send('create-room', { name });
-          input.value = '';
-          this.closeModal('modal-rooms');
-        }
-      });
-    }
-
-    const btnConfirmDelete = document.getElementById('btn-confirm-delete-room');
-    if (btnConfirmDelete) {
-      btnConfirmDelete.addEventListener('click', () => this.confirmDeleteRoom());
-    }
-
-    const btnCancelDelete = document.getElementById('btn-cancel-delete-room');
-    if (btnCancelDelete) {
-      btnCancelDelete.addEventListener('click', () => {
-        this.pendingDeleteRoomId = null;
-        this.closeModal('modal-confirm-delete');
-      });
-    }
-
-    // 1d-lobby: Grand Lobby Actions
-    const formLobbyCreate = document.getElementById('form-lobby-create-room');
-    if (formLobbyCreate) {
-      formLobbyCreate.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const input = document.getElementById('lobby-create-room-input');
-        const name = input.value.trim();
-        if (name) {
-          this.send('create-room', { name });
-          input.value = '';
-          this.showToast(`Đang mở phòng "${name}"...`, 'info');
-        }
-      });
-    }
-
-    const btnBackLobby = document.getElementById('btn-back-lobby');
-    if (btnBackLobby) {
-      btnBackLobby.addEventListener('click', () => this.leaveToLobby());
-    }
-
-    const btnModalBackLobby = document.getElementById('btn-modal-back-lobby');
-    if (btnModalBackLobby) {
-      btnModalBackLobby.addEventListener('click', () => this.leaveToLobby());
-    }
-
-    const btnLobbyProfile = document.getElementById('btn-lobby-open-profile');
-    if (btnLobbyProfile) {
-      btnLobbyProfile.addEventListener('click', () => this.openModal('modal-profile'));
-    }
-
-    // 1e. Playback Control Bar Actions
+    // 4. Playback Bar Controls (Strictly Host / Admin)
     const btnPlayPause = document.getElementById('btn-play-pause');
     if (btnPlayPause) {
       btnPlayPause.addEventListener('click', () => {
+        if (!this.canControlRoom()) {
+          this.showToast('🔒 Chỉ Chủ phòng (Host) mới được Tạm dừng / Phát màn hình!', 'error');
+          return;
+        }
         const isPlaying = this.player.togglePlayPause();
         this.updatePlayPauseButtonUI(isPlaying);
       });
@@ -769,6 +946,7 @@ class CinemaApp {
     const btnRewind = document.getElementById('btn-rewind');
     if (btnRewind) {
       btnRewind.addEventListener('click', () => {
+        if (!this.canControlRoom()) return;
         this.player.rewind(10);
       });
     }
@@ -776,636 +954,1033 @@ class CinemaApp {
     const btnForward = document.getElementById('btn-forward');
     if (btnForward) {
       btnForward.addEventListener('click', () => {
+        if (!this.canControlRoom()) return;
         this.player.fastForward(10);
       });
     }
 
+    const triggerManualNext = () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được bấm Chuyển tiếp video!', 'error');
+        return;
+      }
+      this.send('skip-now', {});
+    };
+
+    document.getElementById('btn-bar-next')?.addEventListener('click', triggerManualNext);
+    document.getElementById('btn-skip-vote')?.addEventListener('click', triggerManualNext);
+    document.getElementById('btn-force-skip')?.addEventListener('click', triggerManualNext);
+    document.getElementById('btn-player-retry')?.addEventListener('click', triggerManualNext);
+
     const scrubber = document.getElementById('playback-scrubber');
-    const scrubberFill = document.getElementById('scrubber-fill');
     if (scrubber) {
       scrubber.addEventListener('input', (e) => {
+        if (!this.canControlRoom()) return;
         this.player.isSeeking = true;
-        const val = parseFloat(e.target.value);
-        if (scrubberFill) scrubberFill.style.width = val + '%';
-        const dur = this.player.duration || 0;
-        const previewTime = (val / 100) * dur;
-        const curLabel = document.getElementById('playback-current-time');
-        if (curLabel) curLabel.textContent = this.formatTime(previewTime);
+        const pct = parseFloat(e.target.value) || 0;
+        const fill = document.getElementById('scrubber-fill');
+        if (fill) fill.style.width = `${pct}%`;
       });
 
       scrubber.addEventListener('change', (e) => {
+        if (!this.canControlRoom()) return;
+        const pct = parseFloat(e.target.value) || 0;
+        const dur = this.player.duration || (this.room?.currentVideo?.duration) || 0;
         this.player.isSeeking = false;
-        const val = parseFloat(e.target.value);
-        const dur = this.player.duration || 0;
-        const targetTime = (val / 100) * dur;
-        this.player.seekTo(targetTime);
-      });
-    }
-
-    // 1f. Clean HUD & Auto-Hide on Inactivity
-    const toggleHud = () => {
-      document.body.classList.toggle('hud-hidden');
-      const isHidden = document.body.classList.contains('hud-hidden');
-      const showHudBtn = document.getElementById('btn-show-hud');
-      if (showHudBtn) showHudBtn.classList.toggle('hidden', !isHidden);
-      this.showToast(isHidden ? 'Đã ẩn giao diện (Bấm H hoặc di chuột để hiện lại)' : 'Đã hiện lại giao diện', 'info');
-    };
-
-    const btnToggleHud = document.getElementById('btn-toggle-hud');
-    if (btnToggleHud) btnToggleHud.addEventListener('click', toggleHud);
-
-    const btnHudQuick = document.getElementById('btn-hud-quick-toggle');
-    if (btnHudQuick) btnHudQuick.addEventListener('click', toggleHud);
-
-    const btnShowHud = document.getElementById('btn-show-hud');
-    if (btnShowHud) {
-      btnShowHud.addEventListener('click', () => {
-        document.body.classList.remove('hud-hidden');
-        btnShowHud.classList.add('hidden');
-      });
-    }
-
-    const btnDismissAudio = document.getElementById('btn-dismiss-audio-banner');
-    if (btnDismissAudio) {
-      btnDismissAudio.addEventListener('click', (e) => {
-        e.stopPropagation();
-        document.getElementById('audio-blocked-overlay').classList.add('hidden');
-      });
-    }
-
-    // Inactivity Auto-Hide Timer (2.5s)
-    let hudTimer = null;
-    const resetHudTimer = () => {
-      document.body.classList.remove('hud-autohide');
-      if (document.body.classList.contains('hud-hidden')) return;
-
-      clearTimeout(hudTimer);
-      hudTimer = setTimeout(() => {
-        const isInputFocused = document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
-        const isModalOpen = !document.querySelector('.modal-backdrop:not(.hidden)');
-        if (!this.isChatOpen && isModalOpen && !isInputFocused) {
-          document.body.classList.add('hud-autohide');
+        if (dur > 0) {
+          this.player.seekTo((pct / 100) * dur);
         }
-      }, 2500);
+      });
+    }
+
+    // 5. Auto-Hide HUD
+    document.getElementById('btn-toggle-hud')?.addEventListener('click', () => this.toggleHudVisibility());
+    document.getElementById('btn-hud-quick-toggle')?.addEventListener('click', () => this.toggleHudVisibility());
+    document.getElementById('btn-show-hud')?.addEventListener('click', () => this.toggleHudVisibility(false));
+
+    // 6. Invite Link + Room Password Copy
+    const copyInviteLink = () => {
+      const url = new URL(window.location.href);
+      if (this.currentRoomId) url.searchParams.set('room', this.currentRoomId);
+      const passStr = this.room?.roomPassword ? ` | Mật khẩu phòng: ${this.room.roomPassword}` : '';
+      const copyText = `${url.toString()}${passStr}`;
+      navigator.clipboard?.writeText(copyText).then(() => {
+        this.showToast(`📋 Đã sao chép Link phòng${passStr}! Hãy gửi cho bạn bè nhé.`, 'success');
+      }).catch(() => {
+        this.showToast(`Link: ${copyText}`, 'info');
+      });
     };
+    document.getElementById('btn-copy-invite')?.addEventListener('click', copyInviteLink);
+    document.getElementById('btn-modal-copy-invite')?.addEventListener('click', copyInviteLink);
 
-    window.addEventListener('mousemove', resetHudTimer, { passive: true });
-    window.addEventListener('pointerdown', resetHudTimer, { passive: true });
-    window.addEventListener('touchstart', resetHudTimer, { passive: true });
-    resetHudTimer();
+    // 7. Create Room in Lobby & Modal (With Password)
+    const formLobbyCreate = document.getElementById('form-lobby-create-room');
+    if (formLobbyCreate) {
+      formLobbyCreate.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!this.isLoggedIn()) {
+          this.showToast('🔑 Vui lòng Đăng nhập hoặc Đăng ký tài khoản trước khi mở phòng!', 'info');
+          this.openAuthModal();
+          return;
+        }
+        const name = document.getElementById('lobby-create-room-input')?.value.trim();
+        const password = document.getElementById('lobby-create-room-pass')?.value.trim();
+        if (name && password) {
+          this.send('create-room', { name, password });
+          document.getElementById('lobby-create-room-input').value = '';
+          document.getElementById('lobby-create-room-pass').value = '';
+        }
+      });
+    }
 
-    // Global Keyboard Shortcuts
-    window.addEventListener('keydown', (e) => {
-      const isInput = document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
-      if (isInput) return;
+    const formModalCreate = document.getElementById('form-create-room');
+    if (formModalCreate) {
+      formModalCreate.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!this.isLoggedIn()) {
+          this.openAuthModal();
+          return;
+        }
+        const name = document.getElementById('create-room-input')?.value.trim();
+        const password = document.getElementById('create-room-pass-input')?.value.trim();
+        if (name && password) {
+          this.send('create-room', { name, password });
+          document.getElementById('create-room-input').value = '';
+          document.getElementById('create-room-pass-input').value = '';
+        }
+      });
+    }
 
-      switch (e.code) {
-        case 'Space':
-          e.preventDefault();
-          const isPlaying = this.player.togglePlayPause();
-          this.updatePlayPauseButtonUI(isPlaying);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          this.player.rewind(10);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          this.player.fastForward(10);
-          break;
-        case 'KeyM':
-          this.player.toggleMute();
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(() => {});
-          } else {
-            document.exitFullscreen().catch(() => {});
-          }
-          break;
-        case 'KeyH':
-          e.preventDefault();
-          toggleHud();
-          break;
+    // 8. Room Password Submit Modal
+    const formRoomPass = document.getElementById('form-enter-room-pass');
+    if (formRoomPass) {
+      formRoomPass.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const roomId = document.getElementById('pass-modal-room-id')?.value;
+        const password = document.getElementById('pass-modal-input')?.value.trim();
+        if (roomId && password) {
+          this.send('join-room', { roomId, password });
+        }
+      });
+    }
+
+    // 9. Delete Room Confirmation
+    document.getElementById('btn-cancel-delete-room')?.addEventListener('click', () => {
+      this.pendingDeleteRoomId = null;
+      this.closeModal('modal-confirm-delete');
+    });
+    document.getElementById('btn-confirm-delete-room')?.addEventListener('click', () => {
+      if (this.pendingDeleteRoomId) {
+        this.send('delete-room', { roomId: this.pendingDeleteRoomId });
+        this.pendingDeleteRoomId = null;
+      }
+      this.closeModal('modal-confirm-delete');
+    });
+
+    // 10. Back to Lobby
+    document.getElementById('btn-back-lobby')?.addEventListener('click', () => this.leaveToLobby());
+    document.getElementById('btn-modal-back-lobby')?.addEventListener('click', () => this.leaveToLobby());
+
+    // 11. Auth Tabs & Login / Register / Logout / Account Update
+    document.querySelectorAll('[data-auth-tab]').forEach((tabBtn) => {
+      tabBtn.addEventListener('click', () => {
+        document.querySelectorAll('[data-auth-tab]').forEach(b => b.classList.remove('active'));
+        tabBtn.classList.add('active');
+        const tab = tabBtn.getAttribute('data-auth-tab');
+        document.getElementById('form-login')?.classList.toggle('hidden', tab !== 'login');
+        document.getElementById('form-register')?.classList.toggle('hidden', tab !== 'register');
+      });
+    });
+
+    document.getElementById('btn-fill-admin')?.addEventListener('click', () => {
+      document.getElementById('login-username').value = 'admin';
+      document.getElementById('login-password').value = 'admin123';
+      document.getElementById('form-login')?.requestSubmit();
+    });
+
+    document.getElementById('btn-fill-vip')?.addEventListener('click', () => {
+      document.getElementById('login-username').value = 'vip';
+      document.getElementById('login-password').value = '123456';
+      document.getElementById('form-login')?.requestSubmit();
+    });
+
+    document.getElementById('form-login')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username')?.value.trim();
+      const password = document.getElementById('login-password')?.value.trim();
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          this.showToast(data.error || 'Đăng nhập thất bại!', 'error');
+          return;
+        }
+        this.authToken = data.token;
+        localStorage.setItem('wetube_token', data.token);
+        this.send('bind-auth', { token: data.token });
+        this.closeModal('modal-profile');
+        this.showToast(`🎉 Chào mừng ${data.user.name} đã đăng nhập!`, 'success');
+      } catch {
+        this.showToast('Lỗi kết nối máy chủ khi đăng nhập.', 'error');
       }
     });
 
-    // 2. Camera Buttons
-    document.querySelectorAll('.cam-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.cam-btn').forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        const mode = btn.dataset.camera;
-        this.cinema.setCameraMode(mode, this.you?.seatId);
+    document.getElementById('form-register')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('reg-username')?.value.trim();
+      const password = document.getElementById('reg-password')?.value.trim();
+      const name = document.getElementById('reg-displayname')?.value.trim();
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username,
+            password,
+            name,
+            avatarId: this.selectedRegAvatar,
+            color: '#f2cf78'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          this.showToast(data.error || 'Đăng ký thất bại!', 'error');
+          return;
+        }
+        this.authToken = data.token;
+        localStorage.setItem('wetube_token', data.token);
+        this.send('bind-auth', { token: data.token });
+        this.closeModal('modal-profile');
+        this.showToast(`✨ Tạo tài khoản "${data.user.username}" thành công!`, 'success');
+      } catch {
+        this.showToast('Lỗi kết nối khi đăng ký.', 'error');
+      }
+    });
+
+    document.getElementById('btn-logout-account')?.addEventListener('click', () => {
+      this.authToken = null;
+      localStorage.removeItem('wetube_token');
+      this.send('logout-auth', {});
+      this.closeModal('modal-profile');
+      this.showToast('Bạn đã đăng xuất khỏi tài khoản.', 'info');
+    });
+
+    document.getElementById('form-profile')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('profile-name-input')?.value.trim();
+      const tier = document.getElementById('profile-tier-select')?.value;
+      const currentPassword = document.getElementById('acc-current-password')?.value;
+      const newPassword = document.getElementById('acc-new-password')?.value;
+
+      if (this.authToken) {
+        try {
+          const res = await fetch('/api/auth/account', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': this.authToken
+            },
+            body: JSON.stringify({
+              name,
+              avatarId: this.selectedProfileAvatar,
+              color: this.selectedColor,
+              tier,
+              currentPassword,
+              newPassword
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            this.showToast(data.error || 'Cập nhật thất bại!', 'error');
+            return;
+          }
+          document.getElementById('acc-current-password').value = '';
+          document.getElementById('acc-new-password').value = '';
+        } catch {}
+      }
+
+      this.send('update-profile', {
+        name,
+        avatarId: this.selectedProfileAvatar,
+        color: this.selectedColor,
+        tier
+      });
+      this.closeModal('modal-profile');
+      this.showToast('✅ Đã lưu hồ sơ & nhân vật Pixel Chibi!', 'success');
+    });
+
+    document.querySelectorAll('.color-circle').forEach((c) => {
+      c.addEventListener('click', () => {
+        document.querySelectorAll('.color-circle').forEach(b => b.classList.remove('selected'));
+        c.classList.add('selected');
+        this.selectedColor = c.getAttribute('data-color');
       });
     });
 
-    // 3. Quick Emoji Reactions
+    // 12. Open Modals
+    document.getElementById('btn-open-rooms')?.addEventListener('click', () => {
+      this.send('list-rooms');
+      this.openModal('modal-rooms');
+    });
+    document.getElementById('btn-open-seats')?.addEventListener('click', () => {
+      this.renderSeatMapModal();
+      this.openModal('modal-seats');
+    });
+    document.getElementById('btn-open-queue')?.addEventListener('click', () => {
+      this.renderQueueModal();
+      this.openModal('modal-queue');
+    });
+    document.getElementById('btn-open-photo')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được chiếu ảnh lên màn hình!', 'error');
+        return;
+      }
+      this.openModal('modal-photo');
+    });
+    document.getElementById('btn-open-profile')?.addEventListener('click', () => this.openAuthModal());
+    document.getElementById('btn-lobby-open-profile')?.addEventListener('click', () => this.openAuthModal());
+    document.getElementById('btn-help')?.addEventListener('click', () => this.openModal('modal-help'));
+
+    // 13. Admin Control Panel Modal (Strictly Admin Only)
+    const openAdminPanel = () => {
+      if (!this.you || this.you.role !== 'admin') {
+        this.showToast('🚫 Chỉ Quản trị viên (Admin) mới có quyền mở bảng này!', 'error');
+        return;
+      }
+      this.send('admin-get-data', {});
+      this.openModal('modal-admin');
+    };
+    document.getElementById('btn-lobby-admin')?.addEventListener('click', openAdminPanel);
+    document.getElementById('btn-hud-admin')?.addEventListener('click', openAdminPanel);
+
+    document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-admin-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-admin-tab');
+        ['movies', 'broadcast', 'categories', 'users', 'stats'].forEach((pane) => {
+          document.getElementById(`admin-pane-${pane}`)?.classList.toggle('hidden', pane !== tab);
+        });
+      });
+    });
+
+    this.bindAdminForms();
+
+    // 14. Close Modals
+    document.querySelectorAll('.modal-close').forEach((btn) => {
+      btn.addEventListener('click', () => this.closeModal(btn.getAttribute('data-close')));
+    });
+
+    // 15. Stage, Party, Volume, Fullscreen, Chat, Emoji, Photo
+    document.getElementById('btn-stage')?.addEventListener('click', () => this.send('take-stage'));
+    document.getElementById('btn-leave-seat')?.addEventListener('click', () => {
+      this.send('leave-seat');
+      this.closeModal('modal-seats');
+    });
+    document.getElementById('btn-toggle-party')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được bật/tắt đèn tiệc!', 'error');
+        return;
+      }
+      this.send('toggle-party');
+    });
+
+    document.getElementById('btn-volume')?.addEventListener('click', () => {
+      const muted = this.player.toggleMute();
+      this.updateVolumeIcon(muted ? 0 : this.player.volume);
+    });
+    document.getElementById('volume-slider')?.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      this.player.setVolume(val);
+      this.player.isMuted = val === 0;
+      document.getElementById('volume-val').textContent = `${val}%`;
+      this.updateVolumeIcon(val);
+    });
+
+    document.getElementById('btn-fullscreen')?.addEventListener('click', () => {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+      else document.exitFullscreen().catch(() => {});
+    });
+
+    document.getElementById('btn-unmute-audio')?.addEventListener('click', () => this.player.unmuteWithGesture());
+
+    document.getElementById('form-add-video')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!this.canControlRoom()) {
+        this.showToast('🔒 Chỉ Chủ phòng (Host) mới được thêm video vào danh sách phát!', 'error');
+        return;
+      }
+      const input = document.getElementById('video-url-input');
+      if (input && input.value.trim()) {
+        this.send('queue-video', { url: input.value.trim() });
+        input.value = '';
+      }
+    });
+
     document.querySelectorAll('.emoji-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const emoji = btn.dataset.emoji;
-        this.send('reaction', { emoji });
-        this.cinema.spawnEmojiReaction(emoji, this.you?.seatId, this.room?.stageUser === this.you?.id);
-        this.playPopSound();
+        this.send('reaction', { emoji: btn.getAttribute('data-emoji') });
       });
     });
 
-    // 4. Modals Open/Close
-    document.getElementById('btn-open-seats').addEventListener('click', () => this.openModal('modal-seats'));
-    document.getElementById('btn-open-queue').addEventListener('click', () => this.openModal('modal-queue'));
-    document.getElementById('btn-open-photo').addEventListener('click', () => this.openModal('modal-photo'));
-    document.getElementById('btn-open-profile').addEventListener('click', () => this.openModal('modal-profile'));
-    document.getElementById('btn-help').addEventListener('click', () => this.openModal('modal-help'));
-
-    document.querySelectorAll('.modal-close').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const modalId = btn.dataset.close;
-        this.closeModal(modalId);
-      });
-    });
-
-    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => {
-      backdrop.addEventListener('click', (e) => {
-        if (e.target === backdrop) {
-          backdrop.classList.add('hidden');
-        }
-      });
-    });
-
-    // 5. Chat Toggle & Form
-    const chatDrawer = document.getElementById('chat-drawer');
-    const btnToggleChat = document.getElementById('btn-toggle-chat');
-    const btnCloseChat = document.getElementById('btn-close-chat');
-
-    btnToggleChat.addEventListener('click', () => {
-      this.isChatOpen = !this.isChatOpen;
-      chatDrawer.classList.toggle('open', this.isChatOpen);
-      if (this.isChatOpen) {
-        this.unreadChatCount = 0;
-        document.getElementById('chat-unread-badge').classList.add('hidden');
-        document.getElementById('chat-input').focus();
-      }
-    });
-
-    btnCloseChat.addEventListener('click', () => {
-      this.isChatOpen = false;
-      chatDrawer.classList.remove('open');
-    });
-
-    document.getElementById('chat-form').addEventListener('submit', (e) => {
+    document.getElementById('btn-toggle-chat')?.addEventListener('click', () => this.toggleChat());
+    document.getElementById('btn-close-chat')?.addEventListener('click', () => this.toggleChat(false));
+    document.getElementById('chat-form')?.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = document.getElementById('chat-input');
-      const text = input.value.trim();
-      if (text) {
-        this.send('chat', { text });
+      if (input && input.value.trim()) {
+        this.send('chat', { text: input.value.trim() });
         input.value = '';
       }
     });
 
-    // 6. Stage Toggle Button
-    document.getElementById('btn-stage').addEventListener('click', () => {
-      this.send('take-stage', {});
-    });
-
-    // 7. Skip Vote Button
-    document.getElementById('btn-skip-vote').addEventListener('click', () => {
-      this.send('skip-vote', {});
-    });
-
-    document.getElementById('btn-force-skip').addEventListener('click', () => {
-      this.send('skip-now', {});
-    });
-
-    // 8. Party Mode Button
-    document.getElementById('btn-toggle-party').addEventListener('click', () => {
-      this.send('toggle-party', {});
-    });
-
-    // 9. Quality Toggle Button
-    document.getElementById('btn-toggle-quality').addEventListener('click', () => {
-      const isHigh = this.cinema.quality === 'high';
-      const newQuality = isHigh ? 'smooth' : 'high';
-      this.cinema.setQuality(newQuality);
-      document.getElementById('quality-label').textContent = newQuality === 'high' ? 'Độ nét: Cao' : 'Độ nét: Mượt';
-      this.showToast(`Đã chuyển sang ${newQuality === 'high' ? 'chế độ độ nét cao' : 'chế độ mượt mà'}!`, 'info');
-    });
-
-    // 10. Volume Slider
-    const volumeSlider = document.getElementById('volume-slider');
-    const volumeVal = document.getElementById('volume-val');
-    const btnVolume = document.getElementById('btn-volume');
-
-    volumeSlider.addEventListener('input', (e) => {
-      const vol = parseInt(e.target.value, 10);
-      volumeVal.textContent = vol + '%';
-      this.player.setVolume(vol);
-    });
-
-    btnVolume.addEventListener('click', () => {
-      const isMuted = this.player.toggleMute();
-      this.showToast(isMuted ? 'Đã tắt tiếng rạp phim' : 'Đã bật tiếng', 'info');
-    });
-
-    // 11. Unmute Audio Banner
-    document.getElementById('btn-unmute-audio').addEventListener('click', () => {
-      this.player.unmuteWithGesture();
-      document.getElementById('audio-blocked-overlay').classList.add('hidden');
-      this.showToast('Âm thanh rạp phim đã sẵn sàng!', 'success');
-    });
-
-    // 12. Fullscreen Button
-    document.getElementById('btn-fullscreen').addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      } else {
-        document.exitFullscreen().catch(() => {});
-      }
-    });
-
-    // 13. Add Video Form
-    document.getElementById('form-add-video').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const input = document.getElementById('video-url-input');
-      const url = input.value.trim();
-      if (url) {
-        this.send('queue-video', { url });
-        input.value = '';
-        this.closeModal('modal-queue');
-      }
-    });
-
-    // Quick Recommendations
-    document.querySelectorAll('.rec-pill').forEach((pill) => {
-      pill.addEventListener('click', () => {
-        const url = pill.dataset.url;
-        this.send('queue-video', { url });
-        this.closeModal('modal-queue');
-      });
-    });
-
-    // 14. Screen Photo Form
     const photoFileInput = document.getElementById('photo-file-input');
     const photoUrlInput = document.getElementById('photo-url-input');
-    const photoPreviewBox = document.getElementById('photo-preview-box');
-    const photoPreviewImg = document.getElementById('photo-preview-img');
-    let selectedImageBase64 = null;
-
-    photoFileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
+    const previewBox = document.getElementById('photo-preview-box');
+    const previewImg = document.getElementById('photo-preview-img');
+    if (photoFileInput) {
+      photoFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
-          selectedImageBase64 = ev.target.result;
-          photoPreviewImg.src = selectedImageBase64;
-          photoPreviewBox.classList.remove('hidden');
+          previewImg.src = ev.target.result;
+          previewBox.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
-      }
-    });
-
-    document.getElementById('form-post-photo').addEventListener('submit', (e) => {
+      });
+    }
+    document.getElementById('form-screen-photo')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const caption = document.getElementById('photo-caption-input').value.trim();
-      const finalImage = selectedImageBase64 || photoUrlInput.value.trim();
-
-      if (finalImage) {
-        this.send('screen-post', { image: finalImage, caption });
-        photoFileInput.value = '';
-        photoUrlInput.value = '';
-        selectedImageBase64 = null;
-        photoPreviewBox.classList.add('hidden');
-        document.getElementById('photo-caption-input').value = '';
+      const imgSrc = previewImg?.src || photoUrlInput?.value.trim();
+      const caption = document.getElementById('photo-caption-input')?.value.trim();
+      if (imgSrc && imgSrc.startsWith('http') || imgSrc.startsWith('data:')) {
+        this.send('screen-post', { image: imgSrc, caption });
         this.closeModal('modal-photo');
       }
     });
+  }
 
-    // 15. Profile Form
-    document.querySelectorAll('.color-circle').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.color-circle').forEach((b) => b.classList.remove('selected'));
-        btn.classList.add('selected');
+  // --- Admin Panel Forms & Actions ---
+  bindAdminForms() {
+    // Save Movie Form
+    document.getElementById('form-admin-movie')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('adm-movie-id')?.value || null;
+      const title = document.getElementById('adm-movie-title')?.value.trim();
+      const poster = document.getElementById('adm-movie-poster')?.value.trim();
+      const cast = document.getElementById('adm-movie-cast')?.value.trim();
+      const genre = document.getElementById('adm-movie-genre')?.value;
+      const country = document.getElementById('adm-movie-country')?.value;
+      const year = document.getElementById('adm-movie-year')?.value;
+      const description = document.getElementById('adm-movie-desc')?.value.trim();
+      const sourceType = document.getElementById('adm-movie-source')?.value;
+      const isVipOnly = document.getElementById('adm-movie-vip')?.value === 'true';
+      const videoUrl = document.getElementById('adm-movie-url')?.value.trim();
+      const rawEps = document.getElementById('adm-movie-episodes')?.value.trim();
+
+      const episodes = [];
+      if (rawEps) {
+        rawEps.split('\n').forEach((line, idx) => {
+          const parts = line.split('|').map(s => s.trim());
+          if (parts.length >= 2 && parts[1]) {
+            episodes.push({ epNumber: idx + 1, title: parts[0] || `Tập ${idx + 1}`, sourceType, videoUrl: parts[1] });
+          }
+        });
+      }
+
+      this.send('admin-save-movie', {
+        movie: { id, title, poster, cast, genre, country, year, description, sourceType, isVipOnly, videoUrl, episodes }
+      });
+      this.resetAdminMovieForm();
+    });
+
+    document.getElementById('btn-adm-movie-reset')?.addEventListener('click', () => this.resetAdminMovieForm());
+
+    // Direct Video File Upload Form
+    document.getElementById('form-admin-upload-video')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('adm-upload-file');
+      const titleInput = document.getElementById('adm-upload-title');
+      const btnText = document.getElementById('adm-upload-btn-text');
+      const resBox = document.getElementById('adm-upload-result');
+
+      const file = fileInput?.files?.[0];
+      if (!file) return;
+
+      try {
+        if (btnText) btnText.textContent = 'Đang tải tệp phim lên máy chủ...';
+        const res = await fetch('/api/upload-video', {
+          method: 'POST',
+          headers: {
+            'x-auth-token': this.authToken || '',
+            'x-filename': encodeURIComponent(file.name)
+          },
+          body: file
+        });
+        const data = await res.json();
+        if (btnText) btnText.textContent = 'Tải Lên & Tạo Nguồn Phát Ngay';
+
+        if (!res.ok) {
+          this.showToast(data.error || 'Tải tệp thất bại!', 'error');
+          return;
+        }
+
+        if (resBox) {
+          resBox.innerHTML = `✅ Đã tải lên thành công! Đường dẫn phát nội bộ: <code>${data.url}</code>`;
+          resBox.classList.remove('hidden');
+        }
+
+        // Automatically add to Movie Catalog
+        this.send('admin-save-movie', {
+          movie: {
+            title: titleInput?.value.trim() || file.name,
+            sourceType: 'direct',
+            videoUrl: data.url,
+            genre: 'Chiếu Rạp',
+            country: 'Việt Nam',
+            year: '2026',
+            description: 'Phim được Admin tải trực tiếp lên máy chủ phát sóng.'
+          }
+        });
+        fileInput.value = '';
+      } catch {
+        if (btnText) btnText.textContent = 'Tải Lên & Tạo Nguồn Phát Ngay';
+        this.showToast('Lỗi kết nối khi tải tệp video.', 'error');
+      }
+    });
+
+    // Save Categories Form
+    document.getElementById('form-admin-categories')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const splitClean = (id) => (document.getElementById(id)?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+      this.send('admin-save-categories', {
+        categories: {
+          genres: splitClean('adm-cat-genres'),
+          countries: splitClean('adm-cat-countries'),
+          years: splitClean('adm-cat-years'),
+          tags: splitClean('adm-cat-tags')
+        }
       });
     });
 
-    document.getElementById('form-profile').addEventListener('submit', (e) => {
+    // Add Revenue Form
+    document.getElementById('form-admin-revenue')?.addEventListener('submit', (e) => {
       e.preventDefault();
-      const name = document.getElementById('profile-name-input').value.trim();
-      const selectedColorBtn = document.querySelector('.color-circle.selected');
-      const color = selectedColorBtn ? selectedColorBtn.dataset.color : this.you.color;
-      const tier = document.getElementById('profile-tier-select').value;
-
-      this.send('update-profile', { name, color, tier });
-      this.closeModal('modal-profile');
-    });
-
-    // 16. Leave Seat Button
-    document.getElementById('btn-leave-seat').addEventListener('click', () => {
-      this.send('leave-seat', {});
-      this.closeModal('modal-seats');
+      const revType = document.getElementById('adm-rev-type')?.value;
+      const amount = document.getElementById('adm-rev-amount')?.value;
+      const note = document.getElementById('adm-rev-note')?.value;
+      this.send('admin-add-revenue', { revType, amount, note });
+      document.getElementById('adm-rev-amount').value = '';
+      document.getElementById('adm-rev-note').value = '';
     });
   }
 
-  handleSeatSelection(seatId) {
-    if (this.you && this.you.seatId === seatId) {
-      this.openModal('modal-seats');
-      return;
+  resetAdminMovieForm() {
+    document.getElementById('adm-movie-id').value = '';
+    document.getElementById('adm-movie-title').value = '';
+    document.getElementById('adm-movie-poster').value = '';
+    document.getElementById('adm-movie-cast').value = '';
+    document.getElementById('adm-movie-desc').value = '';
+    document.getElementById('adm-movie-url').value = '';
+    document.getElementById('adm-movie-episodes').value = '';
+    document.getElementById('admin-movie-form-title').textContent = '➕ Thêm Phim Mới';
+  }
+
+  renderAdminDashboard() {
+    if (!this.adminData) return;
+    const { accounts, movies, categories, allComments, roomsAdmin, stats } = this.adminData;
+
+    // Populate Category Selects in Movie Form
+    const fillSelect = (id, arr) => {
+      const sel = document.getElementById(id);
+      if (sel && Array.isArray(arr)) {
+        sel.innerHTML = arr.map(v => `<option value="${v}">${v}</option>`).join('');
+      }
+    };
+    fillSelect('adm-movie-genre', categories?.genres || []);
+    fillSelect('adm-movie-country', categories?.countries || []);
+    fillSelect('adm-movie-year', categories?.years || []);
+
+    // Tab 1: Movies List
+    document.getElementById('adm-movies-count').textContent = (movies || []).length;
+    const moviesListEl = document.getElementById('adm-movies-list');
+    if (moviesListEl) {
+      moviesListEl.innerHTML = (movies || []).map(m => `
+        <div class="admin-item-row">
+          <div class="admin-item-info">
+            <div class="admin-item-title">
+              ${m.isVipOnly ? '<span style="color:#f2cf78;">[👑 VIP]</span>' : ''}
+              <span>${m.title}</span>
+            </div>
+            <div class="admin-item-sub">${m.genre} · ${m.country} · ${m.year} · Nguồn: ${m.sourceType} · 👁️ ${m.views || 0} lượt xem</div>
+          </div>
+          <div class="admin-item-actions">
+            <button class="adm-btn gold" data-adm-edit-movie="${m.id}">Sửa</button>
+            <button class="adm-btn danger" data-adm-del-movie="${m.id}">Xóa</button>
+          </div>
+        </div>
+      `).join('');
+
+      moviesListEl.querySelectorAll('[data-adm-edit-movie]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = movies.find(x => x.id === btn.getAttribute('data-adm-edit-movie'));
+          if (!m) return;
+          document.getElementById('adm-movie-id').value = m.id;
+          document.getElementById('adm-movie-title').value = m.title || '';
+          document.getElementById('adm-movie-poster').value = m.poster || '';
+          document.getElementById('adm-movie-cast').value = m.cast || '';
+          document.getElementById('adm-movie-desc').value = m.description || '';
+          document.getElementById('adm-movie-source').value = m.sourceType || 'youtube';
+          document.getElementById('adm-movie-vip').value = m.isVipOnly ? 'true' : 'false';
+          document.getElementById('adm-movie-url').value = m.videoUrl || '';
+          document.getElementById('adm-movie-episodes').value = (m.episodes || []).map(ep => `${ep.title} | ${ep.videoUrl}`).join('\n');
+          document.getElementById('admin-movie-form-title').textContent = `✏️ Chỉnh Sửa: ${m.title}`;
+        });
+      });
+
+      moviesListEl.querySelectorAll('[data-adm-del-movie]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.send('admin-delete-movie', { movieId: btn.getAttribute('data-adm-del-movie') });
+        });
+      });
     }
-    this.send('pick-seat', { seatId });
-  }
 
-  reportDuration(videoId, duration) {
-    this.send('report-duration', { id: videoId, duration });
-  }
+    // Tab 2: Rooms & Passwords Management
+    const roomsPassEl = document.getElementById('adm-rooms-pass-list');
+    if (roomsPassEl) {
+      roomsPassEl.innerHTML = (roomsAdmin || []).map(r => `
+        <div class="admin-item-row">
+          <div class="admin-item-info">
+            <div class="admin-item-title">${r.name}</div>
+            <div class="admin-item-sub">👑 Host: ${r.hostName} (@${r.hostUsername}) · Đang xem: ${r.onlineCount} · Mật khẩu hiện tại: <strong style="color:#f2cf78;">${r.password}</strong></div>
+          </div>
+          <div class="admin-item-actions">
+            <input type="text" placeholder="Pass mới" id="adm-pass-in-${r.id}" style="width:90px; padding:4px 7px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); background:#111; color:#fff; font-size:11px;" />
+            <button class="adm-btn gold" data-adm-save-pass="${r.id}">Đổi Pass</button>
+          </div>
+        </div>
+      `).join('');
 
-  showAudioBlockedBanner() {
-    document.getElementById('audio-blocked-overlay').classList.remove('hidden');
-  }
-
-  formatTime(seconds) {
-    if (!Number.isFinite(seconds) || seconds < 0) return '00:00';
-    const s = Math.floor(seconds);
-    const m = Math.floor(s / 60);
-    const h = Math.floor(m / 60);
-    const remM = m % 60;
-    const remS = s % 60;
-
-    if (h > 0) {
-      return `${h}:${String(remM).padStart(2, '0')}:${String(remS).padStart(2, '0')}`;
+      roomsPassEl.querySelectorAll('[data-adm-save-pass]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const rId = btn.getAttribute('data-adm-save-pass');
+          const newPass = document.getElementById(`adm-pass-in-${rId}`)?.value.trim();
+          if (newPass) {
+            this.send('admin-update-room-pass', { roomId: rId, password: newPass });
+          }
+        });
+      });
     }
-    return `${String(remM).padStart(2, '0')}:${String(remS).padStart(2, '0')}`;
+
+    // Tab 3: Categories
+    if (categories) {
+      document.getElementById('adm-cat-genres').value = (categories.genres || []).join(', ');
+      document.getElementById('adm-cat-countries').value = (categories.countries || []).join(', ');
+      document.getElementById('adm-cat-years').value = (categories.years || []).join(', ');
+      document.getElementById('adm-cat-tags').value = (categories.tags || []).join(', ');
+    }
+
+    // Tab 4: Users & Spam Comments
+    document.getElementById('adm-users-count').textContent = (accounts || []).length;
+    const usersListEl = document.getElementById('adm-users-list');
+    if (usersListEl) {
+      usersListEl.innerHTML = (accounts || []).map(u => {
+        const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(u.avatarId, 3) : '';
+        return `
+          <div class="admin-item-row">
+            <img src="${avUrl}" style="width:28px; height:35px; image-rendering:pixelated;" alt="av" />
+            <div class="admin-item-info">
+              <div class="admin-item-title">
+                <span>${u.name}</span>
+                <small style="color:#9ca3af;">(@${u.username})</small>
+                ${u.role === 'admin' ? '<span class="role-mini-tag admin">Admin</span>' : ''}
+                ${u.isVip ? '<span class="role-mini-tag vip">👑 VIP</span>' : ''}
+                ${u.isBanned ? '<span style="color:#ef4444; font-size:10px;">[ĐÃ KHÓA]</span>' : ''}
+              </div>
+              <div class="admin-item-sub">${u.isOnline ? '🟢 Đang Online' : '⚪ Offline'} · Danh hiệu: ${u.tier}</div>
+            </div>
+            <div class="admin-item-actions">
+              <button class="adm-btn gold" data-adm-vip="${u.id}">${u.isVip ? 'Gỡ VIP' : '+ Cấp VIP'}</button>
+              ${u.username !== 'admin' ? `
+                <button class="adm-btn ${u.isBanned ? 'success' : 'danger'}" data-adm-ban="${u.id}">${u.isBanned ? 'Mở khóa' : 'Khóa TK'}</button>
+                <button class="adm-btn" data-adm-role="${u.id}">${u.role === 'admin' ? 'Hạ Admin' : 'Cấp Admin'}</button>
+                <button class="adm-btn danger" data-adm-del-user="${u.id}">Xóa</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      usersListEl.querySelectorAll('[data-adm-vip]').forEach(b => {
+        b.addEventListener('click', () => this.send('admin-toggle-vip', { accountId: b.getAttribute('data-adm-vip') }));
+      });
+      usersListEl.querySelectorAll('[data-adm-ban]').forEach(b => {
+        b.addEventListener('click', () => this.send('admin-toggle-ban', { accountId: b.getAttribute('data-adm-ban') }));
+      });
+      usersListEl.querySelectorAll('[data-adm-role]').forEach(b => {
+        b.addEventListener('click', () => this.send('admin-toggle-role', { accountId: b.getAttribute('data-adm-role') }));
+      });
+      usersListEl.querySelectorAll('[data-adm-del-user]').forEach(b => {
+        b.addEventListener('click', () => this.send('admin-delete-user', { accountId: b.getAttribute('data-adm-del-user') }));
+      });
+    }
+
+    const commentsListEl = document.getElementById('adm-comments-list');
+    if (commentsListEl) {
+      if (!allComments || allComments.length === 0) {
+        commentsListEl.innerHTML = `<div class="empty-queue-msg">Chưa có bình luận nào trong các phòng.</div>`;
+      } else {
+        commentsListEl.innerHTML = allComments.map(c => `
+          <div class="admin-item-row">
+            <div class="admin-item-info">
+              <div class="admin-item-title">
+                <span style="color:${c.color}">${c.name}</span>
+                <small style="color:#9ca3af;">[${c.roomName} · ${c.time}]</small>
+              </div>
+              <div class="admin-item-sub" style="color:#f3f4f6;">${this.escapeHTML(c.text)}</div>
+            </div>
+            <button class="adm-btn danger" data-adm-del-msg="${c.id}" data-adm-msg-room="${c.roomId}">Xóa Spam</button>
+          </div>
+        `).join('');
+
+        commentsListEl.querySelectorAll('[data-adm-del-msg]').forEach(b => {
+          b.addEventListener('click', () => {
+            this.send('admin-delete-comment', {
+              messageId: b.getAttribute('data-adm-del-msg'),
+              roomId: b.getAttribute('data-adm-msg-room')
+            });
+          });
+        });
+      }
+    }
+
+    // Tab 5: Stats & Revenue
+    if (stats) {
+      const fmtVND = (n) => Number(n || 0).toLocaleString('vi-VN') + ' đ';
+      document.getElementById('stat-total-visits').textContent = stats.totalVisits || 0;
+      document.getElementById('stat-online-now').textContent = `Đang online: ${stats.onlineNow || 1} người`;
+      document.getElementById('stat-total-accounts').textContent = stats.totalAccounts || 0;
+      document.getElementById('stat-total-vip').textContent = `Thành viên VIP: ${stats.totalVipAccounts || 0}`;
+      document.getElementById('stat-vip-revenue').textContent = fmtVND(stats.vipRevenue);
+      document.getElementById('stat-ad-revenue').textContent = fmtVND(stats.adRevenue);
+
+      const topMoviesEl = document.getElementById('adm-top-movies');
+      if (topMoviesEl) {
+        const sorted = [...(movies || [])].sort((a, b) => (b.views || 0) - (a.views || 0));
+        topMoviesEl.innerHTML = sorted.map((m, idx) => `
+          <div class="admin-item-row">
+            <div class="admin-item-info">
+              <div class="admin-item-title">#${idx + 1}. ${m.title}</div>
+              <div class="admin-item-sub">${m.genre} · ${m.country}</div>
+            </div>
+            <strong style="color:#f2cf78; font-size:13px;">👁️ ${m.views || 0} lượt xem</strong>
+          </div>
+        `).join('');
+      }
+
+      const txEl = document.getElementById('adm-transactions-list');
+      if (txEl) {
+        txEl.innerHTML = (stats.transactions || []).map(t => `
+          <div class="admin-item-row">
+            <div class="admin-item-info">
+              <div class="admin-item-title">${t.type === 'vip' ? '👑 Gói VIP' : '📢 Quảng cáo'}: +${fmtVND(t.amount)}</div>
+              <div class="admin-item-sub">${t.note} (${t.time})</div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  }
+
+  // --- UI Helpers ---
+  toggleHudVisibility(forceState = null) {
+    this.isHudHidden = forceState !== null ? forceState : !this.isHudHidden;
+    document.body.classList.toggle('hud-hidden', this.isHudHidden);
+    document.getElementById('btn-show-hud')?.classList.toggle('hidden', !this.isHudHidden);
   }
 
   updatePlayPauseButtonUI(isPlaying) {
-    const label = document.getElementById('label-play-pause');
     const icon = document.getElementById('icon-play-pause');
+    const label = document.getElementById('label-play-pause');
+    if (icon) icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
     if (label) label.textContent = isPlaying ? 'Tạm dừng' : 'Phát tiếp';
-    if (icon) {
-      icon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
-      this.refreshIcons();
-    }
+    this.refreshIcons();
   }
 
   updatePlaybackBarUI(cur, dur, percent) {
-    const curLabel = document.getElementById('playback-current-time');
-    const durLabel = document.getElementById('playback-duration');
+    const curEl = document.getElementById('playback-current-time');
+    const durEl = document.getElementById('playback-duration');
+    const fillEl = document.getElementById('scrubber-fill');
     const scrubber = document.getElementById('playback-scrubber');
-    const scrubberFill = document.getElementById('scrubber-fill');
 
-    if (curLabel) curLabel.textContent = this.formatTime(cur);
-    if (durLabel) durLabel.textContent = this.formatTime(dur);
-    if (scrubberFill) scrubberFill.style.width = `${percent}%`;
-    if (scrubber && !this.player.isSeeking) scrubber.value = percent;
-  }
-
-  updateProfileUI() {
-    if (!this.you) return;
-    document.getElementById('user-display-name').textContent = this.you.name;
-    document.getElementById('profile-name-input').value = this.you.name;
-    document.getElementById('profile-tier-select').value = this.you.tier || 'Khán Giả VIP';
-
-    document.querySelectorAll('.color-circle').forEach((btn) => {
-      btn.classList.toggle('selected', btn.dataset.color === this.you.color);
-    });
-
-    if (this.you.seatId !== null && this.room && this.room.seatLabels) {
-      document.getElementById('my-seat-status').textContent = `Ghế ${this.room.seatLabels[this.you.seatId]}`;
-      document.getElementById('btn-leave-seat').classList.remove('hidden');
-    } else {
-      document.getElementById('my-seat-status').textContent = 'Chọn ghế';
-      document.getElementById('btn-leave-seat').classList.add('hidden');
+    if (curEl) curEl.textContent = this.formatTime(cur);
+    if (durEl) durEl.textContent = this.formatTime(dur);
+    if (!this.player.isSeeking) {
+      if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+      if (scrubber) scrubber.value = Math.min(100, Math.max(0, percent));
     }
   }
 
-  updatePartyModeUI(active) {
-    const btn = document.getElementById('btn-toggle-party');
-    btn.classList.toggle('active', !!active);
+  formatTime(sec) {
+    if (!sec || isNaN(sec) || sec < 0) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
-  updateStageButtonUI() {
-    const isOnStage = this.room?.stageUser === this.you?.id;
-    const btnText = document.getElementById('stage-btn-text');
-    btnText.textContent = isOnStage ? 'Về ghế ngồi' : 'Lên sân khấu';
+  handleSeatSelection(seatId) {
+    if (!this.room) return;
+    this.send('pick-seat', { seatId });
+    this.closeModal('modal-seats');
+  }
+
+  reportDuration(id, duration) {
+    this.send('report-duration', { id, duration });
+  }
+
+  showAudioBlockedBanner() {
+    document.getElementById('audio-blocked-overlay')?.classList.remove('hidden');
   }
 
   updateNowPlayingUI() {
     if (!this.room || !this.room.currentVideo) return;
     const v = this.room.currentVideo;
-    document.getElementById('np-title').textContent = v.title || 'Đang chiếu...';
-    document.getElementById('np-requester').textContent = `Gửi bởi ${v.requester || 'Rạp'}`;
-
-    document.getElementById('qc-title').textContent = v.title || 'Đang chiếu...';
-    document.getElementById('qc-author').textContent = v.author || 'YouTube';
-    document.getElementById('qc-requester').textContent = `Yêu cầu bởi: ${v.requester || 'Rạp'}`;
-    document.getElementById('qc-thumb').src = v.thumbnail || `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`;
-
-    const idleTitle = document.getElementById('screen-idle-title');
-    const idleSub = document.getElementById('screen-idle-sub');
-    if (idleTitle && v.title) {
-      idleTitle.innerHTML = `${v.title}<br><i>Chạm vào rạp để xem & nghe âm thanh.</i>`;
-    }
-    if (idleSub && v.requester) {
-      idleSub.textContent = `Yêu cầu bởi ${v.requester} · Chọn một chỗ ngồi · Gửi bài bạn thích`;
-    }
+    document.getElementById('np-title').textContent = v.title || 'Đang phát...';
+    document.getElementById('np-requester').textContent = `Bởi ${v.requester || 'Chủ phòng'}`;
+    this.updatePlayPauseButtonUI(v.isPlaying !== false);
   }
 
   updateOccupancyUI() {
     if (!this.room) return;
-    const seatedCount = (this.room.seats || []).filter((s) => s !== null).length;
-    document.getElementById('occupancy-text').textContent = `${seatedCount} / 10 ghế`;
+    const seatedCount = this.room.seats.filter(s => s !== null).length;
+    const occText = document.getElementById('occupancy-text');
+    if (occText) occText.textContent = `${seatedCount} / 10 ghế (${this.room.onlineCount || 1} online)`;
   }
 
-  updateSkipVoteUI() {
-    if (!this.room) return;
-    const count = this.room.skipVotesCount || 0;
-    const req = this.room.requiredSkipVotes || 1;
-    document.getElementById('skip-vote-text').textContent = `Bỏ qua (${count}/${req})`;
+  updateStageButtonUI() {
+    const btnText = document.getElementById('stage-btn-text');
+    if (btnText && this.room && this.you) {
+      btnText.textContent = this.room.stageUser === this.you.id ? 'Rời sân khấu' : 'Lên sân khấu';
+    }
   }
 
-  openModal(modalId) {
-    document.querySelectorAll('.modal-backdrop').forEach((m) => m.classList.add('hidden'));
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('hidden');
+  updatePartyModeUI(active) {
+    document.getElementById('btn-toggle-party')?.classList.toggle('active', active);
   }
 
-  closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.classList.add('hidden');
+  updateVolumeIcon(vol) {
+    const icon = document.getElementById('volume-icon');
+    if (!icon) return;
+    icon.setAttribute('data-lucide', vol === 0 ? 'volume-x' : (vol < 50 ? 'volume-1' : 'volume-2'));
+    this.refreshIcons();
   }
 
   renderSeatMapModal() {
-    if (!this.room) return;
-    const seats = this.room.seats || [];
-    const labels = this.room.seatLabels || [];
+    if (!this.room || !this.you) return;
+    const rowA = document.getElementById('row-a-seats');
+    const rowB = document.getElementById('row-b-seats');
+    const leaveBtn = document.getElementById('btn-leave-seat');
+    if (!rowA || !rowB) return;
 
-    // Row A: 0..4
-    const rowA = document.getElementById('seat-row-a');
-    if (rowA) {
-      rowA.innerHTML = '';
-      for (let i = 0; i < 5; i++) {
-        rowA.appendChild(this.createSeatElement(i, labels[i], seats[i]));
+    rowA.innerHTML = '';
+    rowB.innerHTML = '';
+
+    this.room.seats.forEach((occupant, index) => {
+      const label = this.room.seatLabels ? this.room.seatLabels[index] : `G${index + 1}`;
+      const isMine = occupant && occupant.userId === this.you.id;
+      const isOccupied = occupant && !isMine;
+
+      const btn = document.createElement('button');
+      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}`;
+      const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
+
+      btn.innerHTML = `
+        <span class="seat-code">${label}</span>
+        ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
+        <span class="seat-occupant">${occupant ? occupant.name : 'Trống'}</span>
+      `;
+
+      if (!isOccupied) {
+        btn.addEventListener('click', () => this.handleSeatSelection(index));
+      } else {
+        btn.disabled = true;
       }
-    }
 
-    // Row B: 5..9
-    const rowB = document.getElementById('seat-row-b');
-    if (rowB) {
-      rowB.innerHTML = '';
-      for (let i = 5; i < 10; i++) {
-        rowB.appendChild(this.createSeatElement(i, labels[i], seats[i]));
-      }
-    }
-  }
-
-  createSeatElement(id, label, occupant) {
-    const el = document.createElement('div');
-    const isMine = this.you && this.you.seatId === id;
-    const isOccupied = occupant !== null;
-
-    el.className = `seat-item ${isMine ? 'mine' : isOccupied ? 'occupied' : 'empty'}`;
-
-    if (isOccupied && !isMine && occupant.color) {
-      el.style.borderColor = occupant.color;
-    }
-
-    el.innerHTML = `
-      <i data-lucide="armchair"></i>
-      <span class="seat-id">${label}</span>
-      <span class="seat-user">${isMine ? 'Bạn' : isOccupied ? occupant.name : 'Trống'}</span>
-    `;
-
-    el.addEventListener('click', () => {
-      this.handleSeatSelection(id);
+      if (index < 5) rowA.appendChild(btn);
+      else rowB.appendChild(btn);
     });
 
-    return el;
+    if (leaveBtn) leaveBtn.classList.toggle('hidden', this.you.seatId === null);
   }
 
   renderQueueModal() {
     if (!this.room) return;
+    const canControl = this.canControlRoom();
+    const cur = this.room.currentVideo;
+
+    if (cur) {
+      document.getElementById('qc-thumb').src = cur.thumbnail || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg';
+      document.getElementById('qc-title').textContent = cur.title;
+      document.getElementById('qc-author').textContent = cur.author || 'Hệ Thống Phát Sóng';
+      document.getElementById('qc-requester').textContent = `Người thêm: ${cur.requester}`;
+    }
+
+    // Render Catalog quick-add for Host
+    const catGrid = document.getElementById('queue-catalog-list');
+    if (catGrid) {
+      const movies = this.catalog?.movies || [];
+      catGrid.innerHTML = movies.map(m => `
+        <div class="queue-catalog-item">
+          <img src="${m.poster}" alt="${m.title}" />
+          <div class="qci-info">
+            <div class="qci-title" title="${m.title}">${m.isVipOnly ? '👑 ' : ''}${m.title}</div>
+            <small style="font-size:10px; color:#9ca3af;">${m.genre}</small>
+          </div>
+          ${canControl ? `<button type="button" data-queue-movie="${m.id}">+ Hàng chờ</button>` : ''}
+        </div>
+      `).join('');
+
+      catGrid.querySelectorAll('[data-queue-movie]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = movies.find(x => x.id === btn.getAttribute('data-queue-movie'));
+          if (!m) return;
+          if (m.isVipOnly && !this.you?.isVip && this.you?.role !== 'admin') {
+            this.showToast('👑 Bộ phim này chỉ dành cho tài khoản Gói VIP!', 'error');
+            return;
+          }
+          this.send('queue-video', {
+            url: m.videoUrl,
+            title: m.title,
+            movieId: m.id
+          });
+        });
+      });
+    }
+
+    // Render Sequential Queue List (NO click-to-jump allowed — must click "Chuyển tiếp")
+    const qCount = document.getElementById('queue-count');
+    const qList = document.getElementById('queue-list');
     const queue = this.room.queue || [];
-    const queueList = document.getElementById('queue-list');
-    const queueBadge = document.getElementById('queue-count-badge');
-
-    if (queueBadge) queueBadge.textContent = `${queue.length} bài`;
-
-    if (!queueList) return;
+    if (qCount) qCount.textContent = queue.length;
+    if (!qList) return;
 
     if (queue.length === 0) {
-      queueList.innerHTML = `
-        <div class="empty-queue-msg">
-          <i data-lucide="music-2"></i>
-          <p>Hàng chờ đang trống. Hãy là người đầu tiên gửi bài bạn thích nhé!</p>
-        </div>
-      `;
-      this.refreshIcons();
+      qList.innerHTML = `<div class="empty-queue-msg">Chưa có video nào trong danh sách chờ.</div>`;
       return;
     }
 
-    queueList.innerHTML = queue.map((item, index) => `
-      <div class="queue-item">
-        <span class="queue-num">#${index + 1}</span>
-        <img class="queue-item-thumb" src="${item.thumbnail}" alt="Thumb" />
-        <div class="queue-item-info">
-          <span class="queue-item-title">${item.title}</span>
-          <span class="queue-item-req">Gửi bởi ${item.requester}</span>
+    qList.innerHTML = queue.map((item, idx) => `
+      <div class="queue-item" style="cursor: default;">
+        <span class="q-index">#${idx + 1}</span>
+        <img src="${item.thumbnail || 'https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg'}" alt="Thumb" />
+        <div class="q-meta" style="flex:1;">
+          <span class="q-title">${item.title}</span>
+          <span class="q-sub">Chờ phát tuần tự · Thêm bởi: ${item.requester}</span>
         </div>
+        ${canControl ? `
+          <button type="button" class="adm-btn danger" data-remove-q="${idx}" title="Xoá khỏi hàng chờ">Xoá</button>
+        ` : ''}
       </div>
     `).join('');
 
-    this.refreshIcons();
+    qList.querySelectorAll('[data-remove-q]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.send('remove-queue-item', { index: parseInt(btn.getAttribute('data-remove-q'), 10) });
+      });
+    });
   }
 
-  showScreenProjection(post) {
-    if (!post) return;
-    const overlay = document.getElementById('screen-projection');
-    const img = document.getElementById('projection-img');
-    const sender = document.getElementById('projection-sender');
-    const caption = document.getElementById('projection-caption');
-    const bar = document.getElementById('projection-bar');
-
-    img.src = post.image;
-    sender.textContent = `Bởi ${post.senderName}`;
-    sender.style.color = post.senderColor;
-    caption.textContent = post.caption ? `"${post.caption}"` : '';
-
-    overlay.classList.remove('hidden');
-    bar.style.width = '100%';
-    bar.style.transition = 'none';
-
-    setTimeout(() => {
-      bar.style.transition = `width ${post.duration}s linear`;
-      bar.style.width = '0%';
-    }, 50);
-
-    this.playChimeSound();
+  toggleChat(forceState = null) {
+    const drawer = document.getElementById('chat-drawer');
+    const badge = document.getElementById('chat-unread-badge');
+    if (!drawer) return;
+    this.isChatOpen = forceState !== null ? forceState : !this.isChatOpen;
+    drawer.classList.toggle('open', this.isChatOpen);
+    if (this.isChatOpen && badge) {
+      this.unreadChatCount = 0;
+      badge.classList.add('hidden');
+    }
   }
 
-  hideScreenProjection() {
-    const overlay = document.getElementById('screen-projection');
-    overlay.classList.add('hidden');
-  }
-
-  appendChatMessage(msg, playSound = true) {
+  appendChatMessage(msg, isNew = true) {
     const feed = document.getElementById('chat-feed');
     if (!feed) return;
 
-    const el = document.createElement('div');
-    const isMe = this.you && msg.userId === this.you.id;
-    el.className = `chat-msg ${isMe ? 'mine' : ''}`;
+    const div = document.createElement('div');
+    div.className = 'chat-msg';
+    div.setAttribute('data-chat-id', msg.id);
 
-    el.innerHTML = `
-      <div class="msg-header">
-        <span class="msg-sender" style="color: ${msg.color};">${msg.name}</span>
-        <span class="msg-tier">${msg.tier || ''}</span>
-        <span class="msg-time">${msg.time}</span>
+    const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(msg.avatarId || 'pixel_nerd', 2) : '';
+    const badges = [];
+    if (msg.role === 'admin') badges.push('🛡️ Admin');
+    else if (msg.isHost) badges.push('👑 Host');
+    if (msg.isVip) badges.push('💎 VIP');
+
+    div.innerHTML = `
+      <div class="msg-head">
+        <span class="msg-author" style="color: ${msg.color || '#f2cf78'}; display:flex; align-items:center; gap:5px;">
+          ${avUrl ? `<img src="${avUrl}" style="width:18px; height:22px; image-rendering:pixelated;" alt="av" />` : ''}
+          ${this.escapeHTML(msg.name)}
+          ${badges.length ? `<span class="msg-seat-badge">${badges.join(' · ')}</span>` : ''}
+        </span>
+        <span class="msg-time">${msg.time || ''}</span>
       </div>
-      <div class="msg-bubble">${this.escapeHtml(msg.text)}</div>
+      <div class="msg-body">${this.escapeHTML(msg.text)}</div>
     `;
 
-    feed.appendChild(el);
+    feed.appendChild(div);
     feed.scrollTop = feed.scrollHeight;
 
-    if (!this.isChatOpen && playSound) {
+    if (isNew && !this.isChatOpen) {
       this.unreadChatCount++;
-      const badge = document.getElementById('chat-unread-badge');
-      badge.textContent = this.unreadChatCount;
-      badge.classList.remove('hidden');
-      this.playPopSound();
+      document.getElementById('chat-unread-badge')?.classList.remove('hidden');
     }
+  }
+
+  showScreenPostOverlay(post) {
+    if (!post) return;
+    const overlay = document.getElementById('screen-projection');
+    document.getElementById('projection-img').src = post.image;
+    document.getElementById('projection-caption').textContent = post.caption || '';
+    document.getElementById('projection-sender').textContent = `Từ: ${post.senderName}`;
+    overlay?.classList.remove('hidden');
+  }
+
+  hideScreenPostOverlay() {
+    document.getElementById('screen-projection')?.classList.add('hidden');
+  }
+
+  openModal(id) {
+    document.getElementById(id)?.classList.remove('hidden');
+  }
+
+  closeModal(id) {
+    document.getElementById(id)?.classList.add('hidden');
   }
 
   showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     if (!container) return;
-
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.innerHTML = `
-      <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-triangle' : 'info'}"></i>
-      <span>${this.escapeHtml(message)}</span>
-    `;
-
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
     container.appendChild(toast);
-    this.refreshIcons();
-
-    setTimeout(() => {
-      toast.classList.add('toast-exit');
-      setTimeout(() => toast.remove(), 300);
-    }, 3800);
+    setTimeout(() => toast.remove(), 4000);
   }
 
-  escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+  escapeHTML(str) {
+    const p = document.createElement('p');
+    p.textContent = str;
+    return p.innerHTML;
   }
 }
 
-// Instantiate App when DOM is fully loaded
 window.addEventListener('DOMContentLoaded', () => {
-  window.cinemaApp = new CinemaApp();
+  window.app = new CinemaApp();
 });

@@ -504,7 +504,13 @@ class CinemaScene {
     for (let i = 0; i < 10; i++) {
       const occupant = seatsData[i];
       if (occupant) {
-        if (!this.avatarMeshes[i] || this.avatarMeshes[i].userData.userId !== occupant.userId) {
+        const prevData = this.avatarMeshes[i]?.userData;
+        const hasChanged = !prevData
+          || prevData.userId !== occupant.userId
+          || prevData.avatarId !== occupant.avatarId
+          || prevData.name !== occupant.name
+          || prevData.tier !== occupant.tier;
+        if (hasChanged) {
           this.removeAvatarFromSeat(i);
           this.createAvatarAtSeat(i, occupant);
         }
@@ -514,41 +520,42 @@ class CinemaScene {
     }
   }
 
+  createPixelCharacterSprite(avatarId = 'pixel_nerd', scaleY = 1.45) {
+    if (window.PixelAvatars) {
+      const canvas = window.PixelAvatars.createSpriteCanvas(avatarId);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      texture.generateMipmaps = false;
+      const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(scaleY * (24 / 30), scaleY, 1);
+      return sprite;
+    }
+    return new THREE.Group();
+  }
+
   createAvatarAtSeat(seatId, user) {
     const coord = this.seatCoords[seatId];
     if (!coord) return;
 
     const avatarGroup = new THREE.Group();
-    avatarGroup.position.set(coord.x, coord.y + 0.35, coord.z + 0.1);
-    avatarGroup.userData = { userId: user.userId || user.id };
+    avatarGroup.position.set(coord.x, coord.y + 0.35, coord.z + 0.08);
+    avatarGroup.userData = {
+      userId: user.userId || user.id,
+      avatarId: user.avatarId || 'pixel_nerd',
+      name: user.name,
+      tier: user.tier
+    };
 
-    const shirtColor = new THREE.Color(user.color || '#3b82f6');
-    const torsoGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.65, 16);
-    const torsoMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.6 });
-    const torso = new THREE.Mesh(torsoGeo, torsoMat);
-    torso.position.set(0, 0.45, 0);
-    avatarGroup.add(torso);
-
-    const headGeo = new THREE.SphereGeometry(0.32, 24, 24);
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdfc4, roughness: 0.5 });
-    const head = new THREE.Mesh(headGeo, skinMat);
-    head.position.set(0, 0.95, 0);
-    avatarGroup.add(head);
-
-    // Eyes
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const eyeGeo = new THREE.SphereGeometry(0.045, 8, 8);
-    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeL.position.set(-0.11, 0.98, -0.3);
-    avatarGroup.add(eyeL);
-
-    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
-    eyeR.position.set(0.11, 0.98, -0.3);
-    avatarGroup.add(eyeR);
+    // Chibi 16-bit Pixel Art Character Sprite
+    const charSprite = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42);
+    charSprite.position.set(0, 0.72, 0);
+    avatarGroup.add(charSprite);
 
     // Name Tag
     const nameSprite = this.createNameTagSprite(user.name, user.tier, user.color);
-    nameSprite.position.set(0, 1.55, 0);
+    nameSprite.position.set(0, 1.68, 0);
     avatarGroup.add(nameSprite);
 
     this.scene.add(avatarGroup);
@@ -576,32 +583,28 @@ class CinemaScene {
     const userData = allUsers.find(u => u.id === stageUserId) || {
       id: stageUserId,
       name: stageUserId === meId ? 'Bạn' : 'Người Xem',
+      avatarId: 'pixel_ceo',
       color: '#f59e0b',
       tier: 'Khán Giả'
     };
 
-    if (!this.stageAvatar || this.stageAvatar.userData.userId !== stageUserId) {
+    const prevStage = this.stageAvatar?.userData;
+    if (!prevStage || prevStage.userId !== stageUserId || prevStage.avatarId !== userData.avatarId) {
       if (this.stageAvatar) this.scene.remove(this.stageAvatar);
 
       const avatarGroup = new THREE.Group();
       avatarGroup.position.set(0, 0.7, -6.6);
-      avatarGroup.userData = { userId: stageUserId };
+      avatarGroup.userData = {
+        userId: stageUserId,
+        avatarId: userData.avatarId || 'pixel_ceo'
+      };
 
-      const shirtColor = new THREE.Color(userData.color || '#ec4899');
-      const torsoGeo = new THREE.CylinderGeometry(0.36, 0.3, 0.8, 16);
-      const torsoMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.5 });
-      const torso = new THREE.Mesh(torsoGeo, torsoMat);
-      torso.position.set(0, 0.55, 0);
-      avatarGroup.add(torso);
-
-      const headGeo = new THREE.SphereGeometry(0.36, 24, 24);
-      const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdfc4, roughness: 0.5 });
-      const head = new THREE.Mesh(headGeo, skinMat);
-      head.position.set(0, 1.15, 0);
-      avatarGroup.add(head);
+      const charSprite = this.createPixelCharacterSprite(userData.avatarId || 'pixel_ceo', 1.68);
+      charSprite.position.set(0, 0.85, 0);
+      avatarGroup.add(charSprite);
 
       const nameSprite = this.createNameTagSprite('🕺 ' + userData.name, 'Đang Quẩy', userData.color);
-      nameSprite.position.set(0, 1.85, 0);
+      nameSprite.position.set(0, 1.92, 0);
       avatarGroup.add(nameSprite);
 
       this.scene.add(avatarGroup);
