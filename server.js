@@ -942,11 +942,11 @@ async function resolveExternalMedia(input, customTitle = '') {
   return base;
 }
 
-// 13 Seats (Row A: A01..A05 đơn, Row B: B01..B05 VIP đơn, Row C: C01..C03 Ghế Đôi Sweetbox)
+// 16 Seats (Row A: A01..A05 tiêu chuẩn, Row B: B01..B05 VIP nhung đỏ, Row C: 3 Ghế Đôi Sweetbox = 6 chỗ C01..C06)
 const SEAT_LABELS = [
   'A01', 'A02', 'A03', 'A04', 'A05',
   'B01', 'B02', 'B03', 'B04', 'B05',
-  'C01', 'C02', 'C03'
+  'C01', 'C02', 'C03', 'C04', 'C05', 'C06'
 ];
 
 // Virtual Gifts Catalog for Cinema Live
@@ -971,7 +971,7 @@ function createRoomInstance(id, name, createdBy = 'Hệ thống', hostId = null,
     createdAt: Date.now(),
     currentVideo: null,
     queue: [],
-    seats: Array(13).fill(null),
+    seats: Array(SEAT_LABELS.length).fill(null),
     stageUser: null,
     screenPost: null,
     partyMode: false,

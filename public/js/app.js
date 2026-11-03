@@ -1214,7 +1214,11 @@ class CinemaApp {
     const seatBtnText = document.getElementById('my-seat-status');
     if (seatBtnText) {
       if (this.you.seatId !== null) {
-        const labels = this.room?.seatLabels || ['A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03'];
+        const labels = this.room?.seatLabels || [
+          'A01','A02','A03','A04','A05',
+          'B01','B02','B03','B04','B05',
+          'C01','C02','C03','C04','C05','C06'
+        ];
         const sLabel = labels[this.you.seatId] || `G${this.you.seatId + 1}`;
         const isCouple = this.you.seatId >= 10;
         seatBtnText.textContent = isCouple ? `Ghế ${sLabel} 💖` : `Ghế ${sLabel}`;
@@ -2431,10 +2435,10 @@ class CinemaApp {
 
   updateOccupancyUI() {
     if (!this.room) return;
-    const totalSeats = (this.room.seats && this.room.seats.length) ? this.room.seats.length : 13;
+    const totalSeats = (this.room.seats && this.room.seats.length) ? this.room.seats.length : 16;
     const seatedCount = this.room.seats.filter(s => s !== null).length;
     const occText = document.getElementById('occupancy-text');
-    if (occText) occText.textContent = `${seatedCount}/${totalSeats} ghế`;
+    if (occText) occText.textContent = `${seatedCount}/${totalSeats} chỗ`;
 
     const totalMembers = (this.room.realUsers ? this.room.realUsers.length : 0) || (seatedCount || 1);
     const memLabel = document.getElementById('label-room-members-count');
@@ -2708,32 +2712,32 @@ class CinemaApp {
     rowB.innerHTML = '';
     if (rowC) rowC.innerHTML = '';
 
-    const labels = this.room.seatLabels || ['A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03'];
+    const labels = this.room.seatLabels || [
+      'A01','A02','A03','A04','A05',
+      'B01','B02','B03','B04','B05',
+      'C01','C02','C03','C04','C05','C06'
+    ];
     const seats = Array.isArray(this.room.seats) ? [...this.room.seats] : [];
     while (seats.length < labels.length) seats.push(null);
 
-    seats.forEach((occupant, index) => {
+    // Render Row A (0..4: Tiêu chuẩn) & Row B (5..9: VIP nhung đỏ)
+    for (let index = 0; index < 10; index++) {
+      const occupant = seats[index];
       const label = labels[index] || `G${index + 1}`;
       const isVipSeat = (index >= 5 && index < 10);
-      const isCoupleSeat = index >= 10;
       const isMine = occupant && occupant.userId === this.you.id;
       const isOccupied = occupant && !isMine;
 
       const btn = document.createElement('button');
-      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}${isCoupleSeat ? ' couple-seat' : ''}`;
+      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}`;
       const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
 
-      let badgeHtml = '';
-      if (isVipSeat) {
-        badgeHtml = ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>';
-      } else if (isCoupleSeat) {
-        badgeHtml = ' <small style="color:#fb7185; font-size:10px;">💖 ĐÔI</small>';
-      }
+      let badgeHtml = isVipSeat ? ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>' : '';
 
       btn.innerHTML = `
         <span class="seat-code">${label}${badgeHtml}</span>
         ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
-        <span class="seat-occupant">${occupant ? occupant.name : (isCoupleSeat ? 'Ghế Đôi Trống' : (isVipSeat ? 'Ghế VIP' : 'Trống'))}</span>
+        <span class="seat-occupant">${occupant ? occupant.name : (isVipSeat ? 'Ghế VIP' : 'Trống')}</span>
       `;
 
       if (!isOccupied) {
@@ -2754,12 +2758,66 @@ class CinemaApp {
 
       if (index < 5) {
         rowA.appendChild(btn);
-      } else if (index < 10) {
+      } else {
         rowB.appendChild(btn);
-      } else if (rowC) {
-        rowC.appendChild(btn);
       }
-    });
+    }
+
+    // Render Row C: 3 Ghế Đôi Sweetbox (Mỗi ghế ngồi được 2 người = 6 chỗ)
+    if (rowC) {
+      rowC.innerHTML = '';
+      const couplePairs = [
+        { group: 1, leftIdx: 10, rightIdx: 11 },
+        { group: 2, leftIdx: 12, rightIdx: 13 },
+        { group: 3, leftIdx: 14, rightIdx: 15 }
+      ];
+
+      couplePairs.forEach(pair => {
+        const card = document.createElement('div');
+        card.className = 'couple-sofa-card';
+        card.innerHTML = `
+          <div class="couple-sofa-header">
+            <span>💖 Ghế Đôi ${pair.group} (Sweetbox 2 Người)</span>
+          </div>
+          <div class="couple-sofa-buttons" id="couple-pair-${pair.group}"></div>
+        `;
+        const btnsWrap = card.querySelector(`#couple-pair-${pair.group}`);
+
+        [pair.leftIdx, pair.rightIdx].forEach((index, sideIdx) => {
+          const sideText = sideIdx === 0 ? 'Bên Trái' : 'Bên Phải';
+          const occupant = seats[index];
+          const label = labels[index] || `C${String(index - 9).padStart(2, '0')}`;
+          const isMine = occupant && occupant.userId === this.you.id;
+          const isOccupied = occupant && !isMine;
+
+          const btn = document.createElement('button');
+          btn.className = `seat-item couple-seat ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}`;
+          const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
+
+          btn.innerHTML = `
+            <span class="seat-code">${label} <small style="color:#fb7185; font-size:10px;">💖 ${sideText}</small></span>
+            ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
+            <span class="seat-occupant">${occupant ? occupant.name : 'Chỗ Trống'}</span>
+          `;
+
+          if (!isOccupied) {
+            btn.addEventListener('click', () => {
+              this.handleSeatSelection(index);
+            });
+          } else {
+            btn.addEventListener('click', () => {
+              this.closeModal('modal-seats');
+              this.openRoomMembersModal(occupant.userId);
+            });
+            btn.title = `Bấm để tương tác với ${occupant.name}`;
+          }
+
+          btnsWrap.appendChild(btn);
+        });
+
+        rowC.appendChild(card);
+      });
+    }
 
     if (leaveBtn) leaveBtn.classList.toggle('hidden', this.you.seatId === null);
   }

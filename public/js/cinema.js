@@ -45,10 +45,10 @@ class CinemaScene {
     this.isDragging = false;
     this.lastMousePos = { x: 0, y: 0 };
 
-    // 13 Seats Coordinates across 3 Terraced Stadium Tiers:
+    // 16 Seats Coordinates across 3 Terraced Stadium Tiers:
     // Tier 1 (Hàng A): 5 front standard seats (floor y = 0.2, seats y = 0.25, z = -3.5)
     // Tier 2 (Hàng B): 5 middle VIP red velvet seats (+0.7m step, floor y = 0.9, seats y = 0.95, z = 0.0)
-    // Tier 3 (Hàng C): 3 back Sweetbox couple sofas (+0.7m step, floor y = 1.6, seats y = 1.65, z = 3.6)
+    // Tier 3 (Hàng C): 3 back Sweetbox couple sofas (+0.7m step, floor y = 1.6, seats y = 1.65, z = 3.6), each seating 2 people (6 seats C01..C06)
     this.seatCoords = [
       { id: 0, label: 'A01', x: -4.8, y: 0.25, z: -3.5 },
       { id: 1, label: 'A02', x: -2.4, y: 0.25, z: -3.5 },
@@ -60,15 +60,21 @@ class CinemaScene {
       { id: 7, label: 'B03', x: 0.0,  y: 0.95, z: 0.0 },
       { id: 8, label: 'B04', x: 2.4,  y: 0.95, z: 0.0 },
       { id: 9, label: 'B05', x: 4.8,  y: 0.95, z: 0.0 },
-      { id: 10, label: 'C01', x: -4.5, y: 1.65, z: 3.6, isCouple: true },
-      { id: 11, label: 'C02', x: 0.0,  y: 1.65, z: 3.6, isCouple: true },
-      { id: 12, label: 'C03', x: 4.5,  y: 1.65, z: 3.6, isCouple: true }
+      // Ghế Đôi 1 (Sofa 1 Trái, tâm x = -4.5): 2 chỗ ngồi cạnh nhau C01 (Trái) & C02 (Phải)
+      { id: 10, label: 'C01', x: -5.05, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 1, coupleSide: 'Trái', sofaCenterX: -4.5 },
+      { id: 11, label: 'C02', x: -3.95, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 1, coupleSide: 'Phải', sofaCenterX: -4.5 },
+      // Ghế Đôi 2 (Sofa 2 Giữa, tâm x = 0.0): 2 chỗ ngồi cạnh nhau C03 (Trái) & C04 (Phải)
+      { id: 12, label: 'C03', x: -0.55, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 2, coupleSide: 'Trái', sofaCenterX: 0.0 },
+      { id: 13, label: 'C04', x: 0.55,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 2, coupleSide: 'Phải', sofaCenterX: 0.0 },
+      // Ghế Đôi 3 (Sofa 3 Phải, tâm x = 4.5): 2 chỗ ngồi cạnh nhau C05 (Trái) & C06 (Phải)
+      { id: 14, label: 'C05', x: 3.95,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 3, coupleSide: 'Trái', sofaCenterX: 4.5 },
+      { id: 15, label: 'C06', x: 5.05,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 3, coupleSide: 'Phải', sofaCenterX: 4.5 }
     ];
 
     // Meshes references
-    this.seatMeshes = [];      // 13 seats
+    this.seatMeshes = [];      // 16 seats
     this.exitDoorMeshes = [];  // Interactive Exit Doors
-    this.avatarMeshes = [];    // 13 seated avatars
+    this.avatarMeshes = [];    // 16 seated avatars
     this.stageAvatar = null;   // Avatar on stage
     this.discoBallGroup = null;
     this.spotlights = [];
@@ -305,18 +311,10 @@ class CinemaScene {
     ceiling.position.set(0, hallHeight, 0);
     this.scene.add(ceiling);
 
-    // Speaker Towers (Placed wide outside the 13.6-wide screen so they never overlap the screen frame)
-    const speakerGeo = new THREE.BoxGeometry(1.1, 3.2, 1.1);
-    const speakerMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.5 });
-    const speakerL = new THREE.Mesh(speakerGeo, speakerMat);
-    speakerL.position.set(-8.2, 1.8, -8.3);
-    this.scene.add(speakerL);
+    // 4. Cinema Professional Sound System (Dolby Atmos Wall Surround Speakers & Stage Subwoofer Arrays)
+    this.buildCinemaSoundSystem(hallWidth, hallLength, hallHeight);
 
-    const speakerR = new THREE.Mesh(speakerGeo, speakerMat);
-    speakerR.position.set(8.2, 1.8, -8.3);
-    this.scene.add(speakerR);
-
-    // 4. Cinema Emergency Exit Doors with Glowing Neon Sign (Cửa Thoát Hiểm / Out Phòng)
+    // 5. Cinema Emergency Exit Doors with Glowing Neon Sign (Cửa Thoát Hiểm / Out Phòng)
     this.buildExitDoors(hallWidth, hallLength, hallHeight);
 
     // Lighting
@@ -326,6 +324,262 @@ class CinemaScene {
     this.warmKeyLight = new THREE.DirectionalLight(0xfff1d6, 0.65);
     this.warmKeyLight.position.set(0, 10, 5);
     this.scene.add(this.warmKeyLight);
+  }
+
+  // Dàn Loa Rạp Chiếu Phim Chuyên Nghiệp (Dolby Atmos Wall Surround Speakers & Stage Subwoofer Arrays)
+  buildCinemaSoundSystem(hallWidth = 21, hallLength = 26, hallHeight = 12.2) {
+    this.subwooferMeshes = [];
+    this.soundMeterLeds = [];
+
+    const cabinetMat = new THREE.MeshStandardMaterial({
+      color: 0x0c0d0c,
+      roughness: 0.7,
+      metalness: 0.3
+    });
+
+    const coneMat = new THREE.MeshStandardMaterial({
+      color: 0x181a18,
+      roughness: 0.45,
+      metalness: 0.55
+    });
+
+    const surroundConeMat = new THREE.MeshStandardMaterial({
+      color: 0x242624,
+      roughness: 0.3,
+      metalness: 0.7
+    });
+
+    const dustCapMat = new THREE.MeshStandardMaterial({
+      color: 0xd4d8dc,
+      roughness: 0.25,
+      metalness: 0.9
+    });
+
+    const hornMat = new THREE.MeshStandardMaterial({
+      color: 0x141614,
+      roughness: 0.6,
+      metalness: 0.4
+    });
+
+    const goldTrim = new THREE.MeshStandardMaterial({
+      color: 0xf2cf78,
+      roughness: 0.25,
+      metalness: 0.85
+    });
+
+    const vuGreen = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+    const vuYellow = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const vuRed = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+    // 1. DÀN THÁP LOA SÂN KHẤU & SUBWOOFER KÉP (2 Massive Cinema Stage Sound Stacks)
+    // Đặt 2 bên màn chiếu lớn 13.6m (x = -8.5 và +8.5, z = -8.3)
+    for (const side of [-8.5, 8.5]) {
+      const towerGroup = new THREE.Group();
+      towerGroup.position.set(side, 0.0, -8.3);
+      towerGroup.rotation.y = side < 0 ? 0.18 : -0.18;
+
+      // --- Tầng 1: Dual 18" Subwoofer Cabinet (Thùng loa siêu trầm kép) ---
+      const subCabGeo = new THREE.BoxGeometry(1.4, 1.8, 1.25);
+      const subCab = new THREE.Mesh(subCabGeo, cabinetMat);
+      subCab.position.set(0, 0.9, 0);
+      towerGroup.add(subCab);
+
+      // Gold perimeter trim for subwoofer
+      const subTrimGeo = new THREE.BoxGeometry(1.44, 0.05, 1.29);
+      const subTrim = new THREE.Mesh(subTrimGeo, goldTrim);
+      subTrim.position.set(0, 1.82, 0);
+      towerGroup.add(subTrim);
+
+      // 2 Massive 18" Subwoofer Cones
+      for (const subY of [0.55, 1.35]) {
+        const ringGeo = new THREE.TorusGeometry(0.38, 0.04, 12, 32);
+        const ring = new THREE.Mesh(ringGeo, surroundConeMat);
+        ring.position.set(0, subY, 0.64);
+        towerGroup.add(ring);
+
+        const coneGeo = new THREE.ConeGeometry(0.36, 0.14, 32, 1, true);
+        const cone = new THREE.Mesh(coneGeo, coneMat);
+        cone.rotation.x = Math.PI / 2;
+        cone.position.set(0, subY, 0.58);
+        towerGroup.add(cone);
+        this.subwooferMeshes.push(cone);
+
+        const capGeo = new THREE.SphereGeometry(0.12, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        const cap = new THREE.Mesh(capGeo, dustCapMat);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.set(0, subY, 0.62);
+        towerGroup.add(cap);
+      }
+
+      // Bass reflex ports at bottom
+      for (const portX of [-0.4, 0.4]) {
+        const portGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.15, 16);
+        const port = new THREE.Mesh(portGeo, cabinetMat);
+        port.rotation.x = Math.PI / 2;
+        port.position.set(portX, 0.16, 0.62);
+        towerGroup.add(port);
+      }
+
+      // --- Tầng 2: Midrange Line Array Cabinet (Thùng loa trung 3-way) ---
+      const midCabGeo = new THREE.BoxGeometry(1.3, 1.2, 1.15);
+      const midCab = new THREE.Mesh(midCabGeo, cabinetMat);
+      midCab.position.set(0, 2.44, 0.02);
+      towerGroup.add(midCab);
+
+      // Dual Midrange cones
+      for (const midX of [-0.32, 0.32]) {
+        const midRing = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.03, 12, 24), surroundConeMat);
+        midRing.position.set(midX, 2.44, 0.61);
+        towerGroup.add(midRing);
+
+        const midCap = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), dustCapMat);
+        midCap.rotation.x = -Math.PI / 2;
+        midCap.position.set(midX, 2.44, 0.60);
+        towerGroup.add(midCap);
+      }
+
+      // --- Tầng 3: High-Frequency Cinema Horn (Họng kèn treble rạp phim) ---
+      const hornCabGeo = new THREE.BoxGeometry(1.2, 0.95, 1.1);
+      const hornCab = new THREE.Mesh(hornCabGeo, cabinetMat);
+      hornCab.position.set(0, 3.52, 0.05);
+      towerGroup.add(hornCab);
+
+      const hornFlareGeo = new THREE.BoxGeometry(0.85, 0.44, 0.18);
+      const hornFlare = new THREE.Mesh(hornFlareGeo, hornMat);
+      hornFlare.position.set(0, 3.52, 0.61);
+      towerGroup.add(hornFlare);
+
+      const topTrim = new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.04, 1.14), goldTrim);
+      topTrim.position.set(0, 4.02, 0.05);
+      towerGroup.add(topTrim);
+
+      // --- Biển hiệu phát sáng DOLBY AUDIO rạp phim ---
+      const badgeCanvas = document.createElement('canvas');
+      badgeCanvas.width = 256;
+      badgeCanvas.height = 64;
+      const bCtx = badgeCanvas.getContext('2d');
+      bCtx.fillStyle = '#0f110f';
+      bCtx.fillRect(0, 0, 256, 64);
+      bCtx.strokeStyle = '#f2cf78';
+      bCtx.lineWidth = 3;
+      bCtx.strokeRect(4, 4, 248, 56);
+      bCtx.font = 'bold 24px "JetBrains Mono", sans-serif';
+      bCtx.fillStyle = '#f2cf78';
+      bCtx.textAlign = 'center';
+      bCtx.textBaseline = 'middle';
+      bCtx.fillText('✦ DOLBY AUDIO ✦', 128, 34);
+
+      const badgeTex = new THREE.CanvasTexture(badgeCanvas);
+      const badgeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.95, 0.24),
+        new THREE.MeshBasicMaterial({ map: badgeTex })
+      );
+      badgeMesh.position.set(0, 1.78, 0.65);
+      towerGroup.add(badgeMesh);
+
+      // --- Cột đèn LED hiển thị âm lượng (VU-meter strip) ---
+      const meterX = side < 0 ? 0.72 : -0.72;
+      for (let m = 0; m < 7; m++) {
+        const mat = m < 4 ? vuGreen : (m < 6 ? vuYellow : vuRed);
+        const ledGeo = new THREE.BoxGeometry(0.04, 0.08, 0.14);
+        const led = new THREE.Mesh(ledGeo, mat);
+        led.position.set(meterX, 1.2 + m * 0.14, 0.52);
+        towerGroup.add(led);
+        this.soundMeterLeds.push({ mesh: led, index: m });
+      }
+
+      this.scene.add(towerGroup);
+    }
+
+    // 2. DÀN LOA VÒM TREO TƯỜNG (12 Dolby Atmos Cinema Wall Surround Speakers)
+    const sideWallZ = [-6.5, -2.5, 1.5, 5.5, 9.5];
+    for (const z of sideWallZ) {
+      this.createWallSurroundUnit(-hallWidth / 2 + 0.35, 6.4, z, Math.PI / 2, 0.22);
+      this.createWallSurroundUnit(hallWidth / 2 - 0.35, 6.4, z, -Math.PI / 2, -0.22);
+    }
+
+    // 2 Loa vòm tường sau (Rear Wall Speakers)
+    this.createWallSurroundUnit(-4.0, 6.4, 13.15, Math.PI, 0.22);
+    this.createWallSurroundUnit(4.0, 6.4, 13.15, Math.PI, 0.22);
+
+    // 3. BIỂN HIỆU DOLBY ATMOS TREO TƯỜNG (Illuminated Wall Plaques)
+    for (const side of [-hallWidth / 2 + 0.28, hallWidth / 2 - 0.28]) {
+      const plaqueCanvas = document.createElement('canvas');
+      plaqueCanvas.width = 512;
+      plaqueCanvas.height = 140;
+      const pCtx = plaqueCanvas.getContext('2d');
+      pCtx.fillStyle = '#101210';
+      pCtx.fillRect(0, 0, 512, 140);
+      pCtx.strokeStyle = '#06b6d4';
+      pCtx.lineWidth = 6;
+      pCtx.strokeRect(6, 6, 500, 128);
+
+      pCtx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+      pCtx.fillStyle = '#06b6d4';
+      pCtx.textAlign = 'center';
+      pCtx.fillText('✦ DOLBY ATMOS ✦', 256, 58);
+
+      pCtx.font = '600 20px "Plus Jakarta Sans", sans-serif';
+      pCtx.fillStyle = '#e2e8f0';
+      pCtx.textAlign = 'center';
+      pCtx.fillText('IMMERSIVE 360° CINEMA AUDIO', 256, 102);
+
+      const plaqueTex = new THREE.CanvasTexture(plaqueCanvas);
+      const plaqueMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.6, 0.44),
+        new THREE.MeshBasicMaterial({ map: plaqueTex })
+      );
+      plaqueMesh.position.set(side, 4.8, 1.8);
+      plaqueMesh.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+      this.scene.add(plaqueMesh);
+    }
+  }
+
+  createWallSurroundUnit(x, y, z, rotY, rotZ = 0) {
+    const speakerGroup = new THREE.Group();
+    speakerGroup.position.set(x, y, z);
+    speakerGroup.rotation.y = rotY;
+    speakerGroup.rotation.z = rotZ;
+    speakerGroup.rotation.x = -0.22; // Vát nghiêng 13 độ xuống khán giả
+
+    // Thùng loa vòm hình nêm vát góc chuẩn rạp
+    const cabGeo = new THREE.BoxGeometry(0.62, 0.78, 0.38);
+    const cabMat = new THREE.MeshStandardMaterial({ color: 0x141614, roughness: 0.7, metalness: 0.3 });
+    const cab = new THREE.Mesh(cabGeo, cabMat);
+    speakerGroup.add(cab);
+
+    // Lưới ê-căng tiêu âm mặt trước
+    const grilleGeo = new THREE.BoxGeometry(0.58, 0.74, 0.04);
+    const grilleMat = new THREE.MeshStandardMaterial({ color: 0x222622, roughness: 0.85 });
+    const grille = new THREE.Mesh(grilleGeo, grilleMat);
+    grille.position.set(0, 0, 0.2);
+    speakerGroup.add(grille);
+
+    // Loa Bass / Mid Cone
+    const wooferGeo = new THREE.TorusGeometry(0.18, 0.025, 12, 24);
+    const wooferMat = new THREE.MeshStandardMaterial({ color: 0x333833, metalness: 0.5 });
+    const woofer = new THREE.Mesh(wooferGeo, wooferMat);
+    woofer.position.set(0, -0.12, 0.23);
+    speakerGroup.add(woofer);
+
+    const dustCap = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), new THREE.MeshStandardMaterial({ color: 0xd4d8dc, metalness: 0.9 }));
+    dustCap.position.set(0, -0.12, 0.24);
+    speakerGroup.add(dustCap);
+
+    // Họng kèn Treble Horn
+    const hornGeo = new THREE.BoxGeometry(0.28, 0.14, 0.04);
+    const horn = new THREE.Mesh(hornGeo, new THREE.MeshStandardMaterial({ color: 0x0a0c0a, roughness: 0.5 }));
+    horn.position.set(0, 0.18, 0.23);
+    speakerGroup.add(horn);
+
+    // Đèn LED chỉ thị Dolby Atmos màu xanh cyan rực rỡ
+    const ledGeo = new THREE.SphereGeometry(0.025, 8, 8);
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+    const led = new THREE.Mesh(ledGeo, ledMat);
+    led.position.set(0, 0.34, 0.23);
+    speakerGroup.add(led);
+
+    this.scene.add(speakerGroup);
   }
 
   buildExitDoors(hallWidth = 21, hallLength = 26, hallHeight = 12.2) {
@@ -516,16 +770,18 @@ class CinemaScene {
       metalness: 0.5
     });
 
-    this.seatCoords.forEach((coord) => {
+    // 1. HÀNG A & HÀNG B (Ghế đơn tiêu chuẩn & VIP nhung đỏ: seatId 0..9)
+    for (let i = 0; i < 10; i++) {
+      const coord = this.seatCoords[i];
       const seatGroup = new THREE.Group();
       seatGroup.position.set(coord.x, coord.y, coord.z);
 
-      const isCouple = !!coord.isCouple;
-      const seatMat = isCouple ? leatherSweetbox : leatherRed;
-      const w = isCouple ? 2.3 : 1.2;
-      const baseW = isCouple ? 2.45 : 1.3;
+      const isVip = i >= 5;
+      const seatMat = isVip ? leatherRed : leatherRed;
+      const w = 1.2;
+      const baseW = 1.3;
 
-      // Seat Base
+      // Base
       const baseGeo = new THREE.BoxGeometry(baseW, 0.2, 1.1);
       const base = new THREE.Mesh(baseGeo, baseMat);
       base.position.set(0, 0.1, 0);
@@ -544,33 +800,14 @@ class CinemaScene {
       backrest.rotation.x = -0.12;
       seatGroup.add(backrest);
 
-      // Headrest(s)
-      if (isCouple) {
-        // Dual headrests for the sweet couple
-        for (const side of [-0.55, 0.55]) {
-          const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
-          const headrest = new THREE.Mesh(headGeo, seatMat);
-          headrest.position.set(side, 1.62, 0.48);
-          seatGroup.add(headrest);
-        }
-
-        // Sweetbox high curved privacy side partitions (CGV style)
-        for (const side of [-1.22, 1.22]) {
-          const wingGeo = new THREE.BoxGeometry(0.14, 1.42, 1.22);
-          const wing = new THREE.Mesh(wingGeo, seatMat);
-          wing.position.set(side, 1.05, 0.1);
-          seatGroup.add(wing);
-        }
-      } else {
-        const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
-        const headrest = new THREE.Mesh(headGeo, seatMat);
-        headrest.position.set(0, 1.62, 0.48);
-        seatGroup.add(headrest);
-      }
+      // Headrest
+      const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
+      const headrest = new THREE.Mesh(headGeo, seatMat);
+      headrest.position.set(0, 1.62, 0.48);
+      seatGroup.add(headrest);
 
       // Armrests & Cup holders
-      const armSides = isCouple ? [-1.15, 1.15] : [-0.68, 0.68];
-      for (const side of armSides) {
+      for (const side of [-0.68, 0.68]) {
         const armGeo = new THREE.BoxGeometry(0.22, 0.6, 1.05);
         const arm = new THREE.Mesh(armGeo, darkArmMat);
         arm.position.set(side, 0.6, 0);
@@ -582,40 +819,204 @@ class CinemaScene {
         seatGroup.add(cup);
       }
 
-      // Seat Number Label Plate ("A01", "B03", "C01 💖"...)
+      // Seat Plate
       const labelCanvas = document.createElement('canvas');
       labelCanvas.width = 160;
       labelCanvas.height = 64;
       const lCtx = labelCanvas.getContext('2d');
       lCtx.fillStyle = '#222522';
       lCtx.fillRect(0, 0, 160, 64);
-      lCtx.strokeStyle = isCouple ? '#f43f5e' : '#f2cf78';
+      lCtx.strokeStyle = isVip ? '#fbbf24' : '#f2cf78';
       lCtx.lineWidth = 4;
       lCtx.strokeRect(2, 2, 156, 60);
-
-      lCtx.font = isCouple ? 'bold 28px "JetBrains Mono", monospace' : 'bold 34px "JetBrains Mono", monospace';
-      lCtx.fillStyle = isCouple ? '#fb7185' : '#f2cf78';
+      lCtx.font = 'bold 34px "JetBrains Mono", monospace';
+      lCtx.fillStyle = isVip ? '#fbbf24' : '#f2cf78';
       lCtx.textAlign = 'center';
       lCtx.textBaseline = 'middle';
-      lCtx.fillText(isCouple ? `${coord.label} 💖` : coord.label, 80, 34);
+      lCtx.fillText(coord.label, 80, 34);
 
       const labelTex = new THREE.CanvasTexture(labelCanvas);
-      const labelGeo = new THREE.PlaneGeometry(isCouple ? 0.48 : 0.38, 0.18);
+      const labelGeo = new THREE.PlaneGeometry(0.38, 0.18);
       const labelMat = new THREE.MeshBasicMaterial({ map: labelTex });
       const labelMesh = new THREE.Mesh(labelGeo, labelMat);
       labelMesh.position.set(0, 1.48, 0.59);
       seatGroup.add(labelMesh);
 
-      seatGroup.userData = { seatId: coord.id, label: coord.label, coord, isCouple };
+      seatGroup.userData = { seatId: coord.id, label: coord.label, coord, isCouple: false };
       seatGroup.traverse((child) => {
         if (child.isMesh) {
-          child.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
+          child.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple: false };
         }
       });
 
       this.scene.add(seatGroup);
       this.seatMeshes[coord.id] = seatGroup;
       this.avatarMeshes[coord.id] = null;
+    }
+
+    // 2. HÀNG C: 3 GHẾ ĐÔI SWEETBOX (Mỗi ghế ngồi được 2 người = 6 chỗ: C01..C06)
+    const coupleSofas = [
+      { group: 1, leftId: 10, rightId: 11, sofaX: -4.5 },
+      { group: 2, leftId: 12, rightId: 13, sofaX: 0.0 },
+      { group: 3, leftId: 14, rightId: 15, sofaX: 4.5 }
+    ];
+
+    coupleSofas.forEach((sofa) => {
+      const sofaGroup = new THREE.Group();
+      sofaGroup.position.set(sofa.sofaX, 1.65, 3.6);
+
+      const leftCoord = this.seatCoords[sofa.leftId];
+      const rightCoord = this.seatCoords[sofa.rightId];
+
+      // Base
+      const baseGeo = new THREE.BoxGeometry(2.45, 0.2, 1.1);
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.position.set(0, 0.1, 0);
+      sofaGroup.add(base);
+
+      // Left & Right Cushions (2 chỗ ngồi riêng biệt trên cùng chiếc sofa đôi)
+      const cushGeo = new THREE.BoxGeometry(1.12, 0.35, 1.05);
+      const cushLeft = new THREE.Mesh(cushGeo, leatherSweetbox);
+      cushLeft.position.set(-0.58, 0.35, -0.05);
+      cushLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true, coupleSide: 'Trái' };
+      sofaGroup.add(cushLeft);
+
+      const cushRight = new THREE.Mesh(cushGeo, leatherSweetbox);
+      cushRight.position.set(0.58, 0.35, -0.05);
+      cushRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true, coupleSide: 'Phải' };
+      sofaGroup.add(cushRight);
+
+      // Left & Right Backrests
+      const backGeo = new THREE.BoxGeometry(1.12, 1.25, 0.28);
+      const backLeft = new THREE.Mesh(backGeo, leatherSweetbox);
+      backLeft.position.set(-0.58, 1.05, 0.44);
+      backLeft.rotation.x = -0.12;
+      backLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true };
+      sofaGroup.add(backLeft);
+
+      const backRight = new THREE.Mesh(backGeo, leatherSweetbox);
+      backRight.position.set(0.58, 1.05, 0.44);
+      backRight.rotation.x = -0.12;
+      backRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true };
+      sofaGroup.add(backRight);
+
+      // Dual Headrests (Left & Right)
+      const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
+      const headLeft = new THREE.Mesh(headGeo, leatherSweetbox);
+      headLeft.position.set(-0.55, 1.62, 0.48);
+      headLeft.userData = { seatId: sofa.leftId, label: leftCoord.label };
+      sofaGroup.add(headLeft);
+
+      const headRight = new THREE.Mesh(headGeo, leatherSweetbox);
+      headRight.position.set(0.55, 1.62, 0.48);
+      headRight.userData = { seatId: sofa.rightId, label: rightCoord.label };
+      sofaGroup.add(headRight);
+
+      // Sweetbox Curved Privacy Wings on left & right
+      const wingGeo = new THREE.BoxGeometry(0.14, 1.42, 1.22);
+      const wingLeft = new THREE.Mesh(wingGeo, leatherSweetbox);
+      wingLeft.position.set(-1.22, 1.05, 0.1);
+      wingLeft.userData = { seatId: sofa.leftId };
+      sofaGroup.add(wingLeft);
+
+      const wingRight = new THREE.Mesh(wingGeo, leatherSweetbox);
+      wingRight.position.set(1.22, 1.05, 0.1);
+      wingRight.userData = { seatId: sofa.rightId };
+      sofaGroup.add(wingRight);
+
+      // Armrests & Cup holders
+      for (const side of [-1.15, 1.15]) {
+        const armGeo = new THREE.BoxGeometry(0.22, 0.6, 1.05);
+        const arm = new THREE.Mesh(armGeo, darkArmMat);
+        arm.position.set(side, 0.6, 0);
+        sofaGroup.add(arm);
+
+        const cupGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12);
+        const cup = new THREE.Mesh(cupGeo, baseMat);
+        cup.position.set(side, 0.91, -0.35);
+        sofaGroup.add(cup);
+      }
+
+      // Center Divider Arm & Double Cup Holder (Vách tay vịn giữa 2 bạn)
+      const centerArmGeo = new THREE.BoxGeometry(0.18, 0.45, 0.85);
+      const centerArm = new THREE.Mesh(centerArmGeo, darkArmMat);
+      centerArm.position.set(0, 0.52, -0.05);
+      sofaGroup.add(centerArm);
+
+      // Two Separate Seat Label Plates ("C01 💖" and "C02 💖")
+      const makePlate = (lbl, sideX, sId) => {
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 160;
+        pCanvas.height = 64;
+        const ctx = pCanvas.getContext('2d');
+        ctx.fillStyle = '#222522';
+        ctx.fillRect(0, 0, 160, 64);
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, 156, 60);
+        ctx.font = 'bold 28px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#fb7185';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${lbl} 💖`, 80, 34);
+
+        const pTex = new THREE.CanvasTexture(pCanvas);
+        const pMesh = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.46, 0.18),
+          new THREE.MeshBasicMaterial({ map: pTex })
+        );
+        pMesh.position.set(sideX, 1.48, 0.59);
+        pMesh.userData = { seatId: sId, label: lbl, isCouple: true };
+        sofaGroup.add(pMesh);
+      };
+
+      makePlate(leftCoord.label, -0.55, sofa.leftId);
+      makePlate(rightCoord.label, 0.55, sofa.rightId);
+
+      // Top Header Ribbon: "💖 GHẾ ĐÔI X (SWEETBOX) 💖"
+      const topCanvas = document.createElement('canvas');
+      topCanvas.width = 384;
+      topCanvas.height = 64;
+      const tCtx = topCanvas.getContext('2d');
+      tCtx.fillStyle = '#1c1518';
+      tCtx.fillRect(0, 0, 384, 64);
+      tCtx.strokeStyle = '#f43f5e';
+      tCtx.lineWidth = 3;
+      tCtx.strokeRect(3, 3, 378, 58);
+      tCtx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      tCtx.fillStyle = '#fda4af';
+      tCtx.textAlign = 'center';
+      tCtx.textBaseline = 'middle';
+      tCtx.fillText(`💖 GHẾ ĐÔI ${sofa.group} (2 NGƯỜI) 💖`, 192, 34);
+
+      const topTex = new THREE.CanvasTexture(topCanvas);
+      const topMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.4, 0.22),
+        new THREE.MeshBasicMaterial({ map: topTex })
+      );
+      topMesh.position.set(0, 1.84, 0.58);
+      sofaGroup.add(topMesh);
+
+      // Two Interactive Click Hitboxes (Left & Right halves)
+      const hitGeo = new THREE.BoxGeometry(1.18, 1.8, 1.25);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+
+      const hitLeft = new THREE.Mesh(hitGeo, hitMat);
+      hitLeft.position.set(-0.58, 0.9, 0.0);
+      hitLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true, coupleSide: 'Trái' };
+      sofaGroup.add(hitLeft);
+
+      const hitRight = new THREE.Mesh(hitGeo, hitMat);
+      hitRight.position.set(0.58, 0.9, 0.0);
+      hitRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true, coupleSide: 'Phải' };
+      sofaGroup.add(hitRight);
+
+      this.scene.add(sofaGroup);
+
+      this.seatMeshes[sofa.leftId] = hitLeft;
+      this.seatMeshes[sofa.rightId] = hitRight;
+      this.avatarMeshes[sofa.leftId] = null;
+      this.avatarMeshes[sofa.rightId] = null;
     });
   }
 
@@ -1184,7 +1585,16 @@ class CinemaScene {
       if (foundSeat !== this.hoveredSeat) {
         this.hoveredSeat = foundSeat;
         this.container.style.cursor = foundSeat !== null ? 'pointer' : (this.isDragging ? 'grabbing' : 'grab');
-        this.container.title = foundSeat !== null ? `Bấm để chọn ghế ${this.seatCoords[foundSeat]?.label || ''}` : '';
+        if (foundSeat !== null) {
+          const sc = this.seatCoords[foundSeat];
+          if (sc && sc.isCouple) {
+            this.container.title = `💖 Bấm để chọn ghế đôi ${sc.label} (${sc.coupleSide || ''} - Ghế Đôi ${sc.coupleGroup || 1})`;
+          } else {
+            this.container.title = `Bấm để chọn ghế ${sc?.label || ''}`;
+          }
+        } else {
+          this.container.title = '';
+        }
       }
     }
   }
@@ -1333,6 +1743,14 @@ class CinemaScene {
         av.position.y = (this.seatCoords[i].y + 0.35) + Math.sin(time * 2 + i) * 0.015;
       }
     });
+
+    // Subtle Cinema Subwoofer Pulse (Rung màng loa siêu trầm rạp chiếu phim)
+    if (this.subwooferMeshes && this.subwooferMeshes.length) {
+      const bassPulse = 1.0 + Math.sin(time * 6.5) * 0.035;
+      for (let i = 0; i < this.subwooferMeshes.length; i++) {
+        this.subwooferMeshes[i].scale.set(bassPulse, bassPulse, 1.0);
+      }
+    }
 
     // Floating Emojis
     for (let i = this.floatingParticles.length - 1; i >= 0; i--) {
