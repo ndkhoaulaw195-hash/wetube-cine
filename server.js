@@ -983,6 +983,18 @@ function createRoomInstance(id, name, createdBy = 'Hệ thống', hostId = null,
   };
 }
 
+// Helper: Ensure room seats array is strictly maintained at 13 seats (Row A: 5, Row B: 5, Row C: 3)
+function ensureRoomSeats(room) {
+  if (!room) return;
+  if (!Array.isArray(room.seats)) {
+    room.seats = Array(SEAT_LABELS.length).fill(null);
+  } else {
+    while (room.seats.length < SEAT_LABELS.length) {
+      room.seats.push(null);
+    }
+  }
+}
+
 // Active Rooms Map (Max 5 rooms — starts empty, rooms are only created by users)
 const rooms = new Map();
 
@@ -1026,6 +1038,7 @@ function send(ws, type, payload) {
 
 // Public room snapshot
 function getRoomSnapshot(room, requestingUser = null) {
+  ensureRoomSeats(room);
   const realUsers = [];
   for (const [, u] of room.users) {
     realUsers.push({
@@ -1074,6 +1087,7 @@ function getRoomSnapshot(room, requestingUser = null) {
 // Summary of all rooms for room picker
 function getRoomsSummary(requestingUser = null) {
   return Array.from(rooms.values()).map(r => {
+    ensureRoomSeats(r);
     const isOwnerOrAdmin = isRoomHostOrAdmin(requestingUser, r);
     return {
       id: r.id,
@@ -1085,7 +1099,7 @@ function getRoomsSummary(requestingUser = null) {
       roomPassword: isOwnerOrAdmin ? r.password : undefined,
       canSkipPassword: isOwnerOrAdmin,
       seatedCount: r.seats.filter(s => s !== null).length,
-      totalSeats: 10,
+      totalSeats: SEAT_LABELS.length,
       usersCount: r.users.size,
       currentVideoTitle: r.currentVideo?.title || 'Chưa phát video',
       currentVideoThumb: r.currentVideo?.thumbnail || ''
@@ -1236,6 +1250,8 @@ function joinRoom(ws, targetRoomId) {
     joinLobby(ws);
     return;
   }
+
+  ensureRoomSeats(targetRoom);
 
   const user = connectionMap.get(ws)?.user;
   if (!user) return;
@@ -1634,6 +1650,7 @@ wss.on('connection', (ws, req) => {
       // --- Seat Management (13 Seats: Row A đơn, Row B VIP đơn, Row C Ghế đôi Sweetbox) ---
       case 'pick-seat': {
         if (!room) return;
+        ensureRoomSeats(room);
         const seatId = parseInt(payload.seatId, 10);
         if (isNaN(seatId) || seatId < 0 || seatId >= SEAT_LABELS.length) return;
 
@@ -1683,6 +1700,7 @@ wss.on('connection', (ws, req) => {
 
       case 'leave-seat': {
         if (!room) return;
+        ensureRoomSeats(room);
         if (user.seatId !== null) {
           const prev = user.seatId;
           room.seats[prev] = null;
@@ -2414,6 +2432,7 @@ wss.on('connection', (ws, req) => {
       // --- In-Room Host & Admin Moderation Suite ---
       case 'host-kick-seat': {
         if (!room) return;
+        ensureRoomSeats(room);
         if (!isRoomHostOrAdmin(user, room)) {
           send(ws, 'notification', { message: '🔒 Bạn không có quyền quản lý ghế trong phòng này!', type: 'error' });
           return;

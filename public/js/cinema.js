@@ -32,9 +32,9 @@ class CinemaScene {
 
     // Camera state & targets for smooth interpolation (lerp)
     this.cameraMode = 'overview'; // 'overview' | 'seat' | 'screen' | 'audience'
-    this.camTargetPos = new THREE.Vector3(0, 7.6, 9.8);
-    this.camTargetLook = new THREE.Vector3(0, 4.2, -4.5);
-    this.camCurrentLook = new THREE.Vector3(0, 4.2, -4.5);
+    this.camTargetPos = new THREE.Vector3(0, 9.4, 12.2);
+    this.camTargetLook = new THREE.Vector3(0, 4.8, -2.2);
+    this.camCurrentLook = new THREE.Vector3(0, 4.8, -2.2);
     this.isDollyActive = false;
 
     // Mouse drag orbit offsets
@@ -95,8 +95,8 @@ class CinemaScene {
     // 1. WebGL Scene & Camera
     this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 100);
-    this.camera.position.set(0, 7.6, 9.8);
+    this.camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 100);
+    this.camera.position.set(0, 9.4, 12.2);
     this.camera.lookAt(this.camCurrentLook);
 
     // 2. Optimized Ultra-Smooth WebGL Renderer
@@ -607,8 +607,11 @@ class CinemaScene {
       seatGroup.add(labelMesh);
 
       seatGroup.userData = { seatId: coord.id, label: coord.label, coord, isCouple };
-      cushion.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
-      backrest.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
+      seatGroup.traverse((child) => {
+        if (child.isMesh) {
+          child.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
+        }
+      });
 
       this.scene.add(seatGroup);
       this.seatMeshes[coord.id] = seatGroup;
@@ -731,11 +734,12 @@ class CinemaScene {
     }
   }
 
-  // Update All 10 Seats for Real Users
+  // Update All 13 Seats for Real Users (Row A: 5, Row B: 5, Row C Sweetbox: 3)
   updateSeats(seatsData) {
     if (!seatsData || !this.hasWebGL) return;
 
-    for (let i = 0; i < 10; i++) {
+    const total = Math.max(this.seatCoords.length, seatsData.length);
+    for (let i = 0; i < total; i++) {
       const occupant = seatsData[i];
       if (occupant) {
         const prevData = this.avatarMeshes[i]?.userData;
@@ -1001,8 +1005,8 @@ class CinemaScene {
     let targetPos, targetLook;
     switch (mode) {
       case 'overview':
-        targetPos = new THREE.Vector3(0, 7.6, 9.8);
-        targetLook = new THREE.Vector3(0, 4.2, -4.5);
+        targetPos = new THREE.Vector3(0, 9.4, 12.2);
+        targetLook = new THREE.Vector3(0, 4.8, -2.2);
         break;
 
       case 'screen':
@@ -1018,8 +1022,8 @@ class CinemaScene {
         break;
 
       default:
-        targetPos = new THREE.Vector3(0, 7.6, 9.8);
-        targetLook = new THREE.Vector3(0, 4.2, -4.5);
+        targetPos = new THREE.Vector3(0, 9.4, 12.2);
+        targetLook = new THREE.Vector3(0, 4.8, -2.2);
     }
 
     this.camTargetPos.copy(targetPos);

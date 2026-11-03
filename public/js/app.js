@@ -1213,8 +1213,11 @@ class CinemaApp {
     // Update Seat Button
     const seatBtnText = document.getElementById('my-seat-status');
     if (seatBtnText) {
-      if (this.you.seatId !== null && this.room?.seatLabels) {
-        seatBtnText.textContent = `Ghế ${this.room.seatLabels[this.you.seatId]}`;
+      if (this.you.seatId !== null) {
+        const labels = this.room?.seatLabels || ['A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03'];
+        const sLabel = labels[this.you.seatId] || `G${this.you.seatId + 1}`;
+        const isCouple = this.you.seatId >= 10;
+        seatBtnText.textContent = isCouple ? `Ghế ${sLabel} 💖` : `Ghế ${sLabel}`;
       } else {
         seatBtnText.textContent = 'Chọn ghế';
       }
@@ -2705,8 +2708,12 @@ class CinemaApp {
     rowB.innerHTML = '';
     if (rowC) rowC.innerHTML = '';
 
-    this.room.seats.forEach((occupant, index) => {
-      const label = this.room.seatLabels ? this.room.seatLabels[index] : `G${index + 1}`;
+    const labels = this.room.seatLabels || ['A01','A02','A03','A04','A05','B01','B02','B03','B04','B05','C01','C02','C03'];
+    const seats = Array.isArray(this.room.seats) ? [...this.room.seats] : [];
+    while (seats.length < labels.length) seats.push(null);
+
+    seats.forEach((occupant, index) => {
+      const label = labels[index] || `G${index + 1}`;
       const isVipSeat = (index >= 5 && index < 10);
       const isCoupleSeat = index >= 10;
       const isMine = occupant && occupant.userId === this.you.id;
