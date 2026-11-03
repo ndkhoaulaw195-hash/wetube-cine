@@ -318,6 +318,7 @@ class CinemaPlayer {
         this.player.unMute();
         this.player.setVolume(this.volume);
       }
+      this.setVideoQuality(this.videoQuality || 'high');
     } catch {}
 
     if (this.pendingVideo) {
@@ -392,6 +393,13 @@ class CinemaPlayer {
       }
       if (idleScreen) idleScreen.classList.add('faded');
       if (playerError) playerError.classList.add('hidden');
+
+      try {
+        const ytQuality = (this.videoQuality === 'high' ? 'hd1080' : (this.videoQuality === 'medium' ? 'hd720' : 'medium'));
+        if (typeof this.player.setPlaybackQuality === 'function') {
+          this.player.setPlaybackQuality(ytQuality);
+        }
+      } catch {}
 
       const dur = this.player.getDuration();
       if (dur > 0) {
@@ -734,9 +742,11 @@ class CinemaPlayer {
       this.currentVideoId = video.id;
       this.currentVideoUrl = video.url;
       try {
+        const ytQuality = (this.videoQuality === 'high' ? 'hd1080' : (this.videoQuality === 'medium' ? 'hd720' : 'medium'));
         this.player.loadVideoById({
           videoId: video.id,
-          startSeconds: Math.floor(elapsed)
+          startSeconds: Math.floor(elapsed),
+          suggestedQuality: ytQuality
         });
         if (this.isPlaying) {
           this.player.playVideo();
@@ -1079,20 +1089,39 @@ class CinemaPlayer {
     if (overlay) overlay.classList.add('hidden');
   }
 
-  // --- Quality Level Controller: 'high' (1080p) | 'medium' (720p) | 'low' (360p) ---
+  // --- Quality Level Controller: 'high' (1080p Full HD) | 'medium' (720p HD) | 'low' (360p SD) ---
   setVideoQuality(level = 'high') {
     this.videoQuality = level;
+    let width = 1920;
+    let height = 1080;
+    let ytQuality = 'hd1080';
+
+    if (level === 'low') {
+      width = 854;
+      height = 480;
+      ytQuality = 'medium';
+    } else if (level === 'medium') {
+      width = 1280;
+      height = 720;
+      ytQuality = 'hd720';
+    } else { // 'high'
+      width = 1920;
+      height = 1080;
+      ytQuality = 'hd1080';
+    }
+
     if (this.isReady && this.player) {
       try {
-        if (typeof this.player.setPlaybackQuality === 'function') {
-          const ytQualityMap = {
-            high: 'hd1080',
-            medium: 'hd720',
-            low: 'medium'
-          };
-          this.player.setPlaybackQuality(ytQualityMap[level] || 'default');
+        if (typeof this.player.setSize === 'function') {
+          this.player.setSize(width, height);
         }
-      } catch {}
+        if (typeof this.player.setPlaybackQuality === 'function') {
+          this.player.setPlaybackQuality(ytQuality);
+        }
+        if (typeof this.player.setPlaybackQualityRange === 'function') {
+          this.player.setPlaybackQualityRange(ytQuality, (level === 'high' ? 'highres' : ytQuality));
+        }
+      } catch (err) {}
     }
 
     if (this.hlsInstance && this.hlsInstance.levels && this.hlsInstance.levels.length > 0) {

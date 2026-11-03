@@ -107,17 +107,17 @@ class CinemaScene {
     this.camera.position.set(0, 9.4, 12.2);
     this.camera.lookAt(this.camCurrentLook);
 
-    // 2. Optimized Ultra-Smooth WebGL Renderer
+    // 2. Optimized Ultra-Smooth High-Def WebGL Renderer (Khử răng cưa & sắc nét chuẩn điện ảnh)
     try {
       this.renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: true,
         alpha: false,
         powerPreference: 'high-performance',
-        precision: 'mediump',
+        precision: 'highp',
         stencil: false
       });
       this.renderer.setSize(width, height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
       this.renderer.shadowMap.enabled = false;
       this.container.appendChild(this.renderer.domElement);
       this.hasWebGL = true;
@@ -739,7 +739,8 @@ class CinemaScene {
     if (screenElement && typeof THREE.CSS3DObject !== 'undefined' && this.cssScene) {
       this.cssScreenObject = new THREE.CSS3DObject(screenElement);
       this.cssScreenObject.position.set(0, 5.65, -9.6);
-      const scaleFactor = screenWidth / 1280;
+      const curW = parseInt(screenElement.style.width, 10) || 1920;
+      const scaleFactor = screenWidth / curW;
       this.cssScreenObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
       this.cssScene.add(this.cssScreenObject);
     }
@@ -821,23 +822,25 @@ class CinemaScene {
         seatGroup.add(cup);
       }
 
-      // Seat Plate
+      // Seat Plate (Siêu sắc nét 2X Retina DPI với Mipmap)
       const labelCanvas = document.createElement('canvas');
-      labelCanvas.width = 160;
-      labelCanvas.height = 64;
+      labelCanvas.width = 320;
+      labelCanvas.height = 128;
       const lCtx = labelCanvas.getContext('2d');
-      lCtx.fillStyle = '#222522';
-      lCtx.fillRect(0, 0, 160, 64);
+      lCtx.fillStyle = '#1c1f1c';
+      lCtx.fillRect(0, 0, 320, 128);
       lCtx.strokeStyle = isVip ? '#fbbf24' : '#f2cf78';
-      lCtx.lineWidth = 4;
-      lCtx.strokeRect(2, 2, 156, 60);
-      lCtx.font = 'bold 34px "JetBrains Mono", monospace';
+      lCtx.lineWidth = 6;
+      lCtx.strokeRect(4, 4, 312, 120);
+      lCtx.font = 'bold 64px "JetBrains Mono", monospace';
       lCtx.fillStyle = isVip ? '#fbbf24' : '#f2cf78';
       lCtx.textAlign = 'center';
       lCtx.textBaseline = 'middle';
-      lCtx.fillText(coord.label, 80, 34);
+      lCtx.fillText(coord.label, 160, 68);
 
       const labelTex = new THREE.CanvasTexture(labelCanvas);
+      labelTex.generateMipmaps = true;
+      labelTex.minFilter = THREE.LinearMipmapLinearFilter;
       const labelGeo = new THREE.PlaneGeometry(0.38, 0.18);
       const labelMat = new THREE.MeshBasicMaterial({ map: labelTex });
       const labelMesh = new THREE.Mesh(labelGeo, labelMat);
@@ -975,23 +978,25 @@ class CinemaScene {
       makePlate(leftCoord.label, -0.55, sofa.leftId);
       makePlate(rightCoord.label, 0.55, sofa.rightId);
 
-      // Top Header Ribbon: "💖 GHẾ ĐÔI X (SWEETBOX) 💖"
+      // Top Header Ribbon: "💖 GHẾ ĐÔI X (SWEETBOX) 💖" (Siêu sắc nét chuẩn HD Canvas)
       const topCanvas = document.createElement('canvas');
-      topCanvas.width = 384;
-      topCanvas.height = 64;
+      topCanvas.width = 768;
+      topCanvas.height = 128;
       const tCtx = topCanvas.getContext('2d');
       tCtx.fillStyle = '#1c1518';
-      tCtx.fillRect(0, 0, 384, 64);
+      tCtx.fillRect(0, 0, 768, 128);
       tCtx.strokeStyle = '#f43f5e';
-      tCtx.lineWidth = 3;
-      tCtx.strokeRect(3, 3, 378, 58);
-      tCtx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+      tCtx.lineWidth = 5;
+      tCtx.strokeRect(5, 5, 758, 118);
+      tCtx.font = 'bold 46px "Plus Jakarta Sans", sans-serif';
       tCtx.fillStyle = '#fda4af';
       tCtx.textAlign = 'center';
       tCtx.textBaseline = 'middle';
-      tCtx.fillText(`💖 GHẾ ĐÔI ${sofa.group} (2 NGƯỜI) 💖`, 192, 34);
+      tCtx.fillText(`💖 GHẾ ĐÔI ${sofa.group} (SWEETBOX) 💖`, 384, 68);
 
       const topTex = new THREE.CanvasTexture(topCanvas);
+      topTex.generateMipmaps = true;
+      topTex.minFilter = THREE.LinearMipmapLinearFilter;
       const topMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(1.4, 0.22),
         new THREE.MeshBasicMaterial({ map: topTex })
@@ -1024,21 +1029,21 @@ class CinemaScene {
     });
   }
 
-  // Cập nhật tên khắc kỷ niệm trên biển hiệu Ghế Đôi Sweetbox
+  // Cập nhật tên khắc kỷ niệm trên biển hiệu Ghế Đôi Sweetbox (Độ nét cao 768x128)
   updateCoupleSofaName(coupleGroup, customName) {
     const pl = this.couplePlaques[coupleGroup];
     if (!pl) return;
     const { canvas, ctx, tex } = pl;
     ctx.fillStyle = '#1c1518';
-    ctx.fillRect(0, 0, 384, 64);
+    ctx.fillRect(0, 0, 768, 128);
     ctx.strokeStyle = '#f43f5e';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(3, 3, 378, 58);
-    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(5, 5, 758, 118);
+    ctx.font = 'bold 46px "Plus Jakarta Sans", sans-serif';
     ctx.fillStyle = '#fda4af';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`💖 ${customName} 💖`, 192, 34);
+    ctx.fillText(`💖 ${customName} 💖`, 384, 68);
     tex.needsUpdate = true;
   }
 
@@ -1552,19 +1557,46 @@ class CinemaScene {
     this.animate();
   }
 
+  // Chuẩn hóa 3 cấp độ chất lượng hiển thị & độ phân giải màn chiếu:
+  // - High: 1080p Full HD (1920x1080), Pixel Ratio up to 2.0, siêu sắc nét chuẩn điện ảnh
+  // - Medium: 720p HD (1280x720), Pixel Ratio up to 1.5, cân bằng mượt mà
+  // - Low: 360p/480p SD (854x480), Pixel Ratio 1.0, tiết kiệm data & nhẹ máy
   setQuality(quality) {
     this.quality = quality;
+    const screenElement = document.getElementById('screen-surface');
+    let screenW = 1920;
+    let screenH = 1080;
+    let dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+
+    if (quality === 'low') {
+      screenW = 854;
+      screenH = 480;
+      dpr = 1.0;
+    } else if (quality === 'medium') {
+      screenW = 1280;
+      screenH = 720;
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    } else { // 'high'
+      screenW = 1920;
+      screenH = 1080;
+      dpr = Math.min(window.devicePixelRatio || 1, 2.0);
+    }
+
+    if (screenElement) {
+      screenElement.style.width = `${screenW}px`;
+      screenElement.style.height = `${screenH}px`;
+    }
+
+    if (this.cssScreenObject) {
+      const scaleFactor = 13.6 / screenW;
+      this.cssScreenObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    }
+
     if (this.hasWebGL && this.renderer) {
-      if (quality === 'low') {
-        this.renderer.setPixelRatio(1.0);
-        this.renderer.shadowMap.enabled = false;
-      } else if (quality === 'medium') {
-        this.renderer.setPixelRatio(1.15);
-        this.renderer.shadowMap.enabled = false;
-      } else { // 'high'
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
-        this.renderer.shadowMap.enabled = false;
-      }
+      this.renderer.setPixelRatio(dpr);
+      const w = this.container ? (this.container.clientWidth || window.innerWidth) : window.innerWidth;
+      const h = this.container ? (this.container.clientHeight || window.innerHeight) : window.innerHeight;
+      this.renderer.setSize(w, h);
     }
   }
 
