@@ -76,6 +76,8 @@ class CinemaScene {
     this.exitDoorMeshes = [];  // Interactive Exit Doors
     this.avatarMeshes = [];    // 16 seated avatars
     this.stageAvatar = null;   // Avatar on stage
+    this.couplePlaques = {};   // Plaque canvases for couple sofas
+    this.coupleActionTimeouts = {};
     this.discoBallGroup = null;
     this.spotlights = [];
     this.laserBeams = [];
@@ -997,6 +999,8 @@ class CinemaScene {
       topMesh.position.set(0, 1.84, 0.58);
       sofaGroup.add(topMesh);
 
+      this.couplePlaques[sofa.group] = { canvas: topCanvas, ctx: tCtx, tex: topTex, group: sofa.group };
+
       // Two Interactive Click Hitboxes (Left & Right halves)
       const hitGeo = new THREE.BoxGeometry(1.18, 1.8, 1.25);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -1018,6 +1022,75 @@ class CinemaScene {
       this.avatarMeshes[sofa.leftId] = null;
       this.avatarMeshes[sofa.rightId] = null;
     });
+  }
+
+  // Cập nhật tên khắc kỷ niệm trên biển hiệu Ghế Đôi Sweetbox
+  updateCoupleSofaName(coupleGroup, customName) {
+    const pl = this.couplePlaques[coupleGroup];
+    if (!pl) return;
+    const { canvas, ctx, tex } = pl;
+    ctx.fillStyle = '#1c1518';
+    ctx.fillRect(0, 0, 384, 64);
+    ctx.strokeStyle = '#f43f5e';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, 378, 58);
+    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#fda4af';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`💖 ${customName} 💖`, 192, 34);
+    tex.needsUpdate = true;
+  }
+
+  // Hoạt họa 3D tương tác cặp đôi (Đút bắp ăn chung & Tựa vai xem phim)
+  triggerCoupleAction(coupleGroup, action, fromSeatId, toSeatId) {
+    if (!this.hasWebGL) return;
+    const avFrom = this.avatarMeshes[fromSeatId];
+    const avTo = this.avatarMeshes[toSeatId];
+    const isFromLeft = (fromSeatId % 2 === 0);
+
+    if (action === 'feed_popcorn') {
+      // 1. Nghiêng nhẹ nhân vật về phía người kia đút bắp
+      if (avFrom) avFrom.rotation.z = isFromLeft ? -0.22 : 0.22;
+      if (avTo) avTo.rotation.z = isFromLeft ? 0.22 : -0.22;
+
+      // 2. Thả hiệu ứng bắp & tim bay lên
+      this.spawnEmojiReaction('🍿', fromSeatId, false, true);
+      setTimeout(() => this.spawnEmojiReaction('💖', toSeatId, false, true), 300);
+      setTimeout(() => this.spawnEmojiReaction('✨', fromSeatId, false, true), 600);
+
+      // 3. Phục hồi tư thế sau 3.5s
+      const timerKey = `feed_${coupleGroup}`;
+      clearTimeout(this.coupleActionTimeouts[timerKey]);
+      this.coupleActionTimeouts[timerKey] = setTimeout(() => {
+        if (avFrom) avFrom.rotation.z = 0;
+        if (avTo) avTo.rotation.z = 0;
+      }, 3500);
+    } else if (action === 'lean_shoulder') {
+      // 1. Nghiêng người và tựa sát vào vai người bạn bên cạnh
+      if (avFrom) {
+        avFrom.rotation.z = isFromLeft ? -0.32 : 0.32;
+        avFrom.position.x += (isFromLeft ? 0.22 : -0.22);
+      }
+      if (avTo) {
+        avTo.rotation.z = isFromLeft ? 0.12 : -0.12;
+      }
+
+      // 2. Thả hiệu ứng tim & giấc mơ ngọt ngào
+      this.spawnEmojiReaction('🥰', fromSeatId, false, true);
+      setTimeout(() => this.spawnEmojiReaction('💕', toSeatId, false, true), 400);
+
+      // 3. Phục hồi tư thế sau 5.5s
+      const timerKey = `lean_${coupleGroup}`;
+      clearTimeout(this.coupleActionTimeouts[timerKey]);
+      this.coupleActionTimeouts[timerKey] = setTimeout(() => {
+        if (avFrom && this.seatCoords[fromSeatId]) {
+          avFrom.rotation.z = 0;
+          avFrom.position.x = this.seatCoords[fromSeatId].x;
+        }
+        if (avTo) avTo.rotation.z = 0;
+      }, 5500);
+    }
   }
 
   buildDiscoBallAndLights() {

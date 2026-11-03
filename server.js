@@ -1077,6 +1077,7 @@ function getRoomSnapshot(room, requestingUser = null) {
     lightsOff: !!room.lightsOff,
     screenPost: room.screenPost,
     currentPoll: room.currentPoll,
+    coupleNames: room.coupleNames || {},
     giftRevenue: room.giftRevenue || 0,
     onlineCount: room.users.size,
     realUsers,
@@ -1195,6 +1196,7 @@ function leaveCurrentRoom(ws) {
   user.roomId = null;
   user.seatId = null;
   user.micOn = false;
+  user.whisperMode = false;
 
   broadcastToRoom(room, 'user-left', {
     userId: user.id,
@@ -1202,6 +1204,53 @@ function leaveCurrentRoom(ws) {
     onlineCount: room.users.size,
     seats: room.seats
   });
+
+  // Tự động đóng phòng nếu không còn Host trong phòng:
+  // "nếu không có ai là host trong phòng thì phòng sẽ tự động bị đóng"
+  const isLeavingUserHost = (
+    (user.username && room.hostUsername && user.username === room.hostUsername) ||
+    (user.accountId && room.hostId && user.accountId === room.hostId) ||
+    (room.hostId && user.id === room.hostId)
+  );
+
+  if (isLeavingUserHost) {
+    const remainingEntries = Array.from(room.users.entries());
+    rooms.delete(room.id);
+    broadcastRoomsListToAll();
+
+    for (const [remWs, remUser] of remainingEntries) {
+      connectionMap.set(remWs, { user: remUser, room: null });
+      remUser.roomId = null;
+      remUser.seatId = null;
+      remUser.micOn = false;
+      remUser.whisperMode = false;
+
+      send(remWs, 'room-closed-no-host', {
+        roomId: room.id,
+        roomName: room.name,
+        message: `🚪 Phòng chiếu "${room.name}" đã tự động đóng vì Chủ phòng (${user.name}) đã rời đi!`
+      });
+
+      send(remWs, 'lobby-init', {
+        you: remUser,
+        availableRooms: getRoomsSummary(remUser),
+        catalog: { movies: db.movies, categories: db.categories },
+        maxRooms: MAX_ROOMS
+      });
+    }
+
+    broadcastGlobal('notification', {
+      message: `🚪 Phòng "${room.name}" đã tự động đóng vì Chủ phòng (${user.name}) đã rời đi.`,
+      type: 'info'
+    });
+    return;
+  }
+
+  // Nếu phòng không còn ai, tự động dọn dẹp phòng
+  if (room.users.size === 0) {
+    rooms.delete(room.id);
+    broadcastRoomsListToAll();
+  }
 }
 
 // Helper to place user in the Grand Lobby (Sảnh Chờ)
@@ -1747,6 +1796,33 @@ wss.on('connection', (ws, req) => {
 
       case 'voice-chunk': {
         if (!room || !user.micOn || !payload?.data) return;
+
+        // Whisper Audio Mode: Nếu bật Kênh thì thầm ghế đôi, chỉ bạn cùng ghế mới nghe thấy!
+        if (user.whisperMode && user.seatId !== null && user.seatId >= 10) {
+          const partnerSeatId = (user.seatId % 2 === 0) ? (user.seatId + 1) : (user.seatId - 1);
+          const partner = room.seats[partnerSeatId];
+          if (partner) {
+            for (const [pWs, pUser] of room.users.entries()) {
+              if (pUser.id === partner.userId && pWs.readyState === WebSocket.OPEN) {
+                pWs.send(JSON.stringify({
+                  type: 'voice-chunk',
+                  payload: {
+                    userId: user.id,
+                    name: `🤫 ${user.name} (Thì thầm)`,
+                    seatId: user.seatId,
+                    isWhisper: true,
+                    data: payload.data,
+                    sampleRate: payload.sampleRate || 16000
+                  },
+                  serverTime: Date.now()
+                }));
+                break;
+              }
+            }
+          }
+          return;
+        }
+
         broadcastToRoom(room, 'voice-chunk', {
           userId: user.id,
           name: user.name,
@@ -2429,7 +2505,182 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
+      // --- Sweetbox Couple Interactive Suite (Tương Tác Độc Quyền Ghế Đôi) ---
+      case 'couple-action': {
+        if (!room) return;
+        const seatId = user.seatId;
+        if (seatId === null || seatId < 10) {
+          send(ws, 'notification', { message: '💖 Bạn phải ngồi ở Ghế Đôi Sweetbox (Hàng C) để dùng tính năng này!', type: 'warning' });
+          return;
+        }
+
+        const coupleGroup = Math.floor((seatId - 10) / 2) + 1; // 1, 2, 3
+        const partnerSeatId = (seatId % 2 === 0) ? (seatId + 1) : (seatId - 1);
+        const partner = room.seats[partnerSeatId];
+        const action = payload?.action; // 'feed_popcorn' | 'lean_shoulder' | 'set_name' | 'set_whisper'
+
+        // 1. Khắc tên đôi lên biển hiệu ghế
+        if (action === 'set_name') {
+          const customName = String(payload?.customName || '').trim().substring(0, 32);
+          if (!customName) {
+            send(ws, 'notification', { message: 'Tên khắc trên ghế không được để trống!', type: 'error' });
+            return;
+          }
+          room.coupleNames = room.coupleNames || {};
+          room.coupleNames[coupleGroup] = customName;
+
+          broadcastToRoom(room, 'couple-name-updated', {
+            coupleGroup,
+            customName,
+            byUser: user.name
+          });
+
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_cp_' + Date.now(),
+            userId: 'system',
+            name: 'Rạp Chiếu Phim',
+            color: '#fb7185',
+            role: 'system',
+            text: `💌 Chiếc Ghế Đôi ${coupleGroup} vừa được khắc tên kỷ niệm: "${customName}"! 💕`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+          return;
+        }
+
+        // 2. Kênh thì thầm riêng tư (Whisper Mode)
+        if (action === 'set_whisper') {
+          user.whisperMode = !!payload?.whisperMode;
+          send(ws, 'notification', {
+            message: user.whisperMode 
+              ? '🤫 Đã BẬT Kênh Thì Thầm Riêng Tư! Giờ chỉ bạn ngồi cùng ghế đôi nghe thấy giọng bạn nói qua mic.'
+              : '🔊 Đã TẮT Kênh Thì Thầm! Cả rạp sẽ nghe thấy mic của bạn.',
+            type: 'info'
+          });
+          broadcastToRoom(room, 'user-whisper-changed', {
+            userId: user.id,
+            whisperMode: user.whisperMode,
+            seatId: user.seatId
+          });
+          return;
+        }
+
+        // Cho Đút bắp và Tựa vai: Cần có bạn ngồi cùng ghế
+        if (!partner) {
+          send(ws, 'notification', {
+            message: '💖 Chỗ bên cạnh đang trống! Hãy rủ bạn bè vào ngồi cùng ghế đôi để tương tác nha.',
+            type: 'info'
+          });
+          return;
+        }
+
+        if (action === 'feed_popcorn') {
+          broadcastToRoom(room, 'couple-interaction-event', {
+            action: 'feed_popcorn',
+            coupleGroup,
+            fromSeatId: seatId,
+            toSeatId: partnerSeatId,
+            fromUserName: user.name,
+            toUserName: partner.name
+          });
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_feed_' + Date.now(),
+            userId: 'system',
+            name: 'Cặp Đôi Rạp Phim',
+            color: '#fb7185',
+            role: 'system',
+            text: `🍿 [Ghế Đôi ${coupleGroup}] ${user.name} đang đút từng hạt bắp rang thơm bơ cho ${partner.name} ăn cực kỳ ngọt ngào! 💕`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+        } else if (action === 'lean_shoulder') {
+          broadcastToRoom(room, 'couple-interaction-event', {
+            action: 'lean_shoulder',
+            coupleGroup,
+            fromSeatId: seatId,
+            toSeatId: partnerSeatId,
+            fromUserName: user.name,
+            toUserName: partner.name
+          });
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_lean_' + Date.now(),
+            userId: 'system',
+            name: 'Cặp Đôi Rạp Phim',
+            color: '#fb7185',
+            role: 'system',
+            text: `💤 [Ghế Đôi ${coupleGroup}] ${user.name} đã nhẹ nhàng tựa đầu vào vai ${partner.name} cùng xem phim thật ấm áp! 🥰`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+        }
+        break;
+      }
+
       // --- In-Room Host & Admin Moderation Suite ---
+      case 'transfer-host':
+      case 'host-transfer': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Bạn không có quyền chuyển giao chức vị Chủ phòng!', type: 'error' });
+          return;
+        }
+
+        const targetUserId = payload?.targetUserId;
+        if (!targetUserId) return;
+
+        let targetUser = null;
+        for (const [, tUser] of room.users.entries()) {
+          if (tUser.id === targetUserId || tUser.accountId === targetUserId) {
+            targetUser = tUser;
+            break;
+          }
+        }
+
+        if (!targetUser) {
+          send(ws, 'notification', { message: '⚠️ Khán giả này không còn trong phòng!', type: 'error' });
+          return;
+        }
+
+        if (targetUser.id === user.id) {
+          send(ws, 'notification', { message: 'Bạn đang là Chủ phòng rồi!', type: 'info' });
+          return;
+        }
+
+        // Chuyển giao quyền Chủ phòng
+        room.hostId = targetUser.accountId || targetUser.id;
+        room.hostUsername = targetUser.username || targetUser.name;
+        room.createdBy = targetUser.name;
+
+        broadcastToRoom(room, 'host-transferred', {
+          roomId: room.id,
+          roomName: room.name,
+          prevHostId: user.id,
+          prevHostName: user.name,
+          newHostId: targetUser.id,
+          newHostName: targetUser.name,
+          newHostUsername: targetUser.username
+        });
+
+        broadcastToRoom(room, 'room-info-updated', {
+          room: {
+            id: room.id,
+            name: room.name,
+            createdBy: room.createdBy,
+            hostId: room.hostId,
+            hostUsername: room.hostUsername
+          }
+        });
+
+        broadcastToRoom(room, 'chat-message', {
+          id: 'msg_host_' + Date.now(),
+          userId: 'system',
+          name: 'Hệ Thống Rạp',
+          color: '#fbbf24',
+          role: 'system',
+          text: `👑 Chủ phòng ${user.name} đã trao lại toàn quyền Chủ Phòng cho ${targetUser.name}!`,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        });
+
+        broadcastRoomsListToAll();
+        break;
+      }
       case 'host-kick-seat': {
         if (!room) return;
         ensureRoomSeats(room);
@@ -2522,47 +2773,6 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
-      case 'host-transfer': {
-        if (!room) return;
-        if (!isRoomHostOrAdmin(user, room)) {
-          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng mới có quyền chuyển nhượng!', type: 'error' });
-          return;
-        }
-        const targetUserId = payload.targetUserId;
-        let targetUserName = '';
-        for (const [, tUser] of room.users.entries()) {
-          if (tUser.id === targetUserId) {
-            targetUserName = tUser.name;
-            room.hostId = tUser.id;
-            room.hostUsername = tUser.username || tUser.name;
-            room.createdBy = tUser.name;
-            break;
-          }
-        }
-        if (targetUserName) {
-          broadcastToRoom(room, 'room-info-updated', {
-            room: {
-              id: room.id,
-              name: room.name,
-              createdBy: room.createdBy,
-              hostId: room.hostId,
-              hostUsername: room.hostUsername
-            }
-          });
-          broadcastRoomsListToAll();
-          broadcastToRoom(room, 'chat-message', {
-            id: 'msg_host_' + Date.now(),
-            userId: 'system',
-            name: 'Hệ Thống Rạp',
-            color: '#fbbf24',
-            role: 'system',
-            text: `👑 ${user.name} đã nhượng quyền CHỦ PHÒNG cho ${targetUserName}!`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-          });
-          send(ws, 'notification', { message: `✅ Đã chuyển quyền Chủ phòng thành công cho ${targetUserName}!`, type: 'success' });
-        }
-        break;
-      }
 
       case 'host-update-room': {
         if (!room) return;

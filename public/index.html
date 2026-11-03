@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v27">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v28">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -479,6 +479,11 @@
       <button id="btn-open-seats" class="action-btn highlight" title="Sơ đồ chọn ghế">
         <i data-lucide="armchair"></i>
         <span id="my-seat-status">Chọn ghế</span>
+      </button>
+
+      <button id="btn-hud-couple" class="action-btn hidden" title="Mở Bảng Tương Tác Ghế Đôi Sweetbox" style="background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.5); color: #fda4af;">
+        <i data-lucide="heart"></i>
+        <span>Ghế Đôi 💖</span>
       </button>
 
       <button id="btn-voice-mic" class="action-btn mic-action-btn" title="Bật/Tắt Mic nói chuyện hai chiều với mọi người trong phòng (Phím M)">
@@ -1522,13 +1527,84 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL 10: TƯƠNG TÁC GHẾ ĐÔI SWEETBOX ==================== -->
+  <div class="modal-backdrop hidden" id="modal-couple-interactive">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #fb7185;">
+          <i data-lucide="heart"></i>
+          <span>Tương Tác Ghế Đôi Sweetbox</span>
+        </div>
+        <button class="modal-close" data-close="modal-couple-interactive"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Partner Status Header -->
+        <div id="couple-partner-card" class="couple-partner-banner" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.35); border-radius: 12px;">
+          <div class="partner-avatar-wrap">
+            <img id="couple-partner-avatar" style="width: 44px; height: 52px; image-rendering: pixelated;" src="" alt="av" />
+          </div>
+          <div class="partner-info-wrap" style="flex: 1;">
+            <div class="partner-name-row" style="display: flex; align-items: center; justify-content: space-between;">
+              <span id="couple-partner-name" style="font-size: 15px; font-weight: 700; color: #fff;">Chưa có ai ngồi cùng</span>
+              <span id="couple-badge-seat" class="seat-badge-pill" style="font-size: 11px; background: #f43f5e; color: #fff; padding: 2px 8px; border-radius: 12px; font-weight: 700;">C01 💖</span>
+            </div>
+            <div id="couple-partner-status-sub" class="partner-sub-text" style="font-size: 11px; color: #cbd5e1; margin-top: 3px;">Đang cùng thưởng thức bộ phim tình cảm</div>
+          </div>
+        </div>
+
+        <!-- Couple Actions Grid -->
+        <div class="couple-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;">
+          <button id="btn-couple-feed-popcorn" class="couple-act-btn">
+            <span class="act-icon" style="font-size: 26px; display: block; margin-bottom: 4px;">🍿</span>
+            <span class="act-title" style="font-size: 13px; font-weight: 700; display: block;">Đút bắp ăn chung</span>
+            <small class="act-sub" style="font-size: 10px; color: #94a3b8; display: block; margin-top: 2px;">Nghiêng đầu chia sẻ bắp</small>
+          </button>
+
+          <button id="btn-couple-lean-shoulder" class="couple-act-btn">
+            <span class="act-icon" style="font-size: 26px; display: block; margin-bottom: 4px;">💤</span>
+            <span class="act-title" style="font-size: 13px; font-weight: 700; display: block;">Tựa vai xem phim</span>
+            <small class="act-sub" style="font-size: 10px; color: #94a3b8; display: block; margin-top: 2px;">Tựa đầu vai người thương</small>
+          </button>
+        </div>
+
+        <!-- Whisper Voice Toggle -->
+        <div class="whisper-toggle-box" style="margin-top: 14px; padding: 12px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <div style="flex: 1; margin-right: 12px;">
+            <div style="font-size: 13px; font-weight: 700; color: #67e8f9; display: flex; align-items: center; gap: 6px;">
+              <span>🤫 Kênh Thì Thầm Riêng Tư</span>
+            </div>
+            <small style="color: #94a3b8; font-size: 11px; display: block; margin-top: 2px;">
+              Bật lên để chỉ bạn ngồi cùng ghế đôi nghe thấy mic của bạn!
+            </small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-couple-whisper">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <!-- Custom Plaque Name Form -->
+        <div class="couple-carve-box" style="margin-top: 14px; padding: 12px; background: rgba(244, 63, 94, 0.06); border: 1px solid rgba(244, 63, 94, 0.3); border-radius: 12px;">
+          <div style="font-size: 12px; font-weight: 700; color: #fda4af; margin-bottom: 6px;">
+            <span>💌 Khắc Tên Kỷ Niệm Lên Biển Ghế 3D:</span>
+          </div>
+          <form id="form-carve-couple-name" style="display: flex; gap: 8px;">
+            <input type="text" id="input-couple-carve-name" placeholder="VD: Nam & Lan 💖" maxlength="30" required style="flex: 1; padding: 8px 12px; background: #121412; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; color: #fff; font-size: 12px;" />
+            <button type="submit" class="btn-sm primary" style="background: linear-gradient(135deg, #f43f5e, #e11d48); border: none; padding: 8px 14px; font-weight: 700; border-radius: 8px; color: #fff;">Khắc Tên</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Notification Toast Container -->
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v27"></script>
-  <script src="/js/cinema.js?v=20261103_v27"></script>
-  <script src="/js/player.js?v=20261103_v27"></script>
-  <script src="/js/app.js?v=20261103_v27"></script>
+  <script src="/js/avatars.js?v=20261103_v28"></script>
+  <script src="/js/cinema.js?v=20261103_v28"></script>
+  <script src="/js/player.js?v=20261103_v28"></script>
+  <script src="/js/app.js?v=20261103_v28"></script>
 </body>
 </html>

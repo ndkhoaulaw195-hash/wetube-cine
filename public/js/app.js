@@ -442,6 +442,12 @@ class CinemaApp {
           payload.recentMessages.forEach((m) => this.appendChatMessage(m, false));
         }
 
+        if (this.room.coupleNames && this.cinema) {
+          Object.entries(this.room.coupleNames).forEach(([grp, nm]) => {
+            this.cinema.updateCoupleSofaName(grp, nm);
+          });
+        }
+
         this.stopVoiceCapture(false);
         this.updateVoiceSpeakersPill();
         break;
@@ -634,6 +640,63 @@ class CinemaApp {
           const roomBadgeText = document.getElementById('current-room-name');
           if (roomBadgeText) roomBadgeText.textContent = payload.room.name;
           this.updateHostAndPermissionsUI();
+        }
+        break;
+      }
+
+      case 'host-transferred': {
+        if (this.room) {
+          this.room.hostId = payload.newHostId;
+          this.room.hostUsername = payload.newHostUsername;
+          this.room.hostName = payload.newHostName;
+          this.room.createdBy = payload.newHostName;
+          this.room.canControl = (this.you && (
+            this.you.id === payload.newHostId ||
+            (this.you.username && this.you.username === payload.newHostUsername) ||
+            (this.you.accountId && this.you.accountId === payload.newHostId) ||
+            this.you.role === 'admin'
+          ));
+          this.updateHostAndPermissionsUI();
+        }
+        this.showToast(`👑 ${payload.newHostName} hiện là Chủ phòng mới!`, 'info');
+        break;
+      }
+
+      case 'room-closed-no-host': {
+        this.showToast(payload.message || '🚪 Phòng chiếu đã tự động đóng vì không còn Chủ phòng!', 'warning');
+        this.showLobbyUI();
+        break;
+      }
+
+      case 'couple-interaction-event': {
+        if (this.cinema) {
+          this.cinema.triggerCoupleAction(payload.coupleGroup, payload.action, payload.fromSeatId, payload.toSeatId);
+        }
+        if (payload.action === 'feed_popcorn') {
+          this.showToast(`🍿 ${payload.fromUserName} vừa đút bắp cho ${payload.toUserName}! 💕`, 'info');
+        } else if (payload.action === 'lean_shoulder') {
+          this.showToast(`💤 ${payload.fromUserName} đang tựa đầu vào vai ${payload.toUserName} thật ngọt ngào! 🥰`, 'info');
+        }
+        break;
+      }
+
+      case 'couple-name-updated': {
+        if (this.room) {
+          this.room.coupleNames = this.room.coupleNames || {};
+          this.room.coupleNames[payload.coupleGroup] = payload.customName;
+        }
+        if (this.cinema) {
+          this.cinema.updateCoupleSofaName(payload.coupleGroup, payload.customName);
+        }
+        this.showToast(`💌 Biển hiệu Ghế Đôi ${payload.coupleGroup} đã khắc tên: "${payload.customName}"! 💖`, 'success');
+        break;
+      }
+
+      case 'user-whisper-changed': {
+        if (this.you && payload.userId === this.you.id) {
+          this.you.whisperMode = !!payload.whisperMode;
+          const toggle = document.getElementById('toggle-couple-whisper');
+          if (toggle) toggle.checked = !!payload.whisperMode;
         }
         break;
       }
@@ -1227,6 +1290,13 @@ class CinemaApp {
       }
     }
 
+    // Update Sweetbox Couple HUD Button (Only visible when seated on couple sofa C01-C06)
+    const btnHudCouple = document.getElementById('btn-hud-couple');
+    if (btnHudCouple) {
+      const isCoupleSeat = (this.you.seatId !== null && this.you.seatId >= 10);
+      btnHudCouple.classList.toggle('hidden', !isCoupleSeat);
+    }
+
     // Toggle Guest vs Logged-in view inside #modal-profile
     const guestSec = document.getElementById('auth-guest-section');
     const userSec = document.getElementById('auth-user-section');
@@ -1757,6 +1827,31 @@ class CinemaApp {
     // In-Room Audience & Interaction Modal (Dành cho MỌI NGƯỜI trong rạp)
     document.getElementById('btn-room-members')?.addEventListener('click', () => {
       this.openRoomMembersModal();
+    });
+
+    // Sweetbox Couple Interactive Suite (Chỉ hiện khi ngồi ghế đôi C01-C06)
+    document.getElementById('btn-hud-couple')?.addEventListener('click', () => {
+      this.openCoupleInteractiveModal();
+    });
+
+    document.getElementById('btn-couple-feed-popcorn')?.addEventListener('click', () => {
+      this.send('couple-action', { action: 'feed_popcorn' });
+    });
+
+    document.getElementById('btn-couple-lean-shoulder')?.addEventListener('click', () => {
+      this.send('couple-action', { action: 'lean_shoulder' });
+    });
+
+    document.getElementById('toggle-couple-whisper')?.addEventListener('change', (e) => {
+      this.send('couple-action', { action: 'set_whisper', whisperMode: e.target.checked });
+    });
+
+    document.getElementById('form-carve-couple-name')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('input-couple-carve-name');
+      const customName = input ? input.value.trim() : '';
+      if (!customName) return;
+      this.send('couple-action', { action: 'set_name', customName });
     });
 
     // Announcement Close Button
@@ -2636,6 +2731,79 @@ class CinemaApp {
     }
 
     this.openModal('modal-room-members');
+  }
+
+  openCoupleInteractiveModal() {
+    if (!this.you || this.you.seatId === null || this.you.seatId < 10) {
+      this.showToast('💖 Bạn cần ngồi vào Ghế Đôi Sweetbox (Hàng C) để mở bảng tương tác!', 'info');
+      return;
+    }
+    const seatId = this.you.seatId;
+    const coupleGroup = Math.floor((seatId - 10) / 2) + 1; // 1, 2, 3
+    const partnerSeatId = (seatId % 2 === 0) ? (seatId + 1) : (seatId - 1);
+    const labels = this.room?.seatLabels || [
+      'A01','A02','A03','A04','A05',
+      'B01','B02','B03','B04','B05',
+      'C01','C02','C03','C04','C05','C06'
+    ];
+    const myLabel = labels[seatId] || `C0${seatId - 9}`;
+    const partnerLabel = labels[partnerSeatId] || `C0${partnerSeatId - 9}`;
+    const partner = this.room?.seats?.[partnerSeatId];
+
+    const partnerNameEl = document.getElementById('couple-partner-name');
+    const partnerSubEl = document.getElementById('couple-partner-status-sub');
+    const partnerAvImg = document.getElementById('couple-partner-avatar');
+    const badgeSeatEl = document.getElementById('couple-badge-seat');
+    const btnFeed = document.getElementById('btn-couple-feed-popcorn');
+    const btnLean = document.getElementById('btn-couple-lean-shoulder');
+    const whisperToggle = document.getElementById('toggle-couple-whisper');
+    const inputCarve = document.getElementById('input-couple-carve-name');
+
+    if (badgeSeatEl) {
+      badgeSeatEl.textContent = `Ghế ${myLabel} & ${partnerLabel} 💖`;
+    }
+
+    if (partner) {
+      if (partnerNameEl) partnerNameEl.textContent = partner.name;
+      if (partnerSubEl) partnerSubEl.textContent = `Đang cùng xem phim với bạn trên Ghế Đôi ${coupleGroup} 🍿`;
+      if (partnerAvImg && window.PixelAvatars) {
+        partnerAvImg.src = window.PixelAvatars.getDataUrl(partner.avatarId || 'pixel_nerd', 4);
+      }
+      if (btnFeed) {
+        btnFeed.disabled = false;
+        btnFeed.title = `Đút bắp rang cho ${partner.name}`;
+      }
+      if (btnLean) {
+        btnLean.disabled = false;
+        btnLean.title = `Tựa đầu vào vai ${partner.name}`;
+      }
+    } else {
+      if (partnerNameEl) partnerNameEl.textContent = 'Chưa có ai ngồi cùng';
+      if (partnerSubEl) partnerSubEl.textContent = `Ghế ${partnerLabel} bên cạnh đang trống. Hãy rủ người ấy ngồi cùng nhé!`;
+      if (partnerAvImg && window.PixelAvatars) {
+        partnerAvImg.src = window.PixelAvatars.getDataUrl('pixel_nerd', 4);
+      }
+      if (btnFeed) {
+        btnFeed.disabled = true;
+        btnFeed.title = 'Cần có bạn ngồi cùng ghế đôi để đút bắp!';
+      }
+      if (btnLean) {
+        btnLean.disabled = true;
+        btnLean.title = 'Cần có bạn ngồi cùng ghế đôi để tựa vai!';
+      }
+    }
+
+    if (whisperToggle) {
+      whisperToggle.checked = !!this.you.whisperMode;
+    }
+
+    if (inputCarve) {
+      const existingName = (this.room?.coupleNames && this.room.coupleNames[coupleGroup]) || '';
+      inputCarve.value = existingName;
+      inputCarve.placeholder = `VD: Ghế của ${this.you.name} & Người ấy 💖`;
+    }
+
+    this.openModal('modal-couple-interactive');
   }
 
   updateStageButtonUI() {
