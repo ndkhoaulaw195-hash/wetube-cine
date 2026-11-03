@@ -144,7 +144,16 @@ class CinemaApp {
     this.initWebSocket();
     this.bindUIEvents();
     this.initHudAutoIdle();
-    const savedQuality = localStorage.getItem('wetube_quality') || 'high';
+    // Tự động nhận diện cấu hình thiết bị (CPU/RAM/Mobile) để chọn mức đồ họa tối ưu ban đầu
+    let defaultQuality = 'high';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isLowCore = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+    const isLowRam = navigator.deviceMemory && navigator.deviceMemory <= 4;
+    if (isMobile || (isLowCore && isLowRam)) {
+      defaultQuality = 'medium';
+    }
+
+    const savedQuality = localStorage.getItem('wetube_quality') || defaultQuality;
     this.applyQualityLevel(savedQuality, false);
     this.refreshIcons();
   }

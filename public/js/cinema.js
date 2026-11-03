@@ -1559,11 +1559,11 @@ class CinemaScene {
         this.renderer.setPixelRatio(1.0);
         this.renderer.shadowMap.enabled = false;
       } else if (quality === 'medium') {
-        this.renderer.setPixelRatio(1.25);
+        this.renderer.setPixelRatio(1.15);
         this.renderer.shadowMap.enabled = false;
       } else { // 'high'
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
-        this.renderer.shadowMap.enabled = true;
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        this.renderer.shadowMap.enabled = false;
       }
     }
   }
