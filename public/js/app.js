@@ -103,6 +103,10 @@ class CinemaApp {
     this.player = new CinemaPlayer();
 
     this.cinema.onSeatClick = (seatId) => this.handleSeatSelection(seatId);
+    this.cinema.onExitDoorClick = () => {
+      this.leaveToLobby();
+      this.showToast('🚪 Bạn đã đi qua Cửa Thoát Hiểm và quay về Sảnh Chờ!', 'info');
+    };
     this.player.onDurationDiscovered = (id, dur) => this.reportDuration(id, dur);
     this.player.onAudioBlocked = () => this.showAudioBlockedBanner();
 
@@ -140,6 +144,8 @@ class CinemaApp {
     this.initWebSocket();
     this.bindUIEvents();
     this.initHudAutoIdle();
+    const savedQuality = localStorage.getItem('wetube_quality') || 'high';
+    this.applyQualityLevel(savedQuality, false);
     this.refreshIcons();
   }
 
@@ -1846,6 +1852,26 @@ class CinemaApp {
       }
     });
 
+    // Quality Selector Dropdown (Thấp - Trung bình - Cao)
+    const qualityPopover = document.getElementById('quality-popover');
+    document.getElementById('btn-quality-selector')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      qualityPopover?.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (qualityPopover && !qualityPopover.contains(e.target) && !e.target.closest('#btn-quality-selector')) {
+        qualityPopover.classList.add('hidden');
+      }
+    });
+    document.querySelectorAll('.quality-option-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const level = btn.getAttribute('data-quality') || 'high';
+        this.applyQualityLevel(level);
+        qualityPopover?.classList.add('hidden');
+      });
+    });
+
     const volWrap = document.getElementById('volume-control-wrap');
     document.getElementById('btn-volume')?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2402,9 +2428,10 @@ class CinemaApp {
 
   updateOccupancyUI() {
     if (!this.room) return;
+    const totalSeats = (this.room.seats && this.room.seats.length) ? this.room.seats.length : 13;
     const seatedCount = this.room.seats.filter(s => s !== null).length;
     const occText = document.getElementById('occupancy-text');
-    if (occText) occText.textContent = `${seatedCount}/10 ghế`;
+    if (occText) occText.textContent = `${seatedCount}/${totalSeats} ghế`;
 
     const totalMembers = (this.room.realUsers ? this.room.realUsers.length : 0) || (seatedCount || 1);
     const memLabel = document.getElementById('label-room-members-count');
@@ -2629,30 +2656,77 @@ class CinemaApp {
     this.refreshIcons();
   }
 
+  applyQualityLevel(level = 'high', showNotice = false) {
+    const qualityLabel = document.getElementById('hud-quality-label');
+    const labelMap = {
+      high: '1080p',
+      medium: '720p',
+      low: '360p'
+    };
+    const nameMap = {
+      high: 'Cao (1080p - Sắc nét)',
+      medium: 'Trung bình (720p - Chuẩn)',
+      low: 'Thấp (360p - Tiết kiệm)'
+    };
+
+    if (qualityLabel) {
+      qualityLabel.textContent = labelMap[level] || 'HD';
+    }
+
+    document.querySelectorAll('.quality-option-btn').forEach(b => {
+      const isCurrent = b.getAttribute('data-quality') === level;
+      b.classList.toggle('active', isCurrent);
+      const check = b.querySelector('.quality-check-icon');
+      if (check) check.classList.toggle('hidden', !isCurrent);
+    });
+
+    if (this.player && typeof this.player.setVideoQuality === 'function') {
+      this.player.setVideoQuality(level);
+    }
+    if (this.cinema && typeof this.cinema.setQuality === 'function') {
+      this.cinema.setQuality(level);
+    }
+
+    localStorage.setItem('wetube_quality', level);
+    if (showNotice) {
+      this.showToast(`🎬 Đã chuyển chất lượng hình ảnh: ${nameMap[level] || level}`, 'info');
+    }
+  }
+
   renderSeatMapModal() {
     if (!this.room || !this.you) return;
     const rowA = document.getElementById('row-a-seats');
     const rowB = document.getElementById('row-b-seats');
+    const rowC = document.getElementById('row-c-seats');
     const leaveBtn = document.getElementById('btn-leave-seat');
     if (!rowA || !rowB) return;
 
     rowA.innerHTML = '';
     rowB.innerHTML = '';
+    if (rowC) rowC.innerHTML = '';
 
     this.room.seats.forEach((occupant, index) => {
       const label = this.room.seatLabels ? this.room.seatLabels[index] : `G${index + 1}`;
-      const isVipSeat = index >= 5;
+      const isVipSeat = (index >= 5 && index < 10);
+      const isCoupleSeat = index >= 10;
       const isMine = occupant && occupant.userId === this.you.id;
       const isOccupied = occupant && !isMine;
 
       const btn = document.createElement('button');
-      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}`;
+      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}${isCoupleSeat ? ' couple-seat' : ''}`;
       const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
 
+      let badgeHtml = '';
+      if (isVipSeat) {
+        badgeHtml = ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>';
+      } else if (isCoupleSeat) {
+        badgeHtml = ' <small style="color:#fb7185; font-size:10px;">💖 ĐÔI</small>';
+      }
+
       btn.innerHTML = `
-        <span class="seat-code">${label}${isVipSeat ? ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>' : ''}</span>
+        <span class="seat-code">${label}${badgeHtml}</span>
         ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
-        <span class="seat-occupant">${occupant ? occupant.name : (isVipSeat ? 'Ghế VIP' : 'Trống')}</span>
+        <span class="seat-occupant">${occupant ? occupant.name : (isCoupleSeat ? 'Ghế Đôi Trống' : (isVipSeat ? 'Ghế VIP' : 'Trống'))}</span>
       `;
 
       if (!isOccupied) {
@@ -2671,8 +2745,13 @@ class CinemaApp {
         btn.title = `Bấm để tương tác với ${occupant.name}`;
       }
 
-      if (index < 5) rowA.appendChild(btn);
-      else rowB.appendChild(btn);
+      if (index < 5) {
+        rowA.appendChild(btn);
+      } else if (index < 10) {
+        rowB.appendChild(btn);
+      } else if (rowC) {
+        rowC.appendChild(btn);
+      }
     });
 
     if (leaveBtn) leaveBtn.classList.toggle('hidden', this.you.seatId === null);
@@ -3424,14 +3503,54 @@ class CinemaApp {
     if (!event) return;
     this.playGiftSound();
 
-    // Spawn floating stream reaction
+    // 1. Center-Screen Grand Gift Celebration (Hiệu ứng quà tặng cực to giữa màn hình lớn)
+    const centerOverlay = document.getElementById('cinema-center-gift-overlay');
+    if (centerOverlay) {
+      centerOverlay.innerHTML = '';
+      const centerCard = document.createElement('div');
+      centerCard.className = 'center-gift-card';
+      centerCard.innerHTML = `
+        <div class="center-gift-sunburst"></div>
+        <div class="center-gift-icon-wrap">${event.giftIcon}</div>
+        <div class="center-gift-sender">✨ ${this.escapeHTML(event.senderName)} ĐÃ TẶNG CHỦ PHÒNG</div>
+        <div class="center-gift-title">${this.escapeHTML(event.giftName)}</div>
+        <div class="center-gift-cost">🪙 +${event.giftCost} XU HOÀNG GIA</div>
+      `;
+      centerOverlay.appendChild(centerCard);
+
+      // Burst glowing particles around center of screen
+      const particleEmojis = ['✨', '💎', '🎉', '💖', event.giftIcon, '⭐', '🍿', '👑'];
+      for (let i = 0; i < 20; i++) {
+        const p = document.createElement('span');
+        p.className = 'center-gift-particle';
+        p.textContent = particleEmojis[i % particleEmojis.length];
+        const angle = (i / 20) * 2 * Math.PI + (Math.random() * 0.3 - 0.15);
+        const dist = 160 + Math.random() * 190;
+        const dx = `${Math.cos(angle) * dist}px`;
+        const dy = `${Math.sin(angle) * dist}px`;
+        const rot = `${(Math.random() - 0.5) * 720}deg`;
+        p.style.setProperty('--dx', dx);
+        p.style.setProperty('--dy', dy);
+        p.style.setProperty('--rot', rot);
+        centerOverlay.appendChild(p);
+      }
+
+      setTimeout(() => {
+        centerOverlay.innerHTML = '';
+      }, 4800);
+    }
+
+    // 2. Trigger in-theater celebratory disco/spotlight lighting flash
     if (this.cinema) {
+      if (typeof this.cinema.triggerGiftCelebrationLighting === 'function') {
+        this.cinema.triggerGiftCelebrationLighting(event.giftCost || 100);
+      }
       this.cinema.spawnDomFloatingEmoji(event.giftIcon);
       setTimeout(() => this.cinema.spawnDomFloatingEmoji(event.giftIcon), 250);
       setTimeout(() => this.cinema.spawnDomFloatingEmoji(event.giftIcon), 500);
     }
 
-    // Streamer gift banner across screen
+    // 3. Streamer gift banner across top
     const overlay = document.getElementById('gift-banner-overlay');
     if (!overlay) return;
 

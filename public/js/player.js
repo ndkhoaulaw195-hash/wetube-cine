@@ -1079,6 +1079,36 @@ class CinemaPlayer {
     if (overlay) overlay.classList.add('hidden');
   }
 
+  // --- Quality Level Controller: 'high' (1080p) | 'medium' (720p) | 'low' (360p) ---
+  setVideoQuality(level = 'high') {
+    this.videoQuality = level;
+    if (this.isReady && this.player) {
+      try {
+        if (typeof this.player.setPlaybackQuality === 'function') {
+          const ytQualityMap = {
+            high: 'hd1080',
+            medium: 'hd720',
+            low: 'medium'
+          };
+          this.player.setPlaybackQuality(ytQualityMap[level] || 'default');
+        }
+      } catch {}
+    }
+
+    if (this.hlsInstance && this.hlsInstance.levels && this.hlsInstance.levels.length > 0) {
+      try {
+        const len = this.hlsInstance.levels.length;
+        if (level === 'low') {
+          this.hlsInstance.currentLevel = 0;
+        } else if (level === 'medium') {
+          this.hlsInstance.currentLevel = Math.max(0, Math.floor(len / 2));
+        } else {
+          this.hlsInstance.currentLevel = len - 1;
+        }
+      } catch {}
+    }
+  }
+
   // --- Data Saver Mode (Tự động hạ chất lượng video xuống 360p / bitrate thấp) ---
   setDataSaver(enabled) {
     this.isDataSaver = !!enabled;

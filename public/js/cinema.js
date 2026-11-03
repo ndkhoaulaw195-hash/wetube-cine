@@ -45,9 +45,10 @@ class CinemaScene {
     this.isDragging = false;
     this.lastMousePos = { x: 0, y: 0 };
 
-    // 10 Seats Coordinates
-    // Row A: 5 front seats (y = 0.35, z = -2.2)
-    // Row B: 5 back seats on elevated step (y = 1.0, z = 1.1)
+    // 13 Seats Coordinates:
+    // Row A: 5 front standard seats (y = 0.35, z = -2.2)
+    // Row B: 5 middle VIP red velvet seats on elevated step (y = 1.0, z = 1.1)
+    // Row C: 3 back Sweetbox couple seats (y = 1.0, z = 4.8)
     this.seatCoords = [
       { id: 0, label: 'A01', x: -4.8, y: 0.35, z: -2.2 },
       { id: 1, label: 'A02', x: -2.4, y: 0.35, z: -2.2 },
@@ -58,12 +59,16 @@ class CinemaScene {
       { id: 6, label: 'B02', x: -2.4, y: 1.0,  z: 1.1 },
       { id: 7, label: 'B03', x: 0.0,  y: 1.0,  z: 1.1 },
       { id: 8, label: 'B04', x: 2.4,  y: 1.0,  z: 1.1 },
-      { id: 9, label: 'B05', x: 4.8,  y: 1.0,  z: 1.1 }
+      { id: 9, label: 'B05', x: 4.8,  y: 1.0,  z: 1.1 },
+      { id: 10, label: 'C01', x: -4.5, y: 1.0, z: 4.8, isCouple: true },
+      { id: 11, label: 'C02', x: 0.0,  y: 1.0, z: 4.8, isCouple: true },
+      { id: 12, label: 'C03', x: 4.5,  y: 1.0, z: 4.8, isCouple: true }
     ];
 
     // Meshes references
-    this.seatMeshes = [];      // 10 seats
-    this.avatarMeshes = [];    // 10 seated avatars
+    this.seatMeshes = [];      // 13 seats
+    this.exitDoorMeshes = [];  // Interactive Exit Doors
+    this.avatarMeshes = [];    // 13 seated avatars
     this.stageAvatar = null;   // Avatar on stage
     this.discoBallGroup = null;
     this.spotlights = [];
@@ -77,6 +82,7 @@ class CinemaScene {
 
     // Callbacks
     this.onSeatClick = null;
+    this.onExitDoorClick = null;
 
     this.clock = new THREE.Clock();
     this.init();
@@ -283,6 +289,9 @@ class CinemaScene {
     speakerR.position.set(8.2, 1.8, -8.3);
     this.scene.add(speakerR);
 
+    // 4. Cinema Emergency Exit Doors with Glowing Neon Sign (Cửa Thoát Hiểm / Out Phòng)
+    this.buildExitDoors(hallWidth, hallLength, hallHeight);
+
     // Lighting
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.46);
     this.scene.add(this.ambientLight);
@@ -290,6 +299,116 @@ class CinemaScene {
     this.warmKeyLight = new THREE.DirectionalLight(0xfff1d6, 0.65);
     this.warmKeyLight.position.set(0, 10, 5);
     this.scene.add(this.warmKeyLight);
+  }
+
+  buildExitDoors(hallWidth = 21, hallLength = 26, hallHeight = 12.2) {
+    this.exitDoorMeshes = [];
+
+    const createDoorUnit = (x, y, z, rotY = 0, name = 'Exit Door') => {
+      const doorGroup = new THREE.Group();
+      doorGroup.position.set(x, y, z);
+      doorGroup.rotation.y = rotY;
+
+      // 1. Frame
+      const frameGeo = new THREE.BoxGeometry(2.3, 3.4, 0.16);
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x1f2421,
+        roughness: 0.6,
+        metalness: 0.4
+      });
+      const frame = new THREE.Mesh(frameGeo, frameMat);
+      frame.position.set(0, 1.7, 0);
+      doorGroup.add(frame);
+
+      // 2. Double Emergency Exit Door Panels
+      const doorMat = new THREE.MeshStandardMaterial({
+        color: 0x121714,
+        roughness: 0.45,
+        metalness: 0.25
+      });
+      for (const side of [-0.55, 0.55]) {
+        const panelGeo = new THREE.BoxGeometry(1.02, 3.15, 0.12);
+        const panel = new THREE.Mesh(panelGeo, doorMat);
+        panel.position.set(side, 1.68, 0.02);
+        doorGroup.add(panel);
+
+        // Metallic Panic Push Bar
+        const barGeo = new THREE.BoxGeometry(0.88, 0.08, 0.14);
+        const barMat = new THREE.MeshStandardMaterial({
+          color: 0x10b981,
+          roughness: 0.2,
+          metalness: 0.85,
+          emissive: 0x059669,
+          emissiveIntensity: 0.35
+        });
+        const bar = new THREE.Mesh(barGeo, barMat);
+        bar.position.set(side, 1.45, 0.1);
+        doorGroup.add(bar);
+      }
+
+      // 3. Illuminated Neon Green EXIT Sign Box above door
+      const signBoxGeo = new THREE.BoxGeometry(1.4, 0.52, 0.22);
+      const signBoxMat = new THREE.MeshStandardMaterial({
+        color: 0x064e3b,
+        roughness: 0.4,
+        metalness: 0.6
+      });
+      const signBox = new THREE.Mesh(signBoxGeo, signBoxMat);
+      signBox.position.set(0, 3.68, 0.08);
+      doorGroup.add(signBox);
+
+      // EXIT Canvas Graphic Texture
+      const exitCanvas = document.createElement('canvas');
+      exitCanvas.width = 256;
+      exitCanvas.height = 96;
+      const ctx = exitCanvas.getContext('2d');
+
+      // Vivid Green LED backlight box
+      ctx.fillStyle = '#059669';
+      ctx.fillRect(0, 0, 256, 96);
+
+      // White glowing border
+      ctx.strokeStyle = '#a7f3d0';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, 248, 88);
+
+      // Running figure symbol & EXIT
+      ctx.font = 'bold 36px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏃 EXIT ➔', 128, 36);
+
+      ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+      ctx.fillStyle = '#d1fae5';
+      ctx.fillText('LỐI RA', 128, 70);
+
+      const exitTex = new THREE.CanvasTexture(exitCanvas);
+      const signFaceGeo = new THREE.PlaneGeometry(1.36, 0.48);
+      const signFaceMat = new THREE.MeshBasicMaterial({ map: exitTex });
+      const signFace = new THREE.Mesh(signFaceGeo, signFaceMat);
+      signFace.position.set(0, 3.68, 0.2);
+      doorGroup.add(signFace);
+
+      // Green point light illuminating the exit threshold
+      const exitLight = new THREE.PointLight(0x10b981, 1.5, 6.0);
+      exitLight.position.set(0, 3.4, 0.5);
+      doorGroup.add(exitLight);
+
+      doorGroup.userData = { isExitDoor: true, doorName: name };
+      frame.userData = { isExitDoor: true };
+      signBox.userData = { isExitDoor: true };
+      signFace.userData = { isExitDoor: true };
+
+      this.scene.add(doorGroup);
+      this.exitDoorMeshes.push(doorGroup);
+    };
+
+    // Exit Door 1: Front right wall beside screen (facing inwards into theater, visible in Overview & Screen view)
+    createDoorUnit(hallWidth / 2 - 0.12, 0.0, -4.5, -Math.PI / 2, 'Front Exit Door');
+
+    // Exit Door 2: Rear wall beside seats (facing front, visible in Audience view)
+    createDoorUnit(7.5, 0.6, 13.2, Math.PI, 'Rear Exit Door');
   }
 
   buildScreenAndCSS3D() {
@@ -345,9 +464,17 @@ class CinemaScene {
 
   buildSeats() {
     const leatherRed = new THREE.MeshStandardMaterial({
-      color: 0x7a1e28, // Luxurious dark red velvet / leather
+      color: 0x7a1e28, // Luxurious dark red velvet / leather (VIP)
       roughness: 0.65,
       metalness: 0.15
+    });
+
+    const leatherSweetbox = new THREE.MeshStandardMaterial({
+      color: 0x9d174d, // Romantic deep rose-magenta velvet (Sweetbox Couple)
+      roughness: 0.55,
+      metalness: 0.2,
+      emissive: 0x4a044e,
+      emissiveIntensity: 0.15
     });
 
     const darkArmMat = new THREE.MeshStandardMaterial({
@@ -366,33 +493,57 @@ class CinemaScene {
       const seatGroup = new THREE.Group();
       seatGroup.position.set(coord.x, coord.y, coord.z);
 
+      const isCouple = !!coord.isCouple;
+      const seatMat = isCouple ? leatherSweetbox : leatherRed;
+      const w = isCouple ? 2.3 : 1.2;
+      const baseW = isCouple ? 2.45 : 1.3;
+
       // Seat Base
-      const baseGeo = new THREE.BoxGeometry(1.3, 0.2, 1.1);
+      const baseGeo = new THREE.BoxGeometry(baseW, 0.2, 1.1);
       const base = new THREE.Mesh(baseGeo, baseMat);
       base.position.set(0, 0.1, 0);
       seatGroup.add(base);
 
       // Cushion
-      const cushionGeo = new THREE.BoxGeometry(1.2, 0.35, 1.05);
-      const cushion = new THREE.Mesh(cushionGeo, leatherRed);
+      const cushionGeo = new THREE.BoxGeometry(w, 0.35, 1.05);
+      const cushion = new THREE.Mesh(cushionGeo, seatMat);
       cushion.position.set(0, 0.35, -0.05);
       seatGroup.add(cushion);
 
       // Backrest
-      const backGeo = new THREE.BoxGeometry(1.2, 1.25, 0.28);
-      const backrest = new THREE.Mesh(backGeo, leatherRed);
+      const backGeo = new THREE.BoxGeometry(w, 1.25, 0.28);
+      const backrest = new THREE.Mesh(backGeo, seatMat);
       backrest.position.set(0, 1.05, 0.44);
       backrest.rotation.x = -0.12;
       seatGroup.add(backrest);
 
-      // Headrest Pillow
-      const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
-      const headrest = new THREE.Mesh(headGeo, leatherRed);
-      headrest.position.set(0, 1.62, 0.48);
-      seatGroup.add(headrest);
+      // Headrest(s)
+      if (isCouple) {
+        // Dual headrests for the sweet couple
+        for (const side of [-0.55, 0.55]) {
+          const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
+          const headrest = new THREE.Mesh(headGeo, seatMat);
+          headrest.position.set(side, 1.62, 0.48);
+          seatGroup.add(headrest);
+        }
 
-      // Armrests
-      for (const side of [-0.68, 0.68]) {
+        // Sweetbox high curved privacy side partitions (CGV style)
+        for (const side of [-1.22, 1.22]) {
+          const wingGeo = new THREE.BoxGeometry(0.14, 1.42, 1.22);
+          const wing = new THREE.Mesh(wingGeo, seatMat);
+          wing.position.set(side, 1.05, 0.1);
+          seatGroup.add(wing);
+        }
+      } else {
+        const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
+        const headrest = new THREE.Mesh(headGeo, seatMat);
+        headrest.position.set(0, 1.62, 0.48);
+        seatGroup.add(headrest);
+      }
+
+      // Armrests & Cup holders
+      const armSides = isCouple ? [-1.15, 1.15] : [-0.68, 0.68];
+      for (const side of armSides) {
         const armGeo = new THREE.BoxGeometry(0.22, 0.6, 1.05);
         const arm = new THREE.Mesh(armGeo, darkArmMat);
         arm.position.set(side, 0.6, 0);
@@ -404,32 +555,33 @@ class CinemaScene {
         seatGroup.add(cup);
       }
 
-      // Seat Number Label Plate ("A01", "B03"...)
+      // Seat Number Label Plate ("A01", "B03", "C01 💖"...)
       const labelCanvas = document.createElement('canvas');
-      labelCanvas.width = 128;
+      labelCanvas.width = 160;
       labelCanvas.height = 64;
       const lCtx = labelCanvas.getContext('2d');
       lCtx.fillStyle = '#222522';
-      lCtx.fillRect(0, 0, 128, 64);
-      lCtx.strokeStyle = '#f2cf78';
+      lCtx.fillRect(0, 0, 160, 64);
+      lCtx.strokeStyle = isCouple ? '#f43f5e' : '#f2cf78';
       lCtx.lineWidth = 4;
-      lCtx.strokeRect(2, 2, 124, 60);
-      lCtx.font = 'bold 34px "JetBrains Mono", monospace';
-      lCtx.fillStyle = '#f2cf78';
+      lCtx.strokeRect(2, 2, 156, 60);
+
+      lCtx.font = isCouple ? 'bold 28px "JetBrains Mono", monospace' : 'bold 34px "JetBrains Mono", monospace';
+      lCtx.fillStyle = isCouple ? '#fb7185' : '#f2cf78';
       lCtx.textAlign = 'center';
       lCtx.textBaseline = 'middle';
-      lCtx.fillText(coord.label, 64, 34);
+      lCtx.fillText(isCouple ? `${coord.label} 💖` : coord.label, 80, 34);
 
       const labelTex = new THREE.CanvasTexture(labelCanvas);
-      const labelGeo = new THREE.PlaneGeometry(0.38, 0.18);
+      const labelGeo = new THREE.PlaneGeometry(isCouple ? 0.48 : 0.38, 0.18);
       const labelMat = new THREE.MeshBasicMaterial({ map: labelTex });
       const labelMesh = new THREE.Mesh(labelGeo, labelMat);
       labelMesh.position.set(0, 1.48, 0.59);
       seatGroup.add(labelMesh);
 
-      seatGroup.userData = { seatId: coord.id, label: coord.label, coord };
-      cushion.userData = { seatId: coord.id, parentGroup: seatGroup };
-      backrest.userData = { seatId: coord.id, parentGroup: seatGroup };
+      seatGroup.userData = { seatId: coord.id, label: coord.label, coord, isCouple };
+      cushion.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
+      backrest.userData = { seatId: coord.id, parentGroup: seatGroup, isCouple };
 
       this.scene.add(seatGroup);
       this.seatMeshes[coord.id] = seatGroup;
@@ -898,14 +1050,41 @@ class CinemaScene {
   setQuality(quality) {
     this.quality = quality;
     if (this.hasWebGL && this.renderer) {
-      if (quality === 'smooth') {
-        this.renderer.setPixelRatio(1);
+      if (quality === 'low') {
+        this.renderer.setPixelRatio(1.0);
         this.renderer.shadowMap.enabled = false;
-      } else {
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
+      } else if (quality === 'medium') {
+        this.renderer.setPixelRatio(1.25);
         this.renderer.shadowMap.enabled = false;
+      } else { // 'high'
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+        this.renderer.shadowMap.enabled = true;
       }
     }
+  }
+
+  triggerGiftCelebrationLighting(cost = 100) {
+    if (!this.hasWebGL || !this.spotlights) return;
+    const origSpeeds = this.spotlights.map(s => s.userData?.speed || 1);
+    this.spotlights.forEach(s => {
+      if (s.userData) s.userData.speed = 3.5;
+    });
+
+    const origAmbient = this.ambientLight ? this.ambientLight.intensity : 0.46;
+    let flashCount = 0;
+    const flashInterval = setInterval(() => {
+      if (this.ambientLight) {
+        this.ambientLight.intensity = (flashCount % 2 === 0) ? 0.85 : 0.35;
+      }
+      flashCount++;
+      if (flashCount > 10) {
+        clearInterval(flashInterval);
+        if (this.ambientLight) this.ambientLight.intensity = origAmbient;
+        this.spotlights.forEach((s, idx) => {
+          if (s.userData) s.userData.speed = origSpeeds[idx] || 1;
+        });
+      }
+    }, 280);
   }
 
   onPointerDown(e) {
@@ -947,15 +1126,19 @@ class CinemaScene {
     this.lastHoverCheck = now;
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    // Raycast only seat meshes (10 objects) instead of the entire scene tree (hundreds of objects)
-    const targets = this.seatMeshes.filter(Boolean);
+    const targets = [...this.seatMeshes.filter(Boolean), ...(this.exitDoorMeshes || [])];
     const intersects = this.raycaster.intersectObjects(targets, true);
 
     let foundSeat = null;
+    let foundExit = false;
     for (const hit of intersects) {
       let obj = hit.object;
-      while (obj && obj.userData?.seatId === undefined && obj.parent) {
+      while (obj && obj.userData?.seatId === undefined && !obj.userData?.isExitDoor && obj.parent) {
         obj = obj.parent;
+      }
+      if (obj && obj.userData?.isExitDoor) {
+        foundExit = true;
+        break;
       }
       if (obj && obj.userData?.seatId !== undefined) {
         foundSeat = obj.userData.seatId;
@@ -963,22 +1146,34 @@ class CinemaScene {
       }
     }
 
-    if (foundSeat !== this.hoveredSeat) {
-      this.hoveredSeat = foundSeat;
-      this.container.style.cursor = foundSeat !== null ? 'pointer' : (this.isDragging ? 'grabbing' : 'grab');
+    if (foundExit) {
+      this.container.style.cursor = 'pointer';
+      this.container.title = '🚪 Cửa Thoát Hiểm (Bấm để rời phòng về Sảnh Chờ)';
+    } else {
+      if (foundSeat !== this.hoveredSeat) {
+        this.hoveredSeat = foundSeat;
+        this.container.style.cursor = foundSeat !== null ? 'pointer' : (this.isDragging ? 'grabbing' : 'grab');
+        this.container.title = foundSeat !== null ? `Bấm để chọn ghế ${this.seatCoords[foundSeat]?.label || ''}` : '';
+      }
     }
   }
 
   onClick(e) {
     if (!this.hasWebGL || this.isPaused) return;
     this.raycaster.setFromCamera(this.mouse, this.camera);
-    const targets = this.seatMeshes.filter(Boolean);
+    const targets = [...this.seatMeshes.filter(Boolean), ...(this.exitDoorMeshes || [])];
     const intersects = this.raycaster.intersectObjects(targets, true);
 
     for (const hit of intersects) {
       let obj = hit.object;
-      while (obj && obj.userData?.seatId === undefined && obj.parent) {
+      while (obj && obj.userData?.seatId === undefined && !obj.userData?.isExitDoor && obj.parent) {
         obj = obj.parent;
+      }
+      if (obj && obj.userData?.isExitDoor) {
+        if (typeof this.onExitDoorClick === 'function') {
+          this.onExitDoorClick();
+        }
+        break;
       }
       if (obj && obj.userData?.seatId !== undefined) {
         if (typeof this.onSeatClick === 'function') {

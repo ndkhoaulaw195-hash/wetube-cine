@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v23">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v24">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -250,6 +250,9 @@
     </div>
   </div>
 
+  <!-- Spectacular Center-Screen Gift Explosion Overlay -->
+  <div id="cinema-center-gift-overlay" class="center-gift-overlay pointer-events-none"></div>
+
   <!-- Floating Livestream Gift Celebration Banner Overlay -->
   <div id="gift-banner-overlay" class="gift-banner-overlay pointer-events-none"></div>
 
@@ -330,7 +333,7 @@
 
       <div class="hud-occupancy" id="hud-occupancy" title="Số người đang ngồi xem">
         <i data-lucide="users" style="width: 13px; height: 13px;"></i>
-        <span id="occupancy-text">0/10</span>
+        <span id="occupancy-text">0/13</span>
       </div>
     </div>
 
@@ -346,6 +349,41 @@
         <i data-lucide="share-2"></i>
         <span class="hud-btn-label">Mời</span>
       </button>
+
+      <!-- Bộ Chỉnh Chất Lượng Hình Ảnh: Thấp - Trung Bình - Cao -->
+      <div class="quality-control-wrap" id="quality-control-wrap">
+        <button id="btn-quality-selector" class="hud-btn quality-hud-btn" title="Chỉnh chất lượng hình ảnh (Thấp - Trung bình - Cao)">
+          <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
+          <span id="hud-quality-label" style="font-size: 11px; font-weight: 700; color: #f2cf78;">HD</span>
+        </button>
+        <div class="quality-popover hidden" id="quality-popover">
+          <div class="quality-popover-header">🎬 Chất Lượng Hình Ảnh</div>
+          <button class="quality-option-btn active" data-quality="high">
+            <span class="quality-badge high">1080p</span>
+            <div class="quality-desc">
+              <strong>Cao (1080p)</strong>
+              <span>Sắc nét nhất, đồ họa 3D tối đa</span>
+            </div>
+            <i data-lucide="check" class="quality-check-icon"></i>
+          </button>
+          <button class="quality-option-btn" data-quality="medium">
+            <span class="quality-badge medium">720p</span>
+            <div class="quality-desc">
+              <strong>Trung bình (720p)</strong>
+              <span>Mượt mà, ổn định và cân bằng</span>
+            </div>
+            <i data-lucide="check" class="quality-check-icon hidden"></i>
+          </button>
+          <button class="quality-option-btn" data-quality="low">
+            <span class="quality-badge low">360p</span>
+            <div class="quality-desc">
+              <strong>Thấp (360p)</strong>
+              <span>Tiết kiệm dữ liệu & nhẹ máy</span>
+            </div>
+            <i data-lucide="check" class="quality-check-icon hidden"></i>
+          </button>
+        </div>
+      </div>
 
       <!-- Icon Loa Nhỏ Gọn Kèm Thanh Kéo Âm Lượng -->
       <div class="volume-control-wrap" id="volume-control-wrap">
@@ -442,9 +480,9 @@
         <i data-lucide="tv"></i>
         <span>Màn hình</span>
       </button>
-      <button class="cam-btn" data-camera="audience" title="Quay nhìn khán giả">
-        <i data-lucide="users"></i>
-        <span>Khán giả</span>
+      <button class="cam-btn" data-camera="audience" title="Quay nhìn khán đài & hàng ghế (Phím C)">
+        <i data-lucide="armchair"></i>
+        <span>Khán đài</span>
       </button>
     </div>
 
@@ -464,7 +502,7 @@
         <span>Danh sách phát</span>
       </button>
 
-      <!-- TIỆN ÍCH DROPDOWN (Gom Chiếu ảnh, Tặng quà, Tạo bình chọn, Tắt đèn, Đèn tiệc, Tiết kiệm 4G) -->
+      <!-- TIỆN ÍCH DROPDOWN (Gom Chiếu ảnh, Tặng quà, Tạo bình chọn, Tắt đèn, Đèn tiệc) -->
       <div class="utility-dropdown-wrap">
         <button id="btn-toggle-utilities" class="action-btn" title="Menu Tiện ích rạp phim">
           <i data-lucide="layout-dashboard"></i>
@@ -496,10 +534,6 @@
               <i data-lucide="disc"></i>
               <span>Đèn Disco</span>
             </button>
-            <button id="btn-util-clean-hud" class="popover-item-btn" title="Ẩn toàn bộ nút để xem phim không bị che (Phím H)">
-              <i data-lucide="eye-off"></i>
-              <span>Ẩn giao diện</span>
-            </button>
             <button id="btn-util-help" class="popover-item-btn" title="Hướng dẫn sử dụng & quy tắc rạp">
               <i data-lucide="help-circle"></i>
               <span>Hướng dẫn</span>
@@ -508,18 +542,11 @@
         </div>
       </div>
 
-      <!-- Giữ các nút ẩn để backwards compatibility -->
-      <button id="btn-open-photo" class="hidden" style="display:none;"></button>
-      <button id="btn-open-gifts" class="hidden" style="display:none;"></button>
-
-      <!-- Khán Giả Trong Rạp & Tương Tác Kết Nối (Thay thế nút Tài Khoản trong rạp) -->
+      <!-- Khán Giả Trong Rạp & Tương Tác Kết Nối -->
       <button id="btn-room-members" class="action-btn" title="Khán giả trong rạp & Tương tác kết nối">
         <i data-lucide="users"></i>
         <span id="label-room-members-count">Khán giả (1)</span>
       </button>
-
-      <!-- Giữ nút ẩn cho tương thích logic cũ mà không hiển thị trong rạp -->
-      <button id="btn-open-profile" class="hidden" style="display:none;"></button>
 
       <button id="btn-toggle-chat" class="action-btn chat-toggle" title="Mở phòng trò chuyện">
         <i data-lucide="message-square"></i>
@@ -868,17 +895,21 @@
         </div>
 
         <div class="seat-map-grid">
-          <div class="seat-row-label">HÀNG A</div>
+          <div class="seat-row-label">HÀNG A (GHẾ TIÊU CHUẨN)</div>
           <div class="seat-row" id="row-a-seats"></div>
 
-          <div class="seat-row-label">HÀNG B</div>
+          <div class="seat-row-label">HÀNG B (👑 GHẾ VIP NHUNG ĐỎ)</div>
           <div class="seat-row" id="row-b-seats"></div>
+
+          <div class="seat-row-label" style="color: #f43f5e;">HÀNG C (💖 SWEETBOX — 3 GHẾ ĐÔI)</div>
+          <div class="seat-row couple-row" id="row-c-seats"></div>
         </div>
 
         <div class="seat-legend">
           <div class="legend-item"><span class="legend-dot mine"></span> Ghế của bạn</div>
           <div class="legend-item"><span class="legend-dot occupied"></span> Đã có người</div>
           <div class="legend-item"><span class="legend-dot vacant"></span> Còn trống</div>
+          <div class="legend-item"><span class="legend-dot couple" style="background:#f43f5e; box-shadow: 0 0 8px #f43f5e;"></span> Ghế Đôi Sweetbox</div>
         </div>
 
         <div class="modal-footer-action" style="gap: 10px;">
@@ -1495,9 +1526,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v23"></script>
-  <script src="/js/cinema.js?v=20261103_v23"></script>
-  <script src="/js/player.js?v=20261103_v23"></script>
-  <script src="/js/app.js?v=20261103_v23"></script>
+  <script src="/js/avatars.js?v=20261103_v24"></script>
+  <script src="/js/cinema.js?v=20261103_v24"></script>
+  <script src="/js/player.js?v=20261103_v24"></script>
+  <script src="/js/app.js?v=20261103_v24"></script>
 </body>
 </html>

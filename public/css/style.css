@@ -4793,3 +4793,295 @@ body.data-saver-mode .chat-feed.data-saver-chat .chat-sticker-img {
   border-color: #f2cf78;
   transform: scale(1.05);
 }
+
+
+/* ==================== 1. HUD QUALITY SELECTOR ==================== */
+.quality-control-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.quality-hud-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #f3f4f6;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quality-hud-btn:hover {
+  background: rgba(242, 207, 120, 0.15);
+  border-color: rgba(242, 207, 120, 0.5);
+  color: #f2cf78;
+}
+
+.quality-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  background: rgba(18, 19, 23, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(242, 207, 120, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  padding: 8px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quality-popover.hidden {
+  display: none !important;
+}
+
+.quality-popover-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 8px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 4px;
+}
+
+.quality-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.quality-option-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.quality-option-btn.active {
+  background: rgba(242, 207, 120, 0.12);
+  border-color: rgba(242, 207, 120, 0.45);
+}
+
+.quality-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 6px;
+  border-radius: 5px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.quality-badge.high {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
+.quality-badge.medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+}
+
+.quality-badge.low {
+  background: rgba(156, 163, 175, 0.2);
+  color: #d1d5db;
+  border: 1px solid rgba(156, 163, 175, 0.5);
+}
+
+.quality-desc {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.quality-desc strong {
+  font-size: 12px;
+  color: #fff;
+}
+
+.quality-desc span {
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.quality-check-icon {
+  width: 14px;
+  height: 14px;
+  color: #f2cf78;
+  flex-shrink: 0;
+}
+
+/* ==================== 2. CENTER-SCREEN GRAND GIFT EXPLOSION ==================== */
+.center-gift-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1080;
+  pointer-events: none;
+}
+
+.center-gift-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 50px;
+  background: radial-gradient(circle, rgba(22, 22, 28, 0.96) 0%, rgba(10, 10, 14, 0.98) 100%);
+  border: 2px solid rgba(242, 207, 120, 0.85);
+  border-radius: 28px;
+  box-shadow: 0 0 65px rgba(245, 158, 11, 0.8), 0 20px 60px rgba(0, 0, 0, 0.85);
+  animation: centerGiftEntrance 4.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(14px);
+}
+
+@keyframes centerGiftEntrance {
+  0% { opacity: 0; transform: scale(0.2) rotate(-12deg); filter: blur(10px); }
+  12% { opacity: 1; transform: scale(1.15) rotate(2deg); filter: blur(0); }
+  20% { transform: scale(1) rotate(0deg); }
+  82% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 0; transform: scale(0.85) translateY(-30px); filter: blur(6px); }
+}
+
+.center-gift-sunburst {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(245, 158, 11, 0.3) 20deg, transparent 40deg, rgba(245, 158, 11, 0.3) 60deg, transparent 80deg, rgba(245, 158, 11, 0.3) 100deg, transparent 120deg, rgba(245, 158, 11, 0.3) 140deg, transparent 160deg, rgba(245, 158, 11, 0.3) 180deg, transparent 200deg, rgba(245, 158, 11, 0.3) 220deg, transparent 240deg, rgba(245, 158, 11, 0.3) 260deg, transparent 280deg, rgba(245, 158, 11, 0.3) 300deg, transparent 320deg, rgba(245, 158, 11, 0.3) 340deg, transparent 360deg);
+  border-radius: 50%;
+  animation: spinSunburst 12s linear infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+@keyframes spinSunburst {
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.center-gift-icon-wrap {
+  font-size: 105px;
+  line-height: 1;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 0 28px rgba(251, 191, 36, 0.95));
+  animation: centerGiftBounce 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes centerGiftBounce {
+  from { transform: scale(1) translateY(0); }
+  to { transform: scale(1.18) translateY(-10px); }
+}
+
+.center-gift-sender {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.center-gift-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.65);
+  margin-bottom: 8px;
+}
+
+.center-gift-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.22);
+  border: 1px solid rgba(245, 158, 11, 0.65);
+  color: #fef08a;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 5px 16px;
+  border-radius: 999px;
+}
+
+.center-gift-particle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  font-size: 28px;
+  pointer-events: none;
+  z-index: 1085;
+  animation: burstParticle 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes burstParticle {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(1.4) rotate(var(--rot));
+  }
+}
+
+/* ==================== 3. SWEETBOX COUPLE SEATS (HÀNG C) ==================== */
+.seat-row.couple-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+.seat-item.couple-seat {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1.5px solid rgba(244, 63, 94, 0.45);
+  border-radius: 12px;
+  padding: 12px 10px;
+}
+
+.seat-item.couple-seat:hover {
+  background: rgba(244, 63, 94, 0.22);
+  border-color: #f43f5e;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
+  transform: translateY(-2px);
+}
+
+.seat-item.couple-seat.occupied {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.seat-item.couple-seat.mine {
+  background: rgba(244, 63, 94, 0.3);
+  border-color: #f43f5e;
+  box-shadow: 0 0 18px rgba(244, 63, 94, 0.6);
+}
+
+.legend-dot.couple {
+  background: #f43f5e !important;
+  box-shadow: 0 0 8px #f43f5e;
+}

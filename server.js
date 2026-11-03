@@ -942,10 +942,11 @@ async function resolveExternalMedia(input, customTitle = '') {
   return base;
 }
 
-// 10 Seats for VIP Small Group (Row A: 0..4, Row B: 5..9)
+// 13 Seats (Row A: A01..A05 đơn, Row B: B01..B05 VIP đơn, Row C: C01..C03 Ghế Đôi Sweetbox)
 const SEAT_LABELS = [
   'A01', 'A02', 'A03', 'A04', 'A05',
-  'B01', 'B02', 'B03', 'B04', 'B05'
+  'B01', 'B02', 'B03', 'B04', 'B05',
+  'C01', 'C02', 'C03'
 ];
 
 // Virtual Gifts Catalog for Cinema Live
@@ -970,7 +971,7 @@ function createRoomInstance(id, name, createdBy = 'Hệ thống', hostId = null,
     createdAt: Date.now(),
     currentVideo: null,
     queue: [],
-    seats: Array(10).fill(null),
+    seats: Array(13).fill(null),
     stageUser: null,
     screenPost: null,
     partyMode: false,
@@ -1630,14 +1631,14 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
-      // --- Seat Management (10 Seats per room) ---
+      // --- Seat Management (13 Seats: Row A đơn, Row B VIP đơn, Row C Ghế đôi Sweetbox) ---
       case 'pick-seat': {
         if (!room) return;
         const seatId = parseInt(payload.seatId, 10);
-        if (isNaN(seatId) || seatId < 0 || seatId >= 10) return;
+        if (isNaN(seatId) || seatId < 0 || seatId >= SEAT_LABELS.length) return;
 
-        // Đặc quyền VIP: Hàng ghế B (B01 -> B05, seatId >= 5) bọc nhung đỏ sang trọng dành riêng cho VIP/Admin
-        if (seatId >= 5 && !user.isVip && user.role !== 'admin') {
+        // Đặc quyền VIP: Hàng ghế B (B01 -> B05, seatId 5..9) bọc nhung đỏ sang trọng dành riêng cho VIP/Admin
+        if (seatId >= 5 && seatId < 10 && !user.isVip && user.role !== 'admin') {
           send(ws, 'notification', {
             message: `👑 Ghế ${SEAT_LABELS[seatId]} là Ghế VIP Nhung Đỏ (Hàng B). Hãy kích hoạt VIP để ngồi vị trí đẹp nhất rạp!`,
             type: 'error'
