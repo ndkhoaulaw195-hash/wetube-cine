@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v22">
+  <link rel="stylesheet" href="/css/style.css?v=20261103_v23">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -273,6 +273,18 @@
     </div>
   </div>
 
+  <!-- Emergency Room Announcement Banner -->
+  <div id="room-announcement-banner" class="room-announcement-banner hidden">
+    <div class="announcement-content">
+      <span class="announcement-icon">📢</span>
+      <div class="announcement-text-wrap">
+        <strong id="announcement-sender">Chủ phòng</strong>: 
+        <span id="announcement-text">Nội dung thông báo</span>
+      </div>
+      <button id="btn-close-announcement" class="announcement-close" title="Đóng">&times;</button>
+    </div>
+  </div>
+
   <!-- Audio Unmute Overlay (Browser policy) -->
   <div id="audio-blocked-overlay" class="hidden">
     <button id="btn-unmute-audio" class="unmute-banner">
@@ -323,10 +335,10 @@
     </div>
 
     <div class="hud-right">
-      <!-- Admin Button inside room (Visible ONLY to Admin) -->
-      <button id="btn-hud-admin" class="hud-btn admin-hud-btn hidden" title="Mở Trung Tâm Quản Trị Admin">
-        <i data-lucide="shield-check"></i>
-        <span class="hud-btn-label">Admin</span>
+      <!-- Nút Quản Lý Phòng Dành Cho Chủ Phòng & Admin -->
+      <button id="btn-hud-room-manager" class="hud-btn room-manager-btn hidden" title="Bảng Quản Lý Phòng Chiếu (Chỉ Chủ phòng & Admin)">
+        <i data-lucide="shield-check" id="icon-hud-manager"></i>
+        <span class="hud-btn-label" id="label-hud-manager">Quản lý</span>
       </button>
 
       <!-- Sao chép link + pass mời bạn bè -->
@@ -500,10 +512,14 @@
       <button id="btn-open-photo" class="hidden" style="display:none;"></button>
       <button id="btn-open-gifts" class="hidden" style="display:none;"></button>
 
-      <button id="btn-open-profile" class="action-btn" title="Tài khoản & Đổi nhân vật Pixel Chibi">
-        <img id="hud-user-avatar-img" class="pixel-avatar-hud" src="" alt="Avatar" />
-        <span id="user-display-name">Tài khoản</span>
+      <!-- Khán Giả Trong Rạp & Tương Tác Kết Nối (Thay thế nút Tài Khoản trong rạp) -->
+      <button id="btn-room-members" class="action-btn" title="Khán giả trong rạp & Tương tác kết nối">
+        <i data-lucide="users"></i>
+        <span id="label-room-members-count">Khán giả (1)</span>
       </button>
+
+      <!-- Giữ nút ẩn cho tương thích logic cũ mà không hiển thị trong rạp -->
+      <button id="btn-open-profile" class="hidden" style="display:none;"></button>
 
       <button id="btn-toggle-chat" class="action-btn chat-toggle" title="Mở phòng trò chuyện">
         <i data-lucide="message-square"></i>
@@ -1325,13 +1341,163 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: QUẢN LÝ PHÒNG CHIẾU (CHỦ PHÒNG & ADMIN) ==================== -->
+  <div class="modal-backdrop hidden" id="modal-room-manager">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="shield-check" style="color: #f2cf78;"></i>
+          <span>Quản Lý Phòng Chiếu</span>
+          <span id="rm-role-badge" class="badge-host-pill" style="margin-left: 8px; font-size: 11px; background: rgba(242, 207, 120, 0.15); color: #f2cf78; padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(242, 207, 120, 0.4);">👑 Chủ phòng</span>
+        </div>
+        <button class="modal-close" data-close="modal-room-manager"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="room-manager-nav-tabs">
+          <button type="button" class="rm-tab-btn active" data-rm-tab="members">👥 Thành Viên (<span id="rm-user-count">0</span>)</button>
+          <button type="button" class="rm-tab-btn" data-rm-tab="screen">🎬 Màn Chiếu</button>
+          <button type="button" class="rm-tab-btn" data-rm-tab="settings">⚙️ Cài Đặt Phòng</button>
+          <button type="button" class="rm-tab-btn" data-rm-tab="tools">📢 Loa & Chat</button>
+        </div>
+
+        <!-- TAB 1: THÀNH VIÊN TRONG PHÒNG -->
+        <div class="rm-tab-pane" id="rm-pane-members">
+          <div class="rm-members-list" id="rm-members-list">
+            <!-- Dynamic list of in-room members with instant moderation buttons -->
+          </div>
+        </div>
+
+        <!-- TAB 2: MÀN CHIẾU & HÀNG CHỜ -->
+        <div class="rm-tab-pane hidden" id="rm-pane-screen">
+          <div class="rm-section-box">
+            <h4>🎬 Video Đang Chiếu</h4>
+            <div id="rm-current-video-box" class="rm-video-card">
+              <span id="rm-video-title">Chưa phát video</span>
+            </div>
+            <div class="rm-btn-grid" style="display: flex; gap: 10px; margin-top: 12px;">
+              <button id="rm-btn-reset-screen" class="rm-action-btn danger">
+                <i data-lucide="rotate-ccw"></i>
+                <span>Đặt lại màn chiếu (Reset)</span>
+              </button>
+              <button id="rm-btn-clear-queue" class="rm-action-btn warning">
+                <i data-lucide="trash-2"></i>
+                <span>Xóa sạch hàng chờ</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: CÀI ĐẶT PHÒNG -->
+        <div class="rm-tab-pane hidden" id="rm-pane-settings">
+          <form id="rm-form-room-info">
+            <div class="form-group">
+              <label>Tên phòng chiếu</label>
+              <input type="text" id="rm-input-room-name" required maxlength="50" placeholder="Tên phòng..." />
+            </div>
+            <div class="form-group">
+              <label>Mật khẩu phòng (Để trống nếu muốn phòng công khai)</label>
+              <input type="text" id="rm-input-room-password" placeholder="Mật khẩu mới..." />
+              <small style="color: #9ca3af; font-size: 11px;">Mật khẩu hiện tại: <strong id="rm-current-pass-display" style="color:#fbbf24;">(Không có)</strong></small>
+            </div>
+            <button type="submit" class="btn-primary" style="margin-top: 10px;">💾 Lưu Thông Tin Phòng</button>
+          </form>
+        </div>
+
+        <!-- TAB 4: LOA PHÁT THANH & CHAT -->
+        <div class="rm-tab-pane hidden" id="rm-pane-tools">
+          <div class="rm-section-box">
+            <h4>📢 Loa Phát Thanh Rạp Phim</h4>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Ghim thông báo khẩn cấp màu vàng neon chạy trên đỉnh rạp cho toàn bộ người xem.</p>
+            <div class="form-group" style="display: flex; gap: 8px;">
+              <input type="text" id="rm-input-announcement" placeholder="Nhập thông báo gửi toàn rạp..." maxlength="120" style="flex:1;" />
+              <button id="rm-btn-send-announcement" class="btn-primary" style="white-space: nowrap;">
+                <i data-lucide="megaphone"></i>
+                <span>Phát Loa</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="rm-section-box" style="margin-top: 16px;">
+            <h4>💬 Kiểm Duyệt Trò Chuyện</h4>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Dọn sạch tin nhắn rác hoặc spam trong khung chat.</p>
+            <button id="rm-btn-clear-chat" class="rm-action-btn danger">
+              <i data-lucide="trash-2"></i>
+              <span>🧹 Xóa Sạch Toàn Bộ Chat Rạp</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: KHÁN GIẢ & TƯƠNG TÁC RẠP ==================== -->
+  <div class="modal-backdrop hidden" id="modal-room-members">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i data-lucide="users" style="color: #f2cf78;"></i>
+          <span>Khán Giả & Tương Tác Rạp</span>
+        </div>
+        <button class="modal-close" data-close="modal-room-members"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: #9ca3af; margin-bottom: 12px;">Bấm vào thành viên để mời bắp 🍿, nâng ly 🍻, thả tim 💖 hoặc gửi quà ảo!</p>
+        <div class="interactive-users-grid" id="interactive-users-grid">
+          <!-- Render dynamically -->
+        </div>
+
+        <!-- Detail Interaction Card for Selected User -->
+        <div id="user-interaction-detail" class="user-interaction-detail hidden" style="margin-top: 16px; padding: 14px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(242, 207, 120, 0.3); border-radius: 12px;">
+          <div class="uid-header" style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <img id="uid-avatar" style="width: 42px; height: 50px; image-rendering: pixelated;" src="" alt="av" />
+            <div class="uid-info" style="flex: 1;">
+              <div class="uid-name" id="uid-name" style="font-size: 15px; font-weight: 700; color: #fff;">Tên người dùng</div>
+              <div class="uid-seat" id="uid-seat" style="font-size: 12px; color: #fbbf24;">Ghế A01</div>
+            </div>
+          </div>
+
+          <div class="uid-actions-title" style="font-size: 12px; font-weight: 600; color: #9ca3af; margin-bottom: 8px;">✨ Tương tác nhanh:</div>
+          <div class="uid-actions-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+            <button class="uid-action-btn" data-action="popcorn" title="Mời hộp bắp rang bơ">
+              <span style="font-size: 20px; display: block;">🍿</span>
+              <span style="font-size: 11px;">Mời bắp</span>
+            </button>
+            <button class="uid-action-btn" data-action="cheers" title="Nâng ly cùng bạn">
+              <span style="font-size: 20px; display: block;">🍻</span>
+              <span style="font-size: 11px;">Cụng ly</span>
+            </button>
+            <button class="uid-action-btn" data-action="heart" title="Bắn chùm tim yêu thương">
+              <span style="font-size: 20px; display: block;">💖</span>
+              <span style="font-size: 11px;">Bắn tim</span>
+            </button>
+            <button class="uid-action-btn" data-action="clap" title="Đập tay khen ngợi">
+              <span style="font-size: 20px; display: block;">👏</span>
+              <span style="font-size: 11px;">Đập tay</span>
+            </button>
+          </div>
+
+          <!-- Host & Admin Controls on Selected User -->
+          <div id="uid-mod-controls" class="uid-mod-controls hidden" style="margin-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
+            <div class="uid-mod-title" style="font-size: 12px; font-weight: 700; color: #f2cf78; margin-bottom: 8px;">👑 Quyền Quản Lý:</div>
+            <div class="uid-mod-btn-row" style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <button id="uid-btn-kick-seat" class="btn-sm warning" style="font-size: 11px; padding: 4px 8px;">💺 Mời Xuống Ghế</button>
+              <button id="uid-btn-mute-mic" class="btn-sm warning" style="font-size: 11px; padding: 4px 8px;">🔇 Tắt Mic</button>
+              <button id="uid-btn-transfer-host" class="btn-sm primary" style="font-size: 11px; padding: 4px 8px;">👑 Nhượng Host</button>
+              <button id="uid-btn-kick-user" class="btn-sm danger" style="font-size: 11px; padding: 4px 8px;">🚪 Mời Ra Khỏi Rạp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Notification Toast Container -->
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v22"></script>
-  <script src="/js/cinema.js?v=20261103_v22"></script>
-  <script src="/js/player.js?v=20261103_v22"></script>
-  <script src="/js/app.js?v=20261103_v22"></script>
+  <script src="/js/avatars.js?v=20261103_v23"></script>
+  <script src="/js/cinema.js?v=20261103_v23"></script>
+  <script src="/js/player.js?v=20261103_v23"></script>
+  <script src="/js/app.js?v=20261103_v23"></script>
 </body>
 </html>

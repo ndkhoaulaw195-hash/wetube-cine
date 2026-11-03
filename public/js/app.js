@@ -575,6 +575,63 @@ class CinemaApp {
         break;
       }
 
+      case 'room-announcement': {
+        const banner = document.getElementById('room-announcement-banner');
+        const sender = document.getElementById('announcement-sender');
+        const text = document.getElementById('announcement-text');
+        if (banner && text) {
+          if (sender) sender.textContent = payload.senderName || 'Chủ phòng';
+          text.textContent = payload.text || '';
+          banner.classList.remove('hidden');
+          this.playPopSound();
+          setTimeout(() => banner.classList.add('hidden'), 8000);
+        }
+        break;
+      }
+
+      case 'chat-cleared': {
+        const feed = document.getElementById('chat-feed');
+        if (feed) {
+          feed.innerHTML = `<div class="chat-welcome">🧹 Chat đã được dọn sạch bởi Chủ phòng/Admin.</div>`;
+        }
+        break;
+      }
+
+      case 'user-interaction-event': {
+        this.playPopSound();
+        this.showToast(payload.text, 'info');
+        if (this.cinema) {
+          this.cinema.spawnDomFloatingEmoji(payload.emoji, false);
+          if (typeof payload.targetSeatId === 'number' && payload.targetSeatId !== null) {
+            this.cinema.spawnEmojiReaction(payload.emoji, payload.targetSeatId, false);
+          }
+        }
+        break;
+      }
+
+      case 'force-mic-off': {
+        this.toggleVoiceMic(false);
+        break;
+      }
+
+      case 'kicked-from-room': {
+        this.showToast(payload.message || '🚪 Bạn đã bị mời ra khỏi phòng chiếu!', 'warning');
+        this.showLobbyUI();
+        break;
+      }
+
+      case 'room-info-updated': {
+        if (this.room && payload.room) {
+          if (payload.room.name) this.room.roomName = payload.room.name;
+          if (payload.room.createdBy) this.room.hostName = payload.room.createdBy;
+          if (payload.room.hostId) this.room.hostId = payload.room.hostId;
+          const roomBadgeText = document.getElementById('current-room-name');
+          if (roomBadgeText) roomBadgeText.textContent = payload.room.name;
+          this.updateHostAndPermissionsUI();
+        }
+        break;
+      }
+
       case 'screen-post-started': {
         if (this.room) this.room.screenPost = payload.screenPost;
         this.showScreenPostOverlay(payload.screenPost);
@@ -724,6 +781,22 @@ class CinemaApp {
     if (btnStopCurrent) btnStopCurrent.classList.toggle('hidden', !canControl || !this.room?.currentVideo);
     if (btnBarStop) btnBarStop.classList.toggle('hidden', !canControl);
     if (formAddVideo) formAddVideo.classList.toggle('playback-disabled', !canControl);
+
+    // Update Room Manager Button in Top HUD for Host & Admin
+    const rmBtn = document.getElementById('btn-hud-room-manager');
+    if (rmBtn) {
+      rmBtn.classList.toggle('hidden', !canControl);
+      const rmLabel = document.getElementById('label-hud-manager');
+      const rmIcon = document.getElementById('icon-hud-manager');
+      if (this.you && this.you.role === 'admin') {
+        if (rmLabel) rmLabel.textContent = 'Admin';
+        if (rmIcon) rmIcon.setAttribute('data-lucide', 'shield-check');
+      } else {
+        if (rmLabel) rmLabel.textContent = 'Chủ phòng';
+        if (rmIcon) rmIcon.setAttribute('data-lucide', 'crown');
+      }
+      this.refreshIcons();
+    }
   }
 
   // --- Pixel Art Avatar Grids ---
@@ -1648,7 +1721,7 @@ class CinemaApp {
     document.getElementById('btn-lobby-open-profile')?.addEventListener('click', () => this.openAuthModal());
     document.getElementById('btn-help')?.addEventListener('click', () => this.openModal('modal-help'));
 
-    // 13. Admin Control Panel Modal (Strictly Admin Only)
+    // 13. Admin Control Panel Modal (Strictly Admin Only in Lobby)
     const openAdminPanel = () => {
       if (!this.you || this.you.role !== 'admin') {
         this.showToast('🚫 Chỉ Quản trị viên (Admin) mới có quyền mở bảng này!', 'error');
@@ -1658,7 +1731,75 @@ class CinemaApp {
       this.openModal('modal-admin');
     };
     document.getElementById('btn-lobby-admin')?.addEventListener('click', openAdminPanel);
-    document.getElementById('btn-hud-admin')?.addEventListener('click', openAdminPanel);
+
+    // In-Room Management Panel (Chỉ Chủ phòng & Admin trong rạp)
+    document.getElementById('btn-hud-room-manager')?.addEventListener('click', () => {
+      if (!this.canControlRoom()) {
+        this.showToast('🚫 Chỉ Chủ phòng hoặc Admin mới có quyền quản lý phòng!', 'error');
+        return;
+      }
+      this.openRoomManagerModal();
+    });
+
+    // In-Room Audience & Interaction Modal (Dành cho MỌI NGƯỜI trong rạp)
+    document.getElementById('btn-room-members')?.addEventListener('click', () => {
+      this.openRoomMembersModal();
+    });
+
+    // Announcement Close Button
+    document.getElementById('btn-close-announcement')?.addEventListener('click', () => {
+      document.getElementById('room-announcement-banner')?.classList.add('hidden');
+    });
+
+    // Room Manager Navigation Tabs
+    document.querySelectorAll('[data-rm-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-rm-tab]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.getAttribute('data-rm-tab');
+        ['members', 'screen', 'settings', 'tools'].forEach((pane) => {
+          document.getElementById(`rm-pane-${pane}`)?.classList.toggle('hidden', pane !== tab);
+        });
+      });
+    });
+
+    // Room Manager Screen & Queue Controls
+    document.getElementById('rm-btn-reset-screen')?.addEventListener('click', () => {
+      this.send('host-reset-screen');
+    });
+    document.getElementById('rm-btn-clear-queue')?.addEventListener('click', () => {
+      this.send('host-clear-queue');
+    });
+
+    // Room Manager Room Info Form
+    document.getElementById('rm-form-room-info')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('rm-input-room-name')?.value.trim();
+      const password = document.getElementById('rm-input-room-password')?.value.trim();
+      this.send('host-update-room', { name, password });
+      this.closeModal('modal-room-manager');
+    });
+
+    // Room Manager Announcement
+    document.getElementById('rm-btn-send-announcement')?.addEventListener('click', () => {
+      const input = document.getElementById('rm-input-announcement');
+      const text = input ? input.value.trim() : '';
+      if (!text) {
+        this.showToast('Vui lòng nhập nội dung thông báo!', 'warning');
+        return;
+      }
+      this.send('host-broadcast-announcement', { text });
+      if (input) input.value = '';
+      this.closeModal('modal-room-manager');
+    });
+
+    // Room Manager Clear Chat
+    document.getElementById('rm-btn-clear-chat')?.addEventListener('click', () => {
+      if (confirm('Bạn có chắc muốn xóa sạch toàn bộ tin nhắn chat trong rạp?')) {
+        this.send('host-clear-chat');
+        this.closeModal('modal-room-manager');
+      }
+    });
 
     document.querySelectorAll('[data-admin-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2264,6 +2405,203 @@ class CinemaApp {
     const seatedCount = this.room.seats.filter(s => s !== null).length;
     const occText = document.getElementById('occupancy-text');
     if (occText) occText.textContent = `${seatedCount}/10 ghế`;
+
+    const totalMembers = (this.room.realUsers ? this.room.realUsers.length : 0) || (seatedCount || 1);
+    const memLabel = document.getElementById('label-room-members-count');
+    if (memLabel) memLabel.textContent = `Khán giả (${totalMembers})`;
+  }
+
+  openRoomManagerModal() {
+    if (!this.room || !this.canControlRoom()) return;
+
+    const countEl = document.getElementById('rm-user-count');
+    const listEl = document.getElementById('rm-members-list');
+    const badgeEl = document.getElementById('rm-role-badge');
+    if (badgeEl) {
+      badgeEl.textContent = this.you?.role === 'admin' ? '🛡️ Admin Hệ Thống' : '👑 Chủ Phòng';
+    }
+
+    const nameInput = document.getElementById('rm-input-room-name');
+    if (nameInput) nameInput.value = this.room.roomName || this.room.name || '';
+    const curPassEl = document.getElementById('rm-current-pass-display');
+    if (curPassEl) curPassEl.textContent = this.room.roomPassword ? `Pass: ${this.room.roomPassword}` : '(Không có mật khẩu)';
+
+    const curVideoTitle = document.getElementById('rm-video-title');
+    if (curVideoTitle) {
+      curVideoTitle.textContent = this.room.currentVideo ? `🎬 ${this.room.currentVideo.title}` : 'Chưa phát video nào';
+    }
+
+    const members = (this.room.realUsers || []).filter(u => u.id !== this.you.id);
+    if (countEl) countEl.textContent = (this.room.realUsers || []).length;
+
+    if (listEl) {
+      if (members.length === 0) {
+        listEl.innerHTML = `<div style="text-align:center; color:#9ca3af; padding: 20px;">Hiện tại chỉ có một mình bạn trong phòng chiếu.</div>`;
+      } else {
+        listEl.innerHTML = members.map((u) => {
+          const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(u.avatarId, 2) : '';
+          const seatLabel = u.seatId !== null && this.room.seatLabels ? this.room.seatLabels[u.seatId] : (u.seatId !== null ? `Ghế #${u.seatId + 1}` : 'Khán giả tự do');
+          return `
+            <div class="rm-member-row" data-user-id="${u.id}">
+              <div class="rm-member-info">
+                ${avUrl ? `<img src="${avUrl}" style="width:28px; height:34px; image-rendering:pixelated;" alt="av" />` : ''}
+                <div>
+                  <div class="rm-member-name">${this.escapeHTML(u.name)} ${u.isVip ? '💎' : ''}</div>
+                  <div class="rm-member-meta">${seatLabel} · ${u.micOn ? '🎙️ Mic Bật' : '🔇 Mic Tắt'}</div>
+                </div>
+              </div>
+              <div class="rm-member-actions">
+                ${u.seatId !== null ? `<button class="rm-btn-sm warning" data-action="kick-seat" data-seat-id="${u.seatId}">Mời rời ghế</button>` : ''}
+                ${u.micOn ? `<button class="rm-btn-sm warning" data-action="mute-mic" data-target-id="${u.id}">Tắt mic</button>` : ''}
+                <button class="rm-btn-sm primary" data-action="transfer-host" data-target-id="${u.id}">Nhượng Host</button>
+                <button class="rm-btn-sm danger" data-action="kick-user" data-target-id="${u.id}">Kick</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        listEl.querySelectorAll('[data-action]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const act = btn.getAttribute('data-action');
+            if (act === 'kick-seat') {
+              const seatId = btn.getAttribute('data-seat-id');
+              this.send('host-kick-seat', { seatId });
+            } else if (act === 'mute-mic') {
+              const targetUserId = btn.getAttribute('data-target-id');
+              this.send('host-force-mute', { targetUserId });
+            } else if (act === 'transfer-host') {
+              const targetUserId = btn.getAttribute('data-target-id');
+              if (confirm('Bạn có chắc muốn nhượng quyền Chủ phòng cho thành viên này?')) {
+                this.send('host-transfer', { targetUserId });
+                this.closeModal('modal-room-manager');
+              }
+            } else if (act === 'kick-user') {
+              const targetUserId = btn.getAttribute('data-target-id');
+              if (confirm('Mời người xem này ra khỏi phòng chiếu?')) {
+                this.send('host-kick-user', { targetUserId });
+                btn.closest('.rm-member-row')?.remove();
+              }
+            }
+          });
+        });
+      }
+    }
+
+    this.openModal('modal-room-manager');
+  }
+
+  openRoomMembersModal(targetUserId = null) {
+    if (!this.room) return;
+    const grid = document.getElementById('interactive-users-grid');
+    const detail = document.getElementById('user-interaction-detail');
+    if (!grid) return;
+
+    const allUsers = this.room.realUsers || [];
+    grid.innerHTML = allUsers.map((u) => {
+      const isMe = this.you && u.id === this.you.id;
+      const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(u.avatarId, 2) : '';
+      const seatLabel = u.seatId !== null && this.room.seatLabels ? this.room.seatLabels[u.seatId] : (u.seatId !== null ? `Ghế #${u.seatId + 1}` : 'Khán giả');
+      return `
+        <div class="interactive-user-card ${targetUserId === u.id ? 'selected' : ''}" data-uid="${u.id}">
+          ${avUrl ? `<img src="${avUrl}" style="width:32px; height:38px; image-rendering:pixelated;" alt="av" />` : ''}
+          <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px; text-align:center;">${this.escapeHTML(u.name)}${isMe ? ' (Bạn)' : ''}</div>
+          <small style="font-size:10px; color:${u.isVip ? '#fbbf24' : '#9ca3af'};">${u.isVip ? '👑 VIP · ' : ''}${seatLabel}</small>
+        </div>
+      `;
+    }).join('');
+
+    const selectUser = (userId) => {
+      const u = allUsers.find(x => x.id === userId);
+      if (!u || (this.you && u.id === this.you.id)) {
+        detail?.classList.add('hidden');
+        return;
+      }
+      grid.querySelectorAll('.interactive-user-card').forEach(c => {
+        c.classList.toggle('selected', c.getAttribute('data-uid') === userId);
+      });
+      detail?.classList.remove('hidden');
+
+      const avUrl = window.PixelAvatars ? window.PixelAvatars.getDataUrl(u.avatarId, 3) : '';
+      const avImg = document.getElementById('uid-avatar');
+      if (avImg && avUrl) avImg.src = avUrl;
+      const nameEl = document.getElementById('uid-name');
+      if (nameEl) nameEl.textContent = u.name;
+      const seatEl = document.getElementById('uid-seat');
+      if (seatEl) {
+        const s = u.seatId !== null && this.room.seatLabels ? this.room.seatLabels[u.seatId] : (u.seatId !== null ? `Ghế #${u.seatId + 1}` : 'Khán giả tự do');
+        seatEl.textContent = `${s} · ${u.tier || (u.isVip ? '👑 VIP' : 'Thành viên')}`;
+      }
+
+      // Action buttons: popcorn, cheers, heart, clap
+      detail.querySelectorAll('.uid-action-btn').forEach((btn) => {
+        btn.onclick = () => {
+          const action = btn.getAttribute('data-action');
+          this.send('user-interaction', { targetUserId: u.id, action });
+          this.showToast(`✨ Đã gửi tương tác tới ${u.name}!`, 'success');
+        };
+      });
+
+      // Mod controls (for Host & Admin)
+      const modControls = document.getElementById('uid-mod-controls');
+      const canManage = this.canControlRoom();
+      if (modControls) {
+        modControls.classList.toggle('hidden', !canManage);
+        if (canManage) {
+          const btnKickSeat = document.getElementById('uid-btn-kick-seat');
+          if (btnKickSeat) {
+            btnKickSeat.classList.toggle('hidden', u.seatId === null);
+            btnKickSeat.onclick = () => {
+              this.send('host-kick-seat', { seatId: u.seatId });
+              this.closeModal('modal-room-members');
+            };
+          }
+          const btnMute = document.getElementById('uid-btn-mute-mic');
+          if (btnMute) {
+            btnMute.classList.toggle('hidden', !u.micOn);
+            btnMute.onclick = () => {
+              this.send('host-force-mute', { targetUserId: u.id });
+              this.closeModal('modal-room-members');
+            };
+          }
+          const btnHost = document.getElementById('uid-btn-transfer-host');
+          if (btnHost) {
+            btnHost.onclick = () => {
+              if (confirm(`Chuyển giao quyền Chủ phòng cho ${u.name}?`)) {
+                this.send('host-transfer', { targetUserId: u.id });
+                this.closeModal('modal-room-members');
+              }
+            };
+          }
+          const btnKickUser = document.getElementById('uid-btn-kick-user');
+          if (btnKickUser) {
+            btnKickUser.onclick = () => {
+              if (confirm(`Mời ${u.name} ra khỏi rạp chiếu?`)) {
+                this.send('host-kick-user', { targetUserId: u.id });
+                this.closeModal('modal-room-members');
+              }
+            };
+          }
+        }
+      }
+    };
+
+    grid.querySelectorAll('.interactive-user-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const uid = card.getAttribute('data-uid');
+        selectUser(uid);
+      });
+    });
+
+    if (targetUserId) {
+      selectUser(targetUserId);
+    } else if (allUsers.length > 1) {
+      const other = allUsers.find(x => this.you && x.id !== this.you.id);
+      if (other) selectUser(other.id);
+    } else {
+      detail?.classList.add('hidden');
+    }
+
+    this.openModal('modal-room-members');
   }
 
   updateStageButtonUI() {
@@ -2326,7 +2664,11 @@ class CinemaApp {
           this.handleSeatSelection(index);
         });
       } else {
-        btn.disabled = true;
+        btn.addEventListener('click', () => {
+          this.closeModal('modal-seats');
+          this.openRoomMembersModal(occupant.userId);
+        });
+        btn.title = `Bấm để tương tác với ${occupant.name}`;
       }
 
       if (index < 5) rowA.appendChild(btn);

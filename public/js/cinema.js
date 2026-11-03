@@ -791,6 +791,24 @@ class CinemaScene {
     }
   }
 
+  getScreenCameraPosition() {
+    const width = this.container ? (this.container.clientWidth || window.innerWidth) : window.innerWidth;
+    const height = this.container ? (this.container.clientHeight || window.innerHeight) : window.innerHeight;
+    const aspect = width / (height || 1);
+
+    // Thu nhỏ lại một tí theo yêu cầu người dùng để màn chiếu không bao giờ bị cắt viền (cut off)
+    // Tỷ lệ chiếm khung hình chuẩn: ~87% (vừa vặn, full màn hình thoáng đãng, thấy trọn 100% 4 góc)
+    const safeFill = 0.87;
+    const fovRad = THREE.MathUtils.degToRad((this.camera ? this.camera.fov : 54) / 2);
+    const fovTan = Math.tan(fovRad);
+    const screenWidth = 13.6;
+    const screenHeight = 7.65;
+    const dHeight = (screenHeight / safeFill) / (2 * fovTan);
+    const dWidth = (screenWidth / safeFill) / (2 * fovTan * Math.max(0.55, aspect));
+    const dist = Math.max(dHeight, dWidth);
+    return new THREE.Vector3(0, 5.65, -9.6 + dist);
+  }
+
   setCameraMode(mode, seatId = null) {
     if (this.cameraMode === mode) return;
     const prevMode = this.cameraMode;
@@ -804,14 +822,14 @@ class CinemaScene {
     let targetPos, targetLook;
     switch (mode) {
       case 'overview':
-        targetPos = new THREE.Vector3(0, 6.2, 9.5);
+        targetPos = new THREE.Vector3(0, 6.2, 9.8);
         targetLook = new THREE.Vector3(0, 4.0, -6.0);
         break;
 
       case 'screen':
-        // Chế độ Màn hình: Camera tiến sát đến z = -2.1, trực diện tâm màn chiếu (y = 5.65)
-        // Màn chiếu 16:9 mở rộng tràn 100% full viền toàn màn hình, không còn bị nhỏ hay góc chéo.
-        targetPos = new THREE.Vector3(0, 5.65, -2.1);
+        // Chế độ Màn hình: Tự động tính khoảng cách lùi camera theo tỷ lệ màn hình thực tế (Aspect Ratio)
+        // Đảm bảo toàn bộ khung hình 16:9 lọt trọn vẹn 100% trong tầm nhìn, không bị cắt viền (cut off) ở bất kỳ màn hình nào
+        targetPos = this.getScreenCameraPosition();
         targetLook = new THREE.Vector3(0, 5.65, -9.6);
         break;
 

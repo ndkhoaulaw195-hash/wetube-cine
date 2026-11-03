@@ -2353,6 +2353,279 @@ wss.on('connection', (ws, req) => {
         break;
       }
 
+      // --- Peer-to-Peer In-Room Interactions (Popcorn, Cheers, Heart, Clap) ---
+      case 'user-interaction': {
+        if (!room) return;
+        const targetUserId = payload.targetUserId;
+        const action = payload.action;
+        let targetEntry = null;
+        for (const [tWs, tUser] of room.users.entries()) {
+          if (tUser.id === targetUserId) {
+            targetEntry = { ws: tWs, user: tUser };
+            break;
+          }
+        }
+        if (!targetEntry) {
+          send(ws, 'notification', { message: 'Người này không còn trong rạp!', type: 'error' });
+          return;
+        }
+
+        let actionText = '';
+        let emoji = '✨';
+        if (action === 'popcorn') {
+          emoji = '🍿';
+          actionText = `🍿 ${user.name} vừa mời ${targetEntry.user.name} một hộp bắp rang bơ!`;
+        } else if (action === 'cheers') {
+          emoji = '🍻';
+          actionText = `🍻 ${user.name} vừa cụng ly với ${targetEntry.user.name}: "Chúc bạn xem phim vui vẻ!"`;
+        } else if (action === 'heart') {
+          emoji = '💖';
+          actionText = `💖 ${user.name} vừa thả tim lấp lánh cho ${targetEntry.user.name}!`;
+        } else if (action === 'clap') {
+          emoji = '👏';
+          actionText = `👏 ${user.name} vừa đập tay cổ vũ ${targetEntry.user.name}!`;
+        }
+
+        broadcastToRoom(room, 'user-interaction-event', {
+          senderId: user.id,
+          senderName: user.name,
+          senderSeatId: user.seatId,
+          targetUserId: targetEntry.user.id,
+          targetUserName: targetEntry.user.name,
+          targetSeatId: targetEntry.user.seatId,
+          action,
+          emoji,
+          text: actionText
+        });
+
+        broadcastToRoom(room, 'chat-message', {
+          id: 'msg_interact_' + Date.now(),
+          userId: 'system',
+          name: 'Tương Tác Rạp',
+          color: '#fbbf24',
+          role: 'system',
+          text: actionText,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        });
+        break;
+      }
+
+      // --- In-Room Host & Admin Moderation Suite ---
+      case 'host-kick-seat': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Bạn không có quyền quản lý ghế trong phòng này!', type: 'error' });
+          return;
+        }
+        const seatId = parseInt(payload.seatId, 10);
+        if (isNaN(seatId) || !room.seats[seatId]) return;
+        const targetOccupant = room.seats[seatId];
+        for (const [tWs, tUser] of room.users.entries()) {
+          if (tUser.id === targetOccupant.userId) {
+            tUser.seatId = null;
+            send(tWs, 'notification', { message: `💺 Chủ phòng / Admin đã mời bạn xuống khỏi ghế ${SEAT_LABELS[seatId]}.`, type: 'info' });
+            break;
+          }
+        }
+        room.seats[seatId] = null;
+        broadcastToRoom(room, 'seat-state', { seats: room.seats, movedUser: targetOccupant });
+        broadcastRoomsListToAll();
+        broadcastToRoom(room, 'chat-message', {
+          id: 'msg_mod_' + Date.now(),
+          userId: 'system',
+          name: 'Hệ Thống Rạp',
+          color: '#f59e0b',
+          role: 'system',
+          text: `💺 ${targetOccupant.name} đã được mời xuống khỏi ghế ${SEAT_LABELS[seatId]}.`,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        });
+        break;
+      }
+
+      case 'host-force-mute': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Bạn không có quyền điều khiển micro người khác!', type: 'error' });
+          return;
+        }
+        const targetUserId = payload.targetUserId;
+        for (const [tWs, tUser] of room.users.entries()) {
+          if (tUser.id === targetUserId) {
+            tUser.micOn = false;
+            if (tUser.seatId !== null && room.seats[tUser.seatId]) {
+              room.seats[tUser.seatId].micOn = false;
+            }
+            broadcastToRoom(room, 'voice-state-changed', {
+              userId: tUser.id,
+              micOn: false,
+              seatId: tUser.seatId,
+              isOnStage: false
+            });
+            send(tWs, 'force-mic-off', {});
+            send(tWs, 'notification', { message: '🔇 Micro của bạn đã bị Chủ phòng / Admin tắt!', type: 'warning' });
+            break;
+          }
+        }
+        break;
+      }
+
+      case 'host-kick-user': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Bạn không có quyền mời người xem ra khỏi phòng!', type: 'error' });
+          return;
+        }
+        const targetUserId = payload.targetUserId;
+        if (targetUserId === user.id) return;
+        let targetWsToKick = null;
+        let kickedName = '';
+        for (const [tWs, tUser] of room.users.entries()) {
+          if (tUser.id === targetUserId) {
+            targetWsToKick = tWs;
+            kickedName = tUser.name;
+            break;
+          }
+        }
+        if (targetWsToKick) {
+          send(targetWsToKick, 'notification', { message: '🚪 Bạn đã được Chủ phòng / Admin mời ra khỏi phòng chiếu!', type: 'warning' });
+          joinLobby(targetWsToKick);
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_mod_' + Date.now(),
+            userId: 'system',
+            name: 'Hệ Thống Rạp',
+            color: '#ef4444',
+            role: 'system',
+            text: `🚪 ${kickedName} đã được mời ra khỏi rạp chiếu.`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+        }
+        break;
+      }
+
+      case 'host-transfer': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng mới có quyền chuyển nhượng!', type: 'error' });
+          return;
+        }
+        const targetUserId = payload.targetUserId;
+        let targetUserName = '';
+        for (const [, tUser] of room.users.entries()) {
+          if (tUser.id === targetUserId) {
+            targetUserName = tUser.name;
+            room.hostId = tUser.id;
+            room.hostUsername = tUser.username || tUser.name;
+            room.createdBy = tUser.name;
+            break;
+          }
+        }
+        if (targetUserName) {
+          broadcastToRoom(room, 'room-info-updated', {
+            room: {
+              id: room.id,
+              name: room.name,
+              createdBy: room.createdBy,
+              hostId: room.hostId,
+              hostUsername: room.hostUsername
+            }
+          });
+          broadcastRoomsListToAll();
+          broadcastToRoom(room, 'chat-message', {
+            id: 'msg_host_' + Date.now(),
+            userId: 'system',
+            name: 'Hệ Thống Rạp',
+            color: '#fbbf24',
+            role: 'system',
+            text: `👑 ${user.name} đã nhượng quyền CHỦ PHÒNG cho ${targetUserName}!`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+          });
+          send(ws, 'notification', { message: `✅ Đã chuyển quyền Chủ phòng thành công cho ${targetUserName}!`, type: 'success' });
+        }
+        break;
+      }
+
+      case 'host-update-room': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Bạn không có quyền chỉnh sửa phòng!', type: 'error' });
+          return;
+        }
+        if (payload.name && payload.name.trim()) {
+          room.name = payload.name.trim().substring(0, 50);
+        }
+        if (typeof payload.password !== 'undefined') {
+          room.password = String(payload.password || '').trim();
+        }
+        broadcastToRoom(room, 'room-info-updated', {
+          room: {
+            id: room.id,
+            name: room.name,
+            hasPassword: !!room.password,
+            createdBy: room.createdBy,
+            hostId: room.hostId
+          }
+        });
+        broadcastRoomsListToAll();
+        send(ws, 'notification', { message: '✅ Đã lưu thông tin phòng thành công!', type: 'success' });
+        break;
+      }
+
+      case 'host-clear-queue': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) return;
+        room.queue = [];
+        broadcastToRoom(room, 'queue-updated', { queue: room.queue });
+        send(ws, 'notification', { message: '🗑️ Đã xóa sạch danh sách hàng chờ phát video!', type: 'success' });
+        break;
+      }
+
+      case 'host-reset-screen': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) return;
+        room.currentVideo = null;
+        room.playback = { isPlaying: false, currentTime: 0, lastSyncTime: Date.now() };
+        broadcastToRoom(room, 'video-changed', {
+          video: null,
+          queue: room.queue,
+          playback: room.playback
+        });
+        broadcastRoomsListToAll();
+        send(ws, 'notification', { message: '⏹ Đã đặt lại màn chiếu về trạng thái chờ mặc định!', type: 'success' });
+        break;
+      }
+
+      case 'host-broadcast-announcement': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) return;
+        const announcementText = String(payload.text || '').trim();
+        if (!announcementText) return;
+        broadcastToRoom(room, 'room-announcement', {
+          text: announcementText,
+          senderName: user.name,
+          role: user.role,
+          time: Date.now()
+        });
+        broadcastToRoom(room, 'chat-message', {
+          id: 'msg_ann_' + Date.now(),
+          userId: 'system',
+          name: '📢 LOA THÔNG BÁO RẠP',
+          color: '#ef4444',
+          role: 'system',
+          text: `📢 THÔNG BÁO TỪ ${user.name}: "${announcementText}"`,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        });
+        break;
+      }
+
+      case 'host-clear-chat': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) return;
+        room.messages = [];
+        broadcastToRoom(room, 'chat-cleared', {});
+        broadcastToRoom(room, 'notification', { message: '🧹 Toàn bộ tin nhắn chat trong rạp đã được dọn sạch!', type: 'info' });
+        break;
+      }
+
       // --- Screen Photo Projection (HOST & ADMIN ONLY) ---
       case 'screen-post': {
         if (!room) return;
