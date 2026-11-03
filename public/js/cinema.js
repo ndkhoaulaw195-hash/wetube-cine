@@ -32,9 +32,9 @@ class CinemaScene {
 
     // Camera state & targets for smooth interpolation (lerp)
     this.cameraMode = 'overview'; // 'overview' | 'seat' | 'screen' | 'audience'
-    this.camTargetPos = new THREE.Vector3(0, 6.3, 9.8);
-    this.camTargetLook = new THREE.Vector3(0, 3.8, -5.8);
-    this.camCurrentLook = new THREE.Vector3(0, 3.8, -5.8);
+    this.camTargetPos = new THREE.Vector3(0, 7.6, 9.8);
+    this.camTargetLook = new THREE.Vector3(0, 4.2, -4.5);
+    this.camCurrentLook = new THREE.Vector3(0, 4.2, -4.5);
     this.isDollyActive = false;
 
     // Mouse drag orbit offsets
@@ -45,24 +45,24 @@ class CinemaScene {
     this.isDragging = false;
     this.lastMousePos = { x: 0, y: 0 };
 
-    // 13 Seats Coordinates:
-    // Row A: 5 front standard seats (y = 0.35, z = -2.2)
-    // Row B: 5 middle VIP red velvet seats on elevated step (y = 1.0, z = 1.1)
-    // Row C: 3 back Sweetbox couple seats (y = 1.0, z = 4.8)
+    // 13 Seats Coordinates across 3 Terraced Stadium Tiers:
+    // Tier 1 (Hàng A): 5 front standard seats (floor y = 0.2, seats y = 0.25, z = -3.5)
+    // Tier 2 (Hàng B): 5 middle VIP red velvet seats (+0.7m step, floor y = 0.9, seats y = 0.95, z = 0.0)
+    // Tier 3 (Hàng C): 3 back Sweetbox couple sofas (+0.7m step, floor y = 1.6, seats y = 1.65, z = 3.6)
     this.seatCoords = [
-      { id: 0, label: 'A01', x: -4.8, y: 0.35, z: -2.2 },
-      { id: 1, label: 'A02', x: -2.4, y: 0.35, z: -2.2 },
-      { id: 2, label: 'A03', x: 0.0,  y: 0.35, z: -2.2 },
-      { id: 3, label: 'A04', x: 2.4,  y: 0.35, z: -2.2 },
-      { id: 4, label: 'A05', x: 4.8,  y: 0.35, z: -2.2 },
-      { id: 5, label: 'B01', x: -4.8, y: 1.0,  z: 1.1 },
-      { id: 6, label: 'B02', x: -2.4, y: 1.0,  z: 1.1 },
-      { id: 7, label: 'B03', x: 0.0,  y: 1.0,  z: 1.1 },
-      { id: 8, label: 'B04', x: 2.4,  y: 1.0,  z: 1.1 },
-      { id: 9, label: 'B05', x: 4.8,  y: 1.0,  z: 1.1 },
-      { id: 10, label: 'C01', x: -4.5, y: 1.0, z: 4.8, isCouple: true },
-      { id: 11, label: 'C02', x: 0.0,  y: 1.0, z: 4.8, isCouple: true },
-      { id: 12, label: 'C03', x: 4.5,  y: 1.0, z: 4.8, isCouple: true }
+      { id: 0, label: 'A01', x: -4.8, y: 0.25, z: -3.5 },
+      { id: 1, label: 'A02', x: -2.4, y: 0.25, z: -3.5 },
+      { id: 2, label: 'A03', x: 0.0,  y: 0.25, z: -3.5 },
+      { id: 3, label: 'A04', x: 2.4,  y: 0.25, z: -3.5 },
+      { id: 4, label: 'A05', x: 4.8,  y: 0.25, z: -3.5 },
+      { id: 5, label: 'B01', x: -4.8, y: 0.95, z: 0.0 },
+      { id: 6, label: 'B02', x: -2.4, y: 0.95, z: 0.0 },
+      { id: 7, label: 'B03', x: 0.0,  y: 0.95, z: 0.0 },
+      { id: 8, label: 'B04', x: 2.4,  y: 0.95, z: 0.0 },
+      { id: 9, label: 'B05', x: 4.8,  y: 0.95, z: 0.0 },
+      { id: 10, label: 'C01', x: -4.5, y: 1.65, z: 3.6, isCouple: true },
+      { id: 11, label: 'C02', x: 0.0,  y: 1.65, z: 3.6, isCouple: true },
+      { id: 12, label: 'C03', x: 4.5,  y: 1.65, z: 3.6, isCouple: true }
     ];
 
     // Meshes references
@@ -95,8 +95,8 @@ class CinemaScene {
     // 1. WebGL Scene & Camera
     this.scene = new THREE.Scene();
 
-    this.camera = new THREE.PerspectiveCamera(54, width / height, 0.1, 100);
-    this.camera.position.set(0, 6.3, 9.8);
+    this.camera = new THREE.PerspectiveCamera(56, width / height, 0.1, 100);
+    this.camera.position.set(0, 7.6, 9.8);
     this.camera.lookAt(this.camCurrentLook);
 
     // 2. Optimized Ultra-Smooth WebGL Renderer
@@ -205,27 +205,54 @@ class CinemaScene {
       emissiveIntensity: 0.22
     });
 
-    // 1. Tiered Cinema Floor
-    // Front level: y = 0
-    const frontFloorGeo = new THREE.BoxGeometry(hallWidth, 0.4, 10);
-    const frontFloor = new THREE.Mesh(frontFloorGeo, this.floorMat);
-    frontFloor.position.set(0, -0.2, -3.5);
-    frontFloor.receiveShadow = true;
-    this.scene.add(frontFloor);
+    // 1. Tiered Cinema Floor (Bậc thang rạp chiếu phim 3 tầng thật - Chuẩn Stadium Seating)
+    this.stepStripMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b }); // Glowing amber-gold step safety LED
+    const stepFaceMat = new THREE.MeshStandardMaterial({ color: 0x181a18, roughness: 0.8, metalness: 0.2 });
 
-    // Back Tier (Elevated step for Row B): y = 0.65
-    const backFloorGeo = new THREE.BoxGeometry(hallWidth, 1.0, 12);
-    const backFloor = new THREE.Mesh(backFloorGeo, this.floorMat);
-    backFloor.position.set(0, 0.1, 6.2);
-    backFloor.receiveShadow = true;
-    this.scene.add(backFloor);
+    // TIER 1: Hàng A (Phía trước, sàn cao độ y = 0.2)
+    const tier1Geo = new THREE.BoxGeometry(hallWidth, 0.4, 3.8);
+    const tier1 = new THREE.Mesh(tier1Geo, this.floorMat);
+    tier1.position.set(0, 0.0, -3.7);
+    tier1.receiveShadow = true;
+    this.scene.add(tier1);
 
-    // Glowing step strip
-    const stepStripGeo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
-    this.stepStripMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
-    const stepStrip = new THREE.Mesh(stepStripGeo, this.stepStripMat);
-    stepStrip.position.set(0, 0.62, 0.22);
-    this.scene.add(stepStrip);
+    // BẬC THANG 1 (Riser 1: Bước từ Hàng A lên Hàng B cao thêm +0.7m):
+    const riser1FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
+    const riser1Face = new THREE.Mesh(riser1FaceGeo, stepFaceMat);
+    riser1Face.position.set(0, 0.55, -1.8);
+    this.scene.add(riser1Face);
+
+    // Dải đèn LED vàng hắt chân bậc thang 1
+    const strip1Geo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
+    const strip1 = new THREE.Mesh(strip1Geo, this.stepStripMat);
+    strip1.position.set(0, 0.91, -1.74);
+    this.scene.add(strip1);
+
+    // TIER 2: Hàng B - Ghế VIP (Tầng giữa, sàn cao độ y = 0.9)
+    const tier2Geo = new THREE.BoxGeometry(hallWidth, 0.72, 3.6);
+    const tier2 = new THREE.Mesh(tier2Geo, this.floorMat);
+    tier2.position.set(0, 0.54, 0.0);
+    tier2.receiveShadow = true;
+    this.scene.add(tier2);
+
+    // BẬC THANG 2 (Riser 2: Bước từ Hàng B lên Hàng C cao thêm +0.7m):
+    const riser2FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
+    const riser2Face = new THREE.Mesh(riser2FaceGeo, stepFaceMat);
+    riser2Face.position.set(0, 1.25, 1.8);
+    this.scene.add(riser2Face);
+
+    // Dải đèn LED vàng hắt chân bậc thang 2
+    const strip2Geo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
+    const strip2 = new THREE.Mesh(strip2Geo, this.stepStripMat);
+    strip2.position.set(0, 1.61, 1.86);
+    this.scene.add(strip2);
+
+    // TIER 3: Hàng C - Ghế Đôi Sweetbox (Tầng cao nhất, sàn cao độ y = 1.6)
+    const tier3Geo = new THREE.BoxGeometry(hallWidth, 1.44, 11.7);
+    const tier3 = new THREE.Mesh(tier3Geo, this.floorMat);
+    tier3.position.set(0, 0.88, 7.65);
+    tier3.receiveShadow = true;
+    this.scene.add(tier3);
 
     // 2. Front Stage Platform in front of screen (low profile so stage dancers never cover screen)
     const stageGeo = new THREE.BoxGeometry(15.2, 0.36, 3.6);
@@ -408,7 +435,7 @@ class CinemaScene {
     createDoorUnit(hallWidth / 2 - 0.12, 0.0, -4.5, -Math.PI / 2, 'Front Exit Door');
 
     // Exit Door 2: Rear wall beside seats (facing front, visible in Audience view)
-    createDoorUnit(7.5, 0.6, 13.2, Math.PI, 'Rear Exit Door');
+    createDoorUnit(7.5, 1.6, 13.2, Math.PI, 'Rear Exit Door');
   }
 
   buildScreenAndCSS3D() {
@@ -974,8 +1001,8 @@ class CinemaScene {
     let targetPos, targetLook;
     switch (mode) {
       case 'overview':
-        targetPos = new THREE.Vector3(0, 6.2, 9.8);
-        targetLook = new THREE.Vector3(0, 4.0, -6.0);
+        targetPos = new THREE.Vector3(0, 7.6, 9.8);
+        targetLook = new THREE.Vector3(0, 4.2, -4.5);
         break;
 
       case 'screen':
@@ -986,13 +1013,13 @@ class CinemaScene {
         break;
 
       case 'audience':
-        targetPos = new THREE.Vector3(0, 2.2, -6.5);
-        targetLook = new THREE.Vector3(0, 1.6, 2.0);
+        targetPos = new THREE.Vector3(0, 2.2, -6.8);
+        targetLook = new THREE.Vector3(0, 2.1, 1.5);
         break;
 
       default:
-        targetPos = new THREE.Vector3(0, 6.2, 9.5);
-        targetLook = new THREE.Vector3(0, 4.0, -6.0);
+        targetPos = new THREE.Vector3(0, 7.6, 9.8);
+        targetLook = new THREE.Vector3(0, 4.2, -4.5);
     }
 
     this.camTargetPos.copy(targetPos);
