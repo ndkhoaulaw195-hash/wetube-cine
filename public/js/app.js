@@ -1422,16 +1422,34 @@ class CinemaApp {
 
   // --- UI Event Bindings ---
   bindUIEvents() {
-    // 1. Camera Mode Buttons (Toàn cảnh, Màn hình, Khán giả)
+    // 1. Camera Mode Buttons (Toàn cảnh, Màn hình, Khán giả, Xoay 360°)
     document.querySelectorAll('.cam-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const mode = btn.getAttribute('data-camera');
         if (this.cinema) {
-          this.cinema.setCameraMode(mode, this.you ? this.you.seatId : null);
+          const userSeat = this.you ? this.you.seatId : null;
+          this.cinema.setCameraMode(mode, userSeat);
+
+          // Hiển thị nút "Nhìn Màn Chiếu" khi đang ở chế độ xoay 360° từ ghế ngồi
+          const btnRecenter = document.getElementById('btn-recenter-360');
+          if (btnRecenter) {
+            btnRecenter.classList.toggle('hidden', mode !== 'seat');
+          }
+          if (mode === 'seat') {
+            this.showToast('🔄 Chế độ xoay 360°: Kéo chuột hoặc vuốt màn hình để xoay đầu ngắm rạp!', 'info');
+          }
         }
       });
+    });
+
+    // Nút Nhìn Thẳng Màn Chiếu trong chế độ 360°
+    document.getElementById('btn-recenter-360')?.addEventListener('click', () => {
+      if (this.cinema) {
+        this.cinema.recenterSeatView();
+        this.showToast('🎯 Đã quay mặt nhìn thẳng tâm màn chiếu!', 'info');
+      }
     });
 
     // 2. Tiện ích Menu Dropdown (Gom Chiếu ảnh, Tặng quà, Bình chọn, Đèn, Tiết kiệm 4G, Ẩn giao diện)
@@ -2275,6 +2293,9 @@ class CinemaApp {
         this.toggleHudVisibility();
       } else if (e.key === 'm' || e.key === 'M') {
         this.toggleVoiceMic();
+      } else if (e.key === 'v' || e.key === 'V') {
+        const btnSeat = document.getElementById('btn-cam-seat');
+        btnSeat?.click();
       }
     });
   }

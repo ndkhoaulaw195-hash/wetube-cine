@@ -45,6 +45,13 @@ class CinemaScene {
     this.isDragging = false;
     this.lastMousePos = { x: 0, y: 0 };
 
+    // Seat 360° First-Person Look-Around state
+    this.seatYaw = 0;
+    this.seatPitch = 0;
+    this.targetSeatYaw = 0;
+    this.targetSeatPitch = 0;
+    this.activeSeatId = null;
+
     // 48 Seats Coordinates across 5 Terraced Stadium Tiers (Chuẩn Multiplex Hiện Đại):
     // Tier 1 (Hàng A: 10 ghế thường A01..A10, sàn y = 0.0, z = -3.9)
     // Tier 2 (Hàng B: 10 ghế thường B01..B10, sàn y = 0.7, z = -1.5)
@@ -1715,17 +1722,49 @@ class CinemaScene {
     }
   }
 
-  createPixelCharacterSprite(avatarId = 'pixel_nerd', scaleY = 1.45, overrides = {}) {
+  createPixelCharacterSprite(avatarId = 'pixel_nerd', scaleY = 1.42, overrides = {}) {
     if (window.PixelAvatars) {
-      const canvas = window.PixelAvatars.createSpriteCanvas(avatarId, overrides);
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.magFilter = THREE.NearestFilter;
-      texture.minFilter = THREE.NearestFilter;
-      texture.generateMipmaps = false;
-      const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
-      const sprite = new THREE.Sprite(mat);
-      sprite.scale.set(scaleY * (24 / 30), scaleY, 1);
-      return sprite;
+      const group = new THREE.Group();
+      const width = scaleY * (24 / 30);
+      const geo = new THREE.PlaneGeometry(width, scaleY);
+
+      // 1. Mặt Trước (Front Mesh): Hướng về màn chiếu phim (-Z)
+      // Khi nhìn từ phía trước (chế độ Khán đài hoặc từ màn hình), thấy đầy đủ mặt, mắt kính, nụ cười và đồ ăn/thức uống
+      const frontCanvas = window.PixelAvatars.createSpriteCanvas(avatarId, overrides, false);
+      const frontTex = new THREE.CanvasTexture(frontCanvas);
+      frontTex.magFilter = THREE.NearestFilter;
+      frontTex.minFilter = THREE.NearestFilter;
+      frontTex.generateMipmaps = false;
+      const frontMat = new THREE.MeshBasicMaterial({
+        map: frontTex,
+        transparent: true,
+        alphaTest: 0.08,
+        side: THREE.FrontSide
+      });
+      const frontMesh = new THREE.Mesh(geo, frontMat);
+      frontMesh.rotation.y = Math.PI; // Quay mặt về phía màn chiếu (-Z)
+      frontMesh.position.set(0, 0, -0.005);
+      group.add(frontMesh);
+
+      // 2. Mặt Sau (Back Mesh): Hướng về phía sau khán phòng (+Z)
+      // Khi nhìn từ phía sau (chế độ Toàn cảnh Overview hoặc người ngồi sau nhìn lên), thấy gáy tóc, mũ, trang phục từ đằng sau
+      const backCanvas = window.PixelAvatars.createSpriteCanvas(avatarId, overrides, true);
+      const backTex = new THREE.CanvasTexture(backCanvas);
+      backTex.magFilter = THREE.NearestFilter;
+      backTex.minFilter = THREE.NearestFilter;
+      backTex.generateMipmaps = false;
+      const backMat = new THREE.MeshBasicMaterial({
+        map: backTex,
+        transparent: true,
+        alphaTest: 0.08,
+        side: THREE.FrontSide
+      });
+      const backMesh = new THREE.Mesh(geo, backMat);
+      backMesh.rotation.y = 0; // Hướng lưng về phía sau (+Z)
+      backMesh.position.set(0, 0, 0.005);
+      group.add(backMesh);
+
+      return group;
     }
     return new THREE.Group();
   }
@@ -1747,14 +1786,14 @@ class CinemaScene {
       micOn: !!user.micOn
     };
 
-    // Chibi 16-bit Pixel Art Character Sprite (seated naturally in chair + snack items)
+    // Chibi 16-bit Pixel Art Character (Ngồi tự nhiên hướng về màn chiếu, lưng quay ra sau)
     const overrides = {};
     if (user.snackProp) overrides.prop = user.snackProp;
     if (user.snackHat) overrides.hat = user.snackHat;
     if (user.snackGlasses) overrides.glasses = user.snackGlasses;
-    const charSprite = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42, overrides);
-    charSprite.position.set(0, 0.72, 0);
-    avatarGroup.add(charSprite);
+    const charGroup = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42, overrides);
+    charGroup.position.set(0, 0.72, 0);
+    avatarGroup.add(charGroup);
 
     // Name Tag (positioned above head)
     const displayLabel = user.micOn ? `🎙️ ${user.name}` : user.name;
@@ -1762,6 +1801,11 @@ class CinemaScene {
     const nameSprite = this.createNameTagSprite(displayLabel, user.tier, tagColor);
     nameSprite.position.set(0, 1.68, 0);
     avatarGroup.add(nameSprite);
+
+    // Nếu đang ở góc nhìn thứ nhất (360° Seat View) tại chính ghế này thì ẩn để không vướng mắt
+    if (this.cameraMode === 'seat' && this.activeSeatId === seatId) {
+      avatarGroup.visible = false;
+    }
 
     this.scene.add(avatarGroup);
     this.avatarMeshes[seatId] = avatarGroup;
@@ -1956,7 +2000,7 @@ class CinemaScene {
   }
 
   setCameraMode(mode, seatId = null) {
-    if (this.cameraMode === mode) return;
+    if (this.cameraMode === mode && mode !== 'seat') return;
     const prevMode = this.cameraMode;
     this.cameraMode = mode;
     this.mouseOffsetX = 0;
@@ -1964,6 +2008,11 @@ class CinemaScene {
     this.targetMouseX = 0;
     this.targetMouseY = 0;
     this.markActive();
+
+    // 1. Phục hồi avatar cũ nếu vừa rời khỏi góc nhìn thứ nhất (seat view)
+    if (prevMode === 'seat' && this.activeSeatId !== null && this.avatarMeshes[this.activeSeatId]) {
+      this.avatarMeshes[this.activeSeatId].visible = true;
+    }
 
     let targetPos, targetLook;
     switch (mode) {
@@ -1983,6 +2032,28 @@ class CinemaScene {
         targetPos = new THREE.Vector3(0, 2.6, -7.5);
         targetLook = new THREE.Vector3(0, 2.5, 1.8);
         break;
+
+      case 'seat': {
+        // Tọa độ mắt người xem tại ghế (ngồi ngắm rạp và xoay 360 độ tự do)
+        const chosenId = (seatId !== null && this.seatCoords[seatId])
+          ? seatId
+          : (this.activeSeatId !== null ? this.activeSeatId : 24); // Mặc định ghế VIP C05 giữa rạp
+        this.activeSeatId = chosenId;
+        const sc = this.seatCoords[chosenId];
+        // Chiều cao ngang tầm mắt khi ngồi tựa lưng vào ghế
+        targetPos = new THREE.Vector3(sc.x, sc.y + 0.92, sc.z - 0.05);
+        this.targetSeatYaw = 0;
+        this.targetSeatPitch = 0;
+        this.seatYaw = 0;
+        this.seatPitch = 0;
+        targetLook = new THREE.Vector3(sc.x, sc.y + 0.92, sc.z - 10);
+
+        // Ẩn avatar tại chính ghế này để không bị cấn mắt nhìn
+        if (this.avatarMeshes[chosenId]) {
+          this.avatarMeshes[chosenId].visible = false;
+        }
+        break;
+      }
 
       default:
         targetPos = new THREE.Vector3(0, 10.8, 14.5);
@@ -2012,14 +2083,20 @@ class CinemaScene {
         }, 40);
       }, 110);
     } else {
-      // Chuyển giữa Toàn cảnh <-> Màn hình: Lướt Cinematic mượt mà (Ease-in-out 720ms), êm ái tự nhiên, không khựng cứng
+      // Chuyển giữa Toàn cảnh <-> Màn hình <-> Ghế ngồi 360: Lướt Cinematic mượt mà
       this.isFlipping = false;
       this.dollyActive = true;
       this.dollyStart = performance.now();
-      this.dollyDuration = 720;
+      this.dollyDuration = (mode === 'seat' || prevMode === 'seat') ? 650 : 720;
       this.dollyFromPos = this.camera.position.clone();
       this.dollyFromLook = this.camCurrentLook.clone();
     }
+  }
+
+  recenterSeatView() {
+    this.targetSeatYaw = 0;
+    this.targetSeatPitch = 0;
+    this.markActive();
   }
 
   markActive() {
@@ -2122,14 +2199,24 @@ class CinemaScene {
 
     this.checkSeatHover();
 
-    if (this.isDragging && (this.cameraMode === 'overview' || this.cameraMode === 'audience')) {
+    if (this.isDragging) {
       const dx = e.clientX - this.lastMousePos.x;
       const dy = e.clientY - this.lastMousePos.y;
-      this.targetMouseX += dx * 0.003;
-      this.targetMouseY += dy * 0.003;
-      this.targetMouseY = Math.max(-0.4, Math.min(0.4, this.targetMouseY));
       this.lastMousePos = { x: e.clientX, y: e.clientY };
-      this.markActive();
+
+      if (this.cameraMode === 'seat') {
+        // Xoay 360 độ tự do ngang và gật ngước dọc từ ghế ngồi
+        const sens = 0.0035;
+        this.targetSeatYaw -= dx * sens;
+        this.targetSeatPitch -= dy * sens;
+        this.targetSeatPitch = Math.max(-1.15, Math.min(1.15, this.targetSeatPitch));
+        this.markActive();
+      } else if (this.cameraMode === 'overview' || this.cameraMode === 'audience') {
+        this.targetMouseX += dx * 0.003;
+        this.targetMouseY += dy * 0.003;
+        this.targetMouseY = Math.max(-0.4, Math.min(0.4, this.targetMouseY));
+        this.markActive();
+      }
     }
   }
 
@@ -2244,7 +2331,8 @@ class CinemaScene {
     const isCameraMoving = this.dollyActive ||
                            this.isFlipping ||
                            this.isDragging ||
-                           Math.abs(this.mouseOffsetX - this.targetMouseX) > 0.002;
+                           Math.abs(this.mouseOffsetX - this.targetMouseX) > 0.002 ||
+                           (this.cameraMode === 'seat' && (Math.abs(this.seatYaw - this.targetSeatYaw) > 0.001 || Math.abs(this.seatPitch - this.targetSeatPitch) > 0.001));
 
     // Check if scene has active dynamic animations (Party mode or floating emoji particles)
     const isDynamic = this.partyMode || this.floatingParticles.length > 0 || (this.propsParticles && this.propsParticles.length > 0) || (now - this.lastActiveTime < 1800);
@@ -2284,6 +2372,23 @@ class CinemaScene {
     } else if (this.isFlipping) {
       this.camera.position.copy(targetPos);
       this.camCurrentLook.copy(this.camTargetLook);
+      this.camera.lookAt(this.camCurrentLook);
+    } else if (this.cameraMode === 'seat') {
+      // Góc nhìn thứ nhất 360 độ từ ghế ngồi
+      this.seatYaw += (this.targetSeatYaw - this.seatYaw) * 0.14;
+      this.seatPitch += (this.targetSeatPitch - this.seatPitch) * 0.14;
+
+      const cosPitch = Math.cos(this.seatPitch);
+      const dirX = Math.sin(this.seatYaw) * cosPitch;
+      const dirY = Math.sin(this.seatPitch);
+      const dirZ = -Math.cos(this.seatYaw) * cosPitch;
+
+      this.camera.position.copy(this.camTargetPos);
+      this.camCurrentLook.set(
+        this.camTargetPos.x + dirX * 10,
+        this.camTargetPos.y + dirY * 10,
+        this.camTargetPos.z + dirZ * 10
+      );
       this.camera.lookAt(this.camCurrentLook);
     } else {
       if (this.isDragging) {

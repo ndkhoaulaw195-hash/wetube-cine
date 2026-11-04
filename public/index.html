@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261105_v36">
+  <link rel="stylesheet" href="/css/style.css?v=20261105_v37">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -460,6 +460,12 @@
     <span>Hiện điều khiển</span>
   </button>
 
+  <!-- Floating Recenter Button for 360° Seat View -->
+  <button id="btn-recenter-360" class="floating-recenter-360 hidden" title="Quay nhìn thẳng về tâm màn chiếu">
+    <i data-lucide="compass"></i>
+    <span>Nhìn Màn Chiếu</span>
+  </button>
+
   <!-- Bottom Navigation & Controls -->
   <footer class="hud-bottom">
     <div class="camera-controls">
@@ -474,6 +480,10 @@
       <button class="cam-btn" data-camera="audience" title="Quay nhìn khán đài & hàng ghế (Phím C)">
         <i data-lucide="armchair"></i>
         <span>Khán đài</span>
+      </button>
+      <button class="cam-btn" data-camera="seat" id="btn-cam-seat" title="Xoay đầu 360° tự do từ ghế ngồi (Phím V)">
+        <i data-lucide="compass"></i>
+        <span>Xoay 360°</span>
       </button>
     </div>
 
@@ -1843,9 +1853,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261105_v36"></script>
-  <script src="/js/cinema.js?v=20261105_v36"></script>
-  <script src="/js/player.js?v=20261105_v36"></script>
-  <script src="/js/app.js?v=20261105_v36"></script>
+  <script src="/js/avatars.js?v=20261105_v37"></script>
+  <script src="/js/cinema.js?v=20261105_v37"></script>
+  <script src="/js/player.js?v=20261105_v37"></script>
+  <script src="/js/app.js?v=20261105_v37"></script>
 </body>
 </html>
