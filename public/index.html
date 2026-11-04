@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261104_v35">
+  <link rel="stylesheet" href="/css/style.css?v=20261105_v36">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -328,18 +328,9 @@
         <span id="hud-room-pass-tag" class="room-pass-chip hidden">Pass: 1234</span>
       </div>
 
-      <div class="hud-now-playing" id="hud-now-playing" title="Bài đang chiếu">
-        <span class="pulse-indicator"></span>
-        <i data-lucide="disc-3" class="spin-icon"></i>
-        <div class="now-playing-info">
-          <span id="np-title" class="np-title">Đang tải video...</span>
-          <span id="np-requester" class="np-requester">Bởi Rạp Phim</span>
-        </div>
-      </div>
-
       <div class="hud-occupancy" id="hud-occupancy" title="Số người đang ngồi xem">
         <i data-lucide="users" style="width: 13px; height: 13px;"></i>
-        <span id="occupancy-text">0/13</span>
+        <span id="occupancy-text">0/48</span>
       </div>
     </div>
 
@@ -919,13 +910,13 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL 4: SƠ ĐỒ 10 GHẾ VIP ==================== -->
+  <!-- ==================== MODAL 4: SƠ ĐỒ 48 GHẾ RẠP CHIẾU PHIM ==================== -->
   <div class="modal-backdrop hidden" id="modal-seats">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 620px;">
       <div class="modal-header">
         <div class="modal-title">
           <i data-lucide="armchair"></i>
-          <span>Sơ Đồ Chọn Ghế</span>
+          <span>Sơ Đồ 48 Ghế Rạp Chiếu Phim</span>
         </div>
         <button class="modal-close" data-close="modal-seats"><i data-lucide="x"></i></button>
       </div>
@@ -938,17 +929,24 @@
           <div class="seat-row-label">HÀNG A (GHẾ TIÊU CHUẨN)</div>
           <div class="seat-row" id="row-a-seats"></div>
 
-          <div class="seat-row-label">HÀNG B (👑 GHẾ VIP NHUNG ĐỎ)</div>
+          <div class="seat-row-label">HÀNG B (GHẾ TIÊU CHUẨN)</div>
           <div class="seat-row" id="row-b-seats"></div>
 
-          <div class="seat-row-label" style="color: #f43f5e;">HÀNG C (💖 SWEETBOX — 3 GHẾ ĐÔI / 6 CHỖ 2 NGƯỜI)</div>
-          <div class="seat-row couple-row" id="row-c-seats"></div>
+          <div class="seat-row-label" style="color: #fbbf24;">HÀNG C (👑 GHẾ VIP NHUNG ĐỎ - TỰA ĐẦU TRẮNG)</div>
+          <div class="seat-row" id="row-c-seats"></div>
+
+          <div class="seat-row-label" style="color: #fbbf24;">HÀNG D (👑 GHẾ VIP NHUNG ĐỎ - TỰA ĐẦU TRẮNG)</div>
+          <div class="seat-row" id="row-d-seats"></div>
+
+          <div class="seat-row-label" style="color: #f43f5e;">HÀNG E (💖 SWEETBOX — 4 GHẾ ĐÔI / 8 CHỖ CẶP ĐÔI)</div>
+          <div class="seat-row couple-row" id="row-e-seats"></div>
         </div>
 
         <div class="seat-legend">
           <div class="legend-item"><span class="legend-dot mine"></span> Ghế của bạn</div>
           <div class="legend-item"><span class="legend-dot occupied"></span> Đã có người</div>
           <div class="legend-item"><span class="legend-dot vacant"></span> Còn trống</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#dc2626; box-shadow: 0 0 8px rgba(220,38,38,0.6);"></span> Ghế VIP</div>
           <div class="legend-item"><span class="legend-dot couple" style="background:#f43f5e; box-shadow: 0 0 8px #f43f5e;"></span> Ghế Đôi Sweetbox</div>
         </div>
 
@@ -1845,9 +1843,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261104_v35"></script>
-  <script src="/js/cinema.js?v=20261104_v35"></script>
-  <script src="/js/player.js?v=20261104_v35"></script>
-  <script src="/js/app.js?v=20261104_v35"></script>
+  <script src="/js/avatars.js?v=20261105_v36"></script>
+  <script src="/js/cinema.js?v=20261105_v36"></script>
+  <script src="/js/player.js?v=20261105_v36"></script>
+  <script src="/js/app.js?v=20261105_v36"></script>
 </body>
 </html>

@@ -1341,22 +1341,24 @@ class CinemaApp {
     if (seatBtnText) {
       if (this.you.seatId !== null) {
         const labels = this.room?.seatLabels || [
-          'A01','A02','A03','A04','A05',
-          'B01','B02','B03','B04','B05',
-          'C01','C02','C03','C04','C05','C06'
+          'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
+          'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10',
+          'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10',
+          'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10',
+          'E01','E02','E03','E04','E05','E06','E07','E08'
         ];
         const sLabel = labels[this.you.seatId] || `G${this.you.seatId + 1}`;
-        const isCouple = this.you.seatId >= 10;
+        const isCouple = this.you.seatId >= 40;
         seatBtnText.textContent = isCouple ? `Ghế ${sLabel} 💖` : `Ghế ${sLabel}`;
       } else {
         seatBtnText.textContent = 'Chọn ghế';
       }
     }
 
-    // Update Sweetbox Couple HUD Button (Only visible when seated on couple sofa C01-C06)
+    // Update Sweetbox Couple HUD Button (Only visible when seated on couple sofa E01-E08)
     const btnHudCouple = document.getElementById('btn-hud-couple');
     if (btnHudCouple) {
-      const isCoupleSeat = (this.you.seatId !== null && this.you.seatId >= 10);
+      const isCoupleSeat = (this.you.seatId !== null && this.you.seatId >= 40);
       btnHudCouple.classList.toggle('hidden', !isCoupleSeat);
     }
 
@@ -2709,14 +2711,16 @@ class CinemaApp {
   updateNowPlayingUI() {
     if (!this.room) return;
     const v = this.room.currentVideo;
+    const npTitle = document.getElementById('np-title');
+    const npRequester = document.getElementById('np-requester');
     if (!v) {
-      document.getElementById('np-title').textContent = 'Chưa phát video';
-      document.getElementById('np-requester').textContent = 'Màn hình đang tắt';
+      if (npTitle) npTitle.textContent = 'Chưa phát video';
+      if (npRequester) npRequester.textContent = 'Màn hình đang tắt';
       this.updatePlayPauseButtonUI(false);
       return;
     }
-    document.getElementById('np-title').textContent = v.title || 'Đang phát...';
-    document.getElementById('np-requester').textContent = `Bởi ${v.requester || 'Chủ phòng'}`;
+    if (npTitle) npTitle.textContent = v.title || 'Đang phát...';
+    if (npRequester) npRequester.textContent = `Bởi ${v.requester || 'Chủ phòng'}`;
     this.updatePlayPauseButtonUI(v.isPlaying !== false);
   }
 
@@ -2926,20 +2930,22 @@ class CinemaApp {
   }
 
   openCoupleInteractiveModal() {
-    if (!this.you || this.you.seatId === null || this.you.seatId < 10) {
-      this.showToast('💖 Bạn cần ngồi vào Ghế Đôi Sweetbox (Hàng C) để mở bảng tương tác!', 'info');
+    if (!this.you || this.you.seatId === null || this.you.seatId < 40) {
+      this.showToast('💖 Bạn cần ngồi vào Ghế Đôi Sweetbox (Hàng E) để mở bảng tương tác!', 'info');
       return;
     }
     const seatId = this.you.seatId;
-    const coupleGroup = Math.floor((seatId - 10) / 2) + 1; // 1, 2, 3
+    const coupleGroup = Math.floor((seatId - 40) / 2) + 1; // 1, 2, 3, 4
     const partnerSeatId = (seatId % 2 === 0) ? (seatId + 1) : (seatId - 1);
     const labels = this.room?.seatLabels || [
-      'A01','A02','A03','A04','A05',
-      'B01','B02','B03','B04','B05',
-      'C01','C02','C03','C04','C05','C06'
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
+      'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10',
+      'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10',
+      'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10',
+      'E01','E02','E03','E04','E05','E06','E07','E08'
     ];
-    const myLabel = labels[seatId] || `C0${seatId - 9}`;
-    const partnerLabel = labels[partnerSeatId] || `C0${partnerSeatId - 9}`;
+    const myLabel = labels[seatId] || `E0${seatId - 39}`;
+    const partnerLabel = labels[partnerSeatId] || `E0${partnerSeatId - 39}`;
     const partner = this.room?.seats?.[partnerSeatId];
 
     const partnerNameEl = document.getElementById('couple-partner-name');
@@ -3065,71 +3071,85 @@ class CinemaApp {
     const rowA = document.getElementById('row-a-seats');
     const rowB = document.getElementById('row-b-seats');
     const rowC = document.getElementById('row-c-seats');
+    const rowD = document.getElementById('row-d-seats');
+    const rowE = document.getElementById('row-e-seats');
     const leaveBtn = document.getElementById('btn-leave-seat');
     if (!rowA || !rowB) return;
 
-    rowA.innerHTML = '';
-    rowB.innerHTML = '';
-    if (rowC) rowC.innerHTML = '';
-
     const labels = this.room.seatLabels || [
-      'A01','A02','A03','A04','A05',
-      'B01','B02','B03','B04','B05',
-      'C01','C02','C03','C04','C05','C06'
+      'A01','A02','A03','A04','A05','A06','A07','A08','A09','A10',
+      'B01','B02','B03','B04','B05','B06','B07','B08','B09','B10',
+      'C01','C02','C03','C04','C05','C06','C07','C08','C09','C10',
+      'D01','D02','D03','D04','D05','D06','D07','D08','D09','D10',
+      'E01','E02','E03','E04','E05','E06','E07','E08'
     ];
     const seats = Array.isArray(this.room.seats) ? [...this.room.seats] : [];
     while (seats.length < labels.length) seats.push(null);
 
-    // Render Row A (0..4: Tiêu chuẩn) & Row B (5..9: VIP nhung đỏ)
-    for (let index = 0; index < 10; index++) {
-      const occupant = seats[index];
-      const label = labels[index] || `G${index + 1}`;
-      const isVipSeat = (index >= 5 && index < 10);
-      const isMine = occupant && occupant.userId === this.you.id;
-      const isOccupied = occupant && !isMine;
+    // Helper: Render Standard & VIP Rows with Stadium Left/Center/Right aisles
+    const renderSingleRow = (container, startIdx, endIdx, isVipRow) => {
+      if (!container) return;
+      container.innerHTML = '';
+      for (let index = startIdx; index <= endIdx; index++) {
+        // Aisle divider after seat 2 and seat 8 (relIdx 2 and 8 in 10-seat row)
+        const relIdx = index - startIdx;
+        if (relIdx === 2 || relIdx === 8) {
+          const aisle = document.createElement('div');
+          aisle.className = 'seat-aisle-divider';
+          aisle.title = 'Lối đi';
+          container.appendChild(aisle);
+        }
 
-      const btn = document.createElement('button');
-      btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipSeat ? ' vip-seat' : ''}`;
-      const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
+        const occupant = seats[index];
+        const label = labels[index] || `G${index + 1}`;
+        const isMine = occupant && occupant.userId === this.you.id;
+        const isOccupied = occupant && !isMine;
 
-      let badgeHtml = isVipSeat ? ' <small style="color:#fbbf24; font-size:10px;">👑 VIP</small>' : '';
+        const btn = document.createElement('button');
+        btn.className = `seat-item ${isMine ? 'mine' : (isOccupied ? 'occupied' : 'vacant')}${isVipRow ? ' vip-seat' : ''}`;
+        const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
 
-      btn.innerHTML = `
-        <span class="seat-code">${label}${badgeHtml}</span>
-        ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
-        <span class="seat-occupant">${occupant ? occupant.name : (isVipSeat ? 'Ghế VIP' : 'Trống')}</span>
-      `;
+        const badgeHtml = isVipRow ? ' <small style="color:#fbbf24; font-size:9px;">👑 VIP</small>' : '';
 
-      if (!isOccupied) {
-        btn.addEventListener('click', () => {
-          if (isVipSeat && !this.you.isVip && this.you.role !== 'admin') {
-            this.showToast('👑 Hàng ghế B là Ghế VIP Nhung Đỏ! Hãy bấm "Mở Khóa VIP" trong Tài khoản để ngồi!', 'warning');
-            return;
-          }
-          this.handleSeatSelection(index);
-        });
-      } else {
-        btn.addEventListener('click', () => {
-          this.closeModal('modal-seats');
-          this.openRoomMembersModal(occupant.userId);
-        });
-        btn.title = `Bấm để tương tác với ${occupant.name}`;
+        btn.innerHTML = `
+          <span class="seat-code">${label}${badgeHtml}</span>
+          ${avUrl ? `<img src="${avUrl}" style="width:20px; height:24px; image-rendering:pixelated;" alt="av" />` : ''}
+          <span class="seat-occupant">${occupant ? occupant.name : (isVipRow ? 'Ghế VIP' : 'Trống')}</span>
+        `;
+
+        if (!isOccupied) {
+          btn.addEventListener('click', () => {
+            if (isVipRow && !this.you.isVip && this.you.role !== 'admin') {
+              this.showToast('👑 Hàng ghế C & D là Ghế VIP Nhung Đỏ (Tựa đầu trắng)! Hãy bấm "Mở Khóa VIP" trong Tài khoản để ngồi!', 'warning');
+              return;
+            }
+            this.handleSeatSelection(index);
+          });
+        } else {
+          btn.addEventListener('click', () => {
+            this.closeModal('modal-seats');
+            this.openRoomMembersModal(occupant.userId);
+          });
+          btn.title = `Bấm để tương tác với ${occupant.name}`;
+        }
+
+        container.appendChild(btn);
       }
+    };
 
-      if (index < 5) {
-        rowA.appendChild(btn);
-      } else {
-        rowB.appendChild(btn);
-      }
-    }
+    renderSingleRow(rowA, 0, 9, false);   // Row A: A01..A10
+    renderSingleRow(rowB, 10, 19, false); // Row B: B01..B10
+    renderSingleRow(rowC, 20, 29, true);  // Row C: C01..C10 (VIP)
+    renderSingleRow(rowD, 30, 39, true);  // Row D: D01..D10 (VIP)
 
-    // Render Row C: 3 Ghế Đôi Sweetbox (Mỗi ghế ngồi được 2 người = 6 chỗ)
-    if (rowC) {
-      rowC.innerHTML = '';
+    // Render Row E: 4 Ghế Đôi Sweetbox (Mỗi ghế ngồi được 2 người = 8 chỗ E01..E08)
+    if (rowE) {
+      rowE.innerHTML = '';
       const couplePairs = [
-        { group: 1, leftIdx: 10, rightIdx: 11 },
-        { group: 2, leftIdx: 12, rightIdx: 13 },
-        { group: 3, leftIdx: 14, rightIdx: 15 }
+        { group: 1, leftIdx: 40, rightIdx: 41 },
+        { group: 2, leftIdx: 42, rightIdx: 43 },
+        { group: 3, leftIdx: 44, rightIdx: 45 },
+        { group: 4, leftIdx: 46, rightIdx: 47 }
       ];
 
       couplePairs.forEach(pair => {
@@ -3137,16 +3157,16 @@ class CinemaApp {
         card.className = 'couple-sofa-card';
         card.innerHTML = `
           <div class="couple-sofa-header">
-            <span>💖 Ghế Đôi ${pair.group} (Sweetbox 2 Người)</span>
+            <span>💖 Ghế Đôi ${pair.group}</span>
           </div>
           <div class="couple-sofa-buttons" id="couple-pair-${pair.group}"></div>
         `;
         const btnsWrap = card.querySelector(`#couple-pair-${pair.group}`);
 
         [pair.leftIdx, pair.rightIdx].forEach((index, sideIdx) => {
-          const sideText = sideIdx === 0 ? 'Bên Trái' : 'Bên Phải';
+          const sideText = sideIdx === 0 ? 'Trái' : 'Phải';
           const occupant = seats[index];
-          const label = labels[index] || `C${String(index - 9).padStart(2, '0')}`;
+          const label = labels[index] || `E0${index - 39}`;
           const isMine = occupant && occupant.userId === this.you.id;
           const isOccupied = occupant && !isMine;
 
@@ -3155,9 +3175,9 @@ class CinemaApp {
           const avUrl = occupant && window.PixelAvatars ? window.PixelAvatars.getDataUrl(occupant.avatarId, 2) : '';
 
           btn.innerHTML = `
-            <span class="seat-code">${label} <small style="color:#fb7185; font-size:10px;">💖 ${sideText}</small></span>
-            ${avUrl ? `<img src="${avUrl}" style="width:24px; height:30px; image-rendering:pixelated;" alt="av" />` : ''}
-            <span class="seat-occupant">${occupant ? occupant.name : 'Chỗ Trống'}</span>
+            <span class="seat-code">${label} <small style="color:#fb7185; font-size:9px;">💖 ${sideText}</small></span>
+            ${avUrl ? `<img src="${avUrl}" style="width:20px; height:24px; image-rendering:pixelated;" alt="av" />` : ''}
+            <span class="seat-occupant">${occupant ? occupant.name : 'Trống'}</span>
           `;
 
           if (!isOccupied) {
@@ -3175,7 +3195,7 @@ class CinemaApp {
           btnsWrap.appendChild(btn);
         });
 
-        rowC.appendChild(card);
+        rowE.appendChild(card);
       });
     }
 

@@ -32,9 +32,9 @@ class CinemaScene {
 
     // Camera state & targets for smooth interpolation (lerp)
     this.cameraMode = 'overview'; // 'overview' | 'seat' | 'screen' | 'audience'
-    this.camTargetPos = new THREE.Vector3(0, 9.4, 12.2);
-    this.camTargetLook = new THREE.Vector3(0, 4.8, -2.2);
-    this.camCurrentLook = new THREE.Vector3(0, 4.8, -2.2);
+    this.camTargetPos = new THREE.Vector3(0, 10.8, 14.5);
+    this.camTargetLook = new THREE.Vector3(0, 4.6, -3.2);
+    this.camCurrentLook = new THREE.Vector3(0, 4.6, -3.2);
     this.isDollyActive = false;
 
     // Mouse drag orbit offsets
@@ -45,36 +45,85 @@ class CinemaScene {
     this.isDragging = false;
     this.lastMousePos = { x: 0, y: 0 };
 
-    // 16 Seats Coordinates across 3 Terraced Stadium Tiers:
-    // Tier 1 (Hàng A): 5 front standard seats (floor y = 0.2, seats y = 0.25, z = -3.5)
-    // Tier 2 (Hàng B): 5 middle VIP red velvet seats (+0.7m step, floor y = 0.9, seats y = 0.95, z = 0.0)
-    // Tier 3 (Hàng C): 3 back Sweetbox couple sofas (+0.7m step, floor y = 1.6, seats y = 1.65, z = 3.6), each seating 2 people (6 seats C01..C06)
-    this.seatCoords = [
-      { id: 0, label: 'A01', x: -4.8, y: 0.25, z: -3.5 },
-      { id: 1, label: 'A02', x: -2.4, y: 0.25, z: -3.5 },
-      { id: 2, label: 'A03', x: 0.0,  y: 0.25, z: -3.5 },
-      { id: 3, label: 'A04', x: 2.4,  y: 0.25, z: -3.5 },
-      { id: 4, label: 'A05', x: 4.8,  y: 0.25, z: -3.5 },
-      { id: 5, label: 'B01', x: -4.8, y: 0.95, z: 0.0 },
-      { id: 6, label: 'B02', x: -2.4, y: 0.95, z: 0.0 },
-      { id: 7, label: 'B03', x: 0.0,  y: 0.95, z: 0.0 },
-      { id: 8, label: 'B04', x: 2.4,  y: 0.95, z: 0.0 },
-      { id: 9, label: 'B05', x: 4.8,  y: 0.95, z: 0.0 },
-      // Ghế Đôi 1 (Sofa 1 Trái, tâm x = -4.5): 2 chỗ ngồi cạnh nhau C01 (Trái) & C02 (Phải)
-      { id: 10, label: 'C01', x: -5.05, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 1, coupleSide: 'Trái', sofaCenterX: -4.5 },
-      { id: 11, label: 'C02', x: -3.95, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 1, coupleSide: 'Phải', sofaCenterX: -4.5 },
-      // Ghế Đôi 2 (Sofa 2 Giữa, tâm x = 0.0): 2 chỗ ngồi cạnh nhau C03 (Trái) & C04 (Phải)
-      { id: 12, label: 'C03', x: -0.55, y: 1.65, z: 3.6, isCouple: true, coupleGroup: 2, coupleSide: 'Trái', sofaCenterX: 0.0 },
-      { id: 13, label: 'C04', x: 0.55,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 2, coupleSide: 'Phải', sofaCenterX: 0.0 },
-      // Ghế Đôi 3 (Sofa 3 Phải, tâm x = 4.5): 2 chỗ ngồi cạnh nhau C05 (Trái) & C06 (Phải)
-      { id: 14, label: 'C05', x: 3.95,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 3, coupleSide: 'Trái', sofaCenterX: 4.5 },
-      { id: 15, label: 'C06', x: 5.05,  y: 1.65, z: 3.6, isCouple: true, coupleGroup: 3, coupleSide: 'Phải', sofaCenterX: 4.5 }
+    // 48 Seats Coordinates across 5 Terraced Stadium Tiers (Chuẩn Multiplex Hiện Đại):
+    // Tier 1 (Hàng A: 10 ghế thường A01..A10, sàn y = 0.0, z = -3.9)
+    // Tier 2 (Hàng B: 10 ghế thường B01..B10, sàn y = 0.7, z = -1.5)
+    // Tier 3 (Hàng C: 10 ghế VIP nhung đỏ tựa đầu trắng C01..C10, sàn y = 1.4, z = 0.9)
+    // Tier 4 (Hàng D: 10 ghế VIP nhung đỏ tựa đầu trắng D01..D10, sàn y = 2.1, z = 3.3)
+    // Tier 5 (Hàng E: 4 ghế đôi Sweetbox = 8 chỗ E01..E08, sàn y = 2.8, z = 5.7)
+    this.seatCoords = [];
+    const xPositions10 = [-6.4, -5.1, -2.75, -1.65, -0.55, 0.55, 1.65, 2.75, 5.1, 6.4];
+    
+    // Rows A, B, C, D (10 seats per row)
+    const rowTiers = [
+      { row: 'A', y: 0.25, z: -3.9, isVip: false },
+      { row: 'B', y: 0.95, z: -1.5, isVip: false },
+      { row: 'C', y: 1.65, z: 0.9,  isVip: true },
+      { row: 'D', y: 2.35, z: 3.3,  isVip: true }
     ];
 
+    let currentId = 0;
+    rowTiers.forEach(rt => {
+      for (let c = 1; c <= 10; c++) {
+        const label = `${rt.row}${String(c).padStart(2, '0')}`;
+        this.seatCoords.push({
+          id: currentId++,
+          label,
+          row: rt.row,
+          x: xPositions10[c - 1],
+          y: rt.y,
+          z: rt.z,
+          isVip: rt.isVip,
+          isCouple: false
+        });
+      }
+    });
+
+    // Row E: 4 Ghế Đôi Sweetbox = 8 chỗ (E01..E08)
+    const coupleSofasData = [
+      { group: 1, sofaX: -5.4, leftX: -5.95, rightX: -4.85 },
+      { group: 2, sofaX: -1.8, leftX: -2.35, rightX: -1.25 },
+      { group: 3, sofaX: 1.8,  leftX: 1.25,  rightX: 2.35 },
+      { group: 4, sofaX: 5.4,  leftX: 4.85,  rightX: 5.95 }
+    ];
+
+    coupleSofasData.forEach(cs => {
+      const leftId = currentId++;
+      const rightId = currentId++;
+      const leftNum = (cs.group - 1) * 2 + 1;
+      const rightNum = (cs.group - 1) * 2 + 2;
+      this.seatCoords.push({
+        id: leftId,
+        label: `E0${leftNum}`,
+        row: 'E',
+        x: cs.leftX,
+        y: 3.05,
+        z: 5.7,
+        isVip: false,
+        isCouple: true,
+        coupleGroup: cs.group,
+        coupleSide: 'Trái',
+        sofaCenterX: cs.sofaX
+      });
+      this.seatCoords.push({
+        id: rightId,
+        label: `E0${rightNum}`,
+        row: 'E',
+        x: cs.rightX,
+        y: 3.05,
+        z: 5.7,
+        isVip: false,
+        isCouple: true,
+        coupleGroup: cs.group,
+        coupleSide: 'Phải',
+        sofaCenterX: cs.sofaX
+      });
+    });
+
     // Meshes references
-    this.seatMeshes = [];      // 16 seats
+    this.seatMeshes = [];      // 48 seats
     this.exitDoorMeshes = [];  // Interactive Exit Doors
-    this.avatarMeshes = [];    // 16 seated avatars
+    this.avatarMeshes = [];    // 48 seated avatars
     this.stageAvatar = null;   // Avatar on stage
     this.couplePlaques = {};   // Plaque canvases for couple sofas
     this.coupleActionTimeouts = {};
@@ -91,9 +140,12 @@ class CinemaScene {
 
     // Thematic Cinema Environments ('classic' | 'rooftop' | 'scifi')
     this.currentTheme = 'classic';
+    this.classicVipGroup = null;
     this.rooftopGroup = null;
     this.scifiGroup = null;
     this.ceilingMesh = null;
+    this.leftWall = null;
+    this.rightWall = null;
     this.starfieldPoints = null;
 
     // 3D Props Throwing System (Popcorn, Hearts, Confetti, Tomatoes, Stars)
@@ -199,26 +251,20 @@ class CinemaScene {
   }
 
   buildTheaterEnvironment() {
-    const hallWidth = 21;
-    const hallLength = 26;
-    const hallHeight = 12.2;
+    const hallWidth = 24;
+    const hallLength = 28;
+    const hallHeight = 12.5;
 
     this.floorMat = new THREE.MeshStandardMaterial({
-      color: 0x161816,
+      color: 0x141615,
       roughness: 0.85,
       metalness: 0.1
     });
 
     this.wallMat = new THREE.MeshStandardMaterial({
-      color: 0x111311,
+      color: 0x101211,
       roughness: 0.9,
       metalness: 0.15
-    });
-
-    const woodStageMat = new THREE.MeshStandardMaterial({
-      color: 0x241d17,
-      roughness: 0.45,
-      metalness: 0.2
     });
 
     this.goldTrimMat = new THREE.MeshStandardMaterial({
@@ -229,68 +275,111 @@ class CinemaScene {
       emissiveIntensity: 0.22
     });
 
-    // 1. Tiered Cinema Floor (Bậc thang rạp chiếu phim 3 tầng thật - Chuẩn Stadium Seating)
+    // 1. Tiered Cinema Floor (Bậc thang rạp chiếu phim 5 tầng - Chuẩn Stadium Multiplex Seating)
     this.stepStripMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b }); // Glowing amber-gold step safety LED
     const stepFaceMat = new THREE.MeshStandardMaterial({ color: 0x181a18, roughness: 0.8, metalness: 0.2 });
 
-    // TIER 1: Hàng A (Phía trước, sàn cao độ y = 0.2)
-    const tier1Geo = new THREE.BoxGeometry(hallWidth, 0.4, 3.8);
+    // TIER 1: Hàng A (Khán đài 1, sàn cao độ y = 0.0)
+    const tier1Geo = new THREE.BoxGeometry(hallWidth, 0.4, 2.7);
     const tier1 = new THREE.Mesh(tier1Geo, this.floorMat);
-    tier1.position.set(0, 0.0, -3.7);
+    tier1.position.set(0, 0.0, -3.85);
     tier1.receiveShadow = true;
     this.scene.add(tier1);
 
     // BẬC THANG 1 (Riser 1: Bước từ Hàng A lên Hàng B cao thêm +0.7m):
     const riser1FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
     const riser1Face = new THREE.Mesh(riser1FaceGeo, stepFaceMat);
-    riser1Face.position.set(0, 0.55, -1.8);
+    riser1Face.position.set(0, 0.55, -2.5);
     this.scene.add(riser1Face);
 
-    // Dải đèn LED vàng hắt chân bậc thang 1
-    const strip1Geo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
+    const strip1Geo = new THREE.BoxGeometry(hallWidth, 0.05, 0.08);
     const strip1 = new THREE.Mesh(strip1Geo, this.stepStripMat);
-    strip1.position.set(0, 0.91, -1.74);
+    strip1.position.set(0, 0.91, -2.44);
     this.scene.add(strip1);
 
-    // TIER 2: Hàng B - Ghế VIP (Tầng giữa, sàn cao độ y = 0.9)
-    const tier2Geo = new THREE.BoxGeometry(hallWidth, 0.72, 3.6);
+    // TIER 2: Hàng B (Khán đài 2, sàn cao độ y = 0.7)
+    const tier2Geo = new THREE.BoxGeometry(hallWidth, 0.72, 2.4);
     const tier2 = new THREE.Mesh(tier2Geo, this.floorMat);
-    tier2.position.set(0, 0.54, 0.0);
+    tier2.position.set(0, 0.54, -1.3);
     tier2.receiveShadow = true;
     this.scene.add(tier2);
 
     // BẬC THANG 2 (Riser 2: Bước từ Hàng B lên Hàng C cao thêm +0.7m):
     const riser2FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
     const riser2Face = new THREE.Mesh(riser2FaceGeo, stepFaceMat);
-    riser2Face.position.set(0, 1.25, 1.8);
+    riser2Face.position.set(0, 1.25, -0.1);
     this.scene.add(riser2Face);
 
-    // Dải đèn LED vàng hắt chân bậc thang 2
-    const strip2Geo = new THREE.BoxGeometry(hallWidth, 0.06, 0.08);
+    const strip2Geo = new THREE.BoxGeometry(hallWidth, 0.05, 0.08);
     const strip2 = new THREE.Mesh(strip2Geo, this.stepStripMat);
-    strip2.position.set(0, 1.61, 1.86);
+    strip2.position.set(0, 1.61, -0.04);
     this.scene.add(strip2);
 
-    // TIER 3: Hàng C - Ghế Đôi Sweetbox (Tầng cao nhất, sàn cao độ y = 1.6)
-    const tier3Geo = new THREE.BoxGeometry(hallWidth, 1.44, 11.7);
+    // TIER 3: Hàng C - Ghế VIP (Khán đài 3, sàn cao độ y = 1.4)
+    const tier3Geo = new THREE.BoxGeometry(hallWidth, 0.72, 2.4);
     const tier3 = new THREE.Mesh(tier3Geo, this.floorMat);
-    tier3.position.set(0, 0.88, 7.65);
+    tier3.position.set(0, 1.24, 1.1);
     tier3.receiveShadow = true;
     this.scene.add(tier3);
 
-    // 2. Front Stage Platform in front of screen (low profile so stage dancers never cover screen)
-    const stageGeo = new THREE.BoxGeometry(15.2, 0.36, 3.6);
-    const stage = new THREE.Mesh(stageGeo, woodStageMat);
-    stage.position.set(0, 0.12, -6.2);
-    stage.receiveShadow = true;
-    this.scene.add(stage);
+    // BẬC THANG 3 (Riser 3: Bước từ Hàng C lên Hàng D cao thêm +0.7m):
+    const riser3FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
+    const riser3Face = new THREE.Mesh(riser3FaceGeo, stepFaceMat);
+    riser3Face.position.set(0, 1.95, 2.3);
+    this.scene.add(riser3Face);
 
-    // Stage Front Edge Neon Gold Accent
-    const stageEdgeGeo = new THREE.BoxGeometry(15.25, 0.06, 0.07);
-    this.stageEdgeMat = new THREE.MeshBasicMaterial({ color: 0xf2cf78 });
-    const stageEdge = new THREE.Mesh(stageEdgeGeo, this.stageEdgeMat);
-    stageEdge.position.set(0, 0.31, -4.4);
-    this.scene.add(stageEdge);
+    const strip3Geo = new THREE.BoxGeometry(hallWidth, 0.05, 0.08);
+    const strip3 = new THREE.Mesh(strip3Geo, this.stepStripMat);
+    strip3.position.set(0, 2.31, 2.36);
+    this.scene.add(strip3);
+
+    // TIER 4: Hàng D - Ghế VIP (Khán đài 4, sàn cao độ y = 2.1)
+    const tier4Geo = new THREE.BoxGeometry(hallWidth, 0.72, 2.4);
+    const tier4 = new THREE.Mesh(tier4Geo, this.floorMat);
+    tier4.position.set(0, 1.94, 3.5);
+    tier4.receiveShadow = true;
+    this.scene.add(tier4);
+
+    // BẬC THANG 4 (Riser 4: Bước từ Hàng D lên Hàng E cao thêm +0.7m):
+    const riser4FaceGeo = new THREE.BoxGeometry(hallWidth, 0.72, 0.12);
+    const riser4Face = new THREE.Mesh(riser4FaceGeo, stepFaceMat);
+    riser4Face.position.set(0, 2.65, 4.7);
+    this.scene.add(riser4Face);
+
+    const strip4Geo = new THREE.BoxGeometry(hallWidth, 0.05, 0.08);
+    const strip4 = new THREE.Mesh(strip4Geo, this.stepStripMat);
+    strip4.position.set(0, 3.01, 4.76);
+    this.scene.add(strip4);
+
+    // TIER 5: Hàng E - Ghế Đôi Sweetbox (Khán đài cao nhất, sàn cao độ y = 2.8)
+    const tier5Geo = new THREE.BoxGeometry(hallWidth, 1.44, 9.2);
+    const tier5 = new THREE.Mesh(tier5Geo, this.floorMat);
+    tier5.position.set(0, 2.64, 9.3);
+    tier5.receiveShadow = true;
+    this.scene.add(tier5);
+
+    // Front Flat Walkway in front of screen (Sàn phẳng trước màn chiếu - tuyệt đối không che khuất màn hình)
+    const frontFloorGeo = new THREE.BoxGeometry(hallWidth, 0.4, 4.0);
+    const frontFloor = new THREE.Mesh(frontFloorGeo, this.floorMat);
+    frontFloor.position.set(0, 0.0, -7.2);
+    frontFloor.receiveShadow = true;
+    this.scene.add(frontFloor);
+
+    // 2. Aisle Stepped LED Safety Lights (Đèn lối đi bậc thang 2 bên)
+    const aisleLedMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    [-3.95, 3.95].forEach((aisleX) => {
+      [
+        { y: 0.92, z: -2.48 },
+        { y: 1.62, z: -0.08 },
+        { y: 2.32, z: 2.32 },
+        { y: 3.02, z: 4.72 }
+      ].forEach(pt => {
+        const aGeo = new THREE.BoxGeometry(0.35, 0.04, 0.12);
+        const aMesh = new THREE.Mesh(aGeo, aisleLedMat);
+        aMesh.position.set(aisleX, pt.y, pt.z);
+        this.scene.add(aMesh);
+      });
+    });
 
     // 3. Walls & Ceiling
     const backWallGeo = new THREE.BoxGeometry(hallWidth + 2, hallHeight, 0.5);
@@ -300,20 +389,31 @@ class CinemaScene {
     this.scene.add(backWall);
 
     const rearWall = new THREE.Mesh(backWallGeo, this.wallMat);
-    rearWall.position.set(0, hallHeight / 2 - 0.2, 13.5);
+    rearWall.position.set(0, hallHeight / 2 - 0.2, 14.5);
     this.scene.add(rearWall);
 
     const sideWallGeo = new THREE.BoxGeometry(0.5, hallHeight, hallLength);
-    const leftWall = new THREE.Mesh(sideWallGeo, this.wallMat);
-    leftWall.position.set(-hallWidth / 2, hallHeight / 2 - 0.2, 0);
-    this.scene.add(leftWall);
+    this.leftWall = new THREE.Mesh(sideWallGeo, this.wallMat);
+    this.leftWall.position.set(-hallWidth / 2, hallHeight / 2 - 0.2, 0);
+    this.scene.add(this.leftWall);
 
-    const rightWall = new THREE.Mesh(sideWallGeo, this.wallMat);
-    rightWall.position.set(hallWidth / 2, hallHeight / 2 - 0.2, 0);
-    this.scene.add(rightWall);
+    this.rightWall = new THREE.Mesh(sideWallGeo, this.wallMat);
+    this.rightWall.position.set(hallWidth / 2, hallHeight / 2 - 0.2, 0);
+    this.scene.add(this.rightWall);
+
+    // Side wall horizontal ambient light strips (Dải LED âm tường chạy dọc 2 bên sườn y hệt rạp chiếu phim thật)
+    this.wallLedMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+    const wallStripGeo = new THREE.BoxGeometry(0.08, 0.1, hallLength - 2);
+    const leftWallStrip = new THREE.Mesh(wallStripGeo, this.wallLedMat);
+    leftWallStrip.position.set(-hallWidth / 2 + 0.26, 4.0, 0);
+    this.scene.add(leftWallStrip);
+
+    const rightWallStrip = new THREE.Mesh(wallStripGeo, this.wallLedMat);
+    rightWallStrip.position.set(hallWidth / 2 - 0.26, 4.0, 0);
+    this.scene.add(rightWallStrip);
 
     // Decorative wall ribs
-    for (let z = -7; z <= 10; z += 3.5) {
+    for (let z = -8; z <= 12; z += 4.0) {
       const ribGeo = new THREE.BoxGeometry(0.2, hallHeight - 2, 1.2);
       const ribLeft = new THREE.Mesh(ribGeo, this.goldTrimMat);
       ribLeft.position.set(-hallWidth / 2 + 0.25, hallHeight / 2, z);
@@ -330,13 +430,13 @@ class CinemaScene {
     this.scene.add(ceiling);
     this.ceilingMesh = ceiling;
 
-    // 4. Cinema Professional Sound System (Dolby Atmos Wall Surround Speakers & Stage Subwoofer Arrays)
+    // 4. Cinema Professional Sound System (Dolby Atmos Wall Surround Speakers)
     this.buildCinemaSoundSystem(hallWidth, hallLength, hallHeight);
 
-    // 5. Cinema Emergency Exit Doors with Glowing Neon Sign (Cửa Thoát Hiểm / Out Phòng)
+    // 5. Cinema Emergency Exit Doors with Glowing Neon Sign
     this.buildExitDoors(hallWidth, hallLength, hallHeight);
 
-    // 6. Thematic Environments (Rooftop Starfield & Sci-Fi Cyberpod)
+    // 6. Thematic Environments (Classic VIP, Rooftop Starfield & Sci-Fi Cyberpod)
     this.buildThematicElements(hallWidth, hallLength, hallHeight);
 
     // Lighting
@@ -348,111 +448,267 @@ class CinemaScene {
     this.scene.add(this.warmKeyLight);
   }
 
-  // Khởi tạo các chi tiết trang trí đặc trưng cho các Theme phòng chiếu khác nhau
-  buildThematicElements(hallWidth = 21, hallLength = 26, hallHeight = 12.2) {
-    // A. Theme: Rooftop Cinema (Trần trời sao đêm & Vầng trăng)
+  // Khởi tạo các chi tiết trang trí đặc trưng cho 3 Theme phòng chiếu hoàn toàn khác biệt
+  buildThematicElements(hallWidth = 24, hallLength = 28, hallHeight = 12.5) {
+    // =========================================================================
+    // THEME 1: Rạp Chiếu VIP Hoàng Gia (Classic VIP Velvet Cinema)
+    // =========================================================================
+    this.classicVipGroup = new THREE.Group();
+    // Đèn tường hắt sáng ấm cúng (Cinema Wall Sconces) dọc 2 bên vách rạp
+    for (let z = -6; z <= 10; z += 4.0) {
+      const sconceGeo = new THREE.BoxGeometry(0.18, 0.5, 0.35);
+      const sconceMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+      const scLeft = new THREE.Mesh(sconceGeo, sconceMat);
+      scLeft.position.set(-hallWidth / 2 + 0.35, 5.2, z);
+      this.classicVipGroup.add(scLeft);
+
+      const scRight = new THREE.Mesh(sconceGeo, sconceMat);
+      scRight.position.set(hallWidth / 2 - 0.35, 5.2, z);
+      this.classicVipGroup.add(scRight);
+    }
+    this.scene.add(this.classicVipGroup);
+
+    // =========================================================================
+    // THEME 2: Rạp Chiếu Sân Thượng Lãng Mạn (Rooftop Cinema & 3D City Skyline)
+    // =========================================================================
     this.rooftopGroup = new THREE.Group();
-    const starCount = 1200;
+
+    // 1. Twinkling Night Sky Starfield (2,500 vì sao lấp lánh trên bầu trời đêm)
+    const starCount = 2500;
     const starGeo = new THREE.BufferGeometry();
     const starPos = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount * 3; i += 3) {
-      starPos[i] = (Math.random() - 0.5) * 80;
-      starPos[i + 1] = 12.5 + Math.random() * 30; // Trên cao
-      starPos[i + 2] = (Math.random() - 0.5) * 80;
+      starPos[i] = (Math.random() - 0.5) * 120;
+      starPos[i + 1] = 13.0 + Math.random() * 45; // Trên cao không gian
+      starPos[i + 2] = (Math.random() - 0.5) * 120;
     }
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
     const starMat = new THREE.PointsMaterial({
-      color: 0xdbeafe,
-      size: 0.28,
+      color: 0xe0f2fe,
+      size: 0.32,
       transparent: true,
-      opacity: 0.88
+      opacity: 0.92
     });
     this.starfieldPoints = new THREE.Points(starGeo, starMat);
     this.rooftopGroup.add(this.starfieldPoints);
 
-    // Vầng trăng lưỡi liềm trên cao
-    const moonGeo = new THREE.SphereGeometry(2.0, 16, 16);
+    // 2. Vầng Trăng Sáng Dịu trên cao
+    const moonGeo = new THREE.SphereGeometry(2.4, 20, 20);
     const moonMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
     const moonMesh = new THREE.Mesh(moonGeo, moonMat);
-    moonMesh.position.set(16, 26, -18);
+    moonMesh.position.set(22, 32, -26);
     this.rooftopGroup.add(moonMesh);
+
+    // 3. 3D Modern City Skyline Silhouette (Các khối toà nhà chọc trời ban đêm với ô cửa sổ sáng đèn ở xa)
+    const bldgMat = new THREE.MeshStandardMaterial({ color: 0x070a14, roughness: 0.8, metalness: 0.3 });
+    const winLitMat = new THREE.MeshBasicMaterial({ color: 0xfef08a }); // Cửa sổ vàng ấm
+    const winCyanMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 }); // Cửa sổ xanh neon
+
+    // Hàng toà nhà chọc trời phía xa sau màn chiếu (z = -30 to -38)
+    for (let bx = -36; bx <= 36; bx += 3.2) {
+      const bHeight = 14 + Math.abs(Math.sin(bx * 0.4)) * 18;
+      const bWidth = 2.4 + (Math.abs(bx) % 3) * 0.4;
+      const bGeo = new THREE.BoxGeometry(bWidth, bHeight, 3.5);
+      const bldg = new THREE.Mesh(bGeo, bldgMat);
+      bldg.position.set(bx + (Math.sin(bx) * 0.6), bHeight / 2 - 4.0, -32 - (Math.abs(bx) % 4));
+      this.rooftopGroup.add(bldg);
+
+      // Điểm xuyết các cụm ô cửa sổ phát sáng ban đêm
+      for (let wy = 3; wy < bHeight - 3; wy += 3.2) {
+        const wGeo = new THREE.PlaneGeometry(0.4, 0.6);
+        const wMesh = new THREE.Mesh(wGeo, (wy % 2 === 0) ? winLitMat : winCyanMat);
+        wMesh.position.set(bldg.position.x + 0.3, wy - 3.0, bldg.position.z + 1.8);
+        this.rooftopGroup.add(wMesh);
+      }
+    }
+
+    // 4. Fairy String Lights (Dây bóng đèn Edison cổ điển giăng ngang sân thượng lung linh)
+    const stringMat = new THREE.LineBasicMaterial({ color: 0x475569 });
+    const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
+    for (let sZ of [-2, 2, 6]) {
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-hallWidth / 2 + 0.5, 9.8, sZ),
+        new THREE.Vector3(0, 8.4, sZ),
+        new THREE.Vector3(hallWidth / 2 - 0.5, 9.8, sZ)
+      ]);
+      const points = curve.getPoints(24);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const stringLine = new THREE.Line(lineGeo, stringMat);
+      this.rooftopGroup.add(stringLine);
+
+      // Treo 8 bóng đèn tròn phát sáng ấm dọc theo dây
+      for (let t = 0.08; t <= 0.92; t += 0.12) {
+        const pt = curve.getPoint(t);
+        const bulbGeo = new THREE.SphereGeometry(0.12, 10, 10);
+        const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+        bulb.position.copy(pt);
+        this.rooftopGroup.add(bulb);
+      }
+    }
+
+    // 5. Lan can ban công sân thượng (Rooftop Balustrade)
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.3 });
+    const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.35, roughness: 0.1 });
+    [-hallWidth / 2 + 0.3, hallWidth / 2 - 0.3].forEach(rx => {
+      const railTopGeo = new THREE.BoxGeometry(0.12, 0.08, hallLength);
+      const railTop = new THREE.Mesh(railTopGeo, railMat);
+      railTop.position.set(rx, 3.2, 0);
+      this.rooftopGroup.add(railTop);
+
+      const glassGeo = new THREE.BoxGeometry(0.04, 1.4, hallLength);
+      const glass = new THREE.Mesh(glassGeo, glassMat);
+      glass.position.set(rx, 2.4, 0);
+      this.rooftopGroup.add(glass);
+    });
 
     this.rooftopGroup.visible = false;
     this.scene.add(this.rooftopGroup);
 
-    // B. Theme: Sci-Fi Cyberpod (Dải đèn Neon Cyberpunk & Holo Rings)
+    // =========================================================================
+    // THEME 3: Phi Thuyền Tương Lai (Sci-Fi Cyberpod Starship)
+    // =========================================================================
     this.scifiGroup = new THREE.Group();
-    const holoRingGeo = new THREE.TorusGeometry(5.2, 0.08, 8, 32);
-    const holoRingMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.75 });
-    this.holoRing = new THREE.Mesh(holoRingGeo, holoRingMat);
+
+    // 1. Cột năng lượng Neon Cyberpunk đứng dọc hai bên vách (Cyan & Magenta)
+    const neonCyanMat = new THREE.MeshBasicMaterial({ color: 0x00f5ff });
+    const neonMagMat = new THREE.MeshBasicMaterial({ color: 0xd946ef });
+    let cIndex = 0;
+    for (let z = -8; z <= 12; z += 3.6) {
+      const colGeo = new THREE.CylinderGeometry(0.08, 0.08, hallHeight - 1, 12);
+      const colMat = (cIndex % 2 === 0) ? neonCyanMat : neonMagMat;
+      cIndex++;
+
+      const colLeft = new THREE.Mesh(colGeo, colMat);
+      colLeft.position.set(-hallWidth / 2 + 0.3, hallHeight / 2, z);
+      this.scifiGroup.add(colLeft);
+
+      const colRight = new THREE.Mesh(colGeo, colMat);
+      colRight.position.set(hallWidth / 2 - 0.3, hallHeight / 2, z);
+      this.scifiGroup.add(colRight);
+    }
+
+    // 2. Vòng tròn Dữ Liệu Hologram 3D xoay tròn (Holographic Data Rings)
+    const holoRingGeo = new THREE.TorusGeometry(5.8, 0.08, 8, 36);
+    this.holoRing = new THREE.Mesh(holoRingGeo, neonCyanMat);
     this.holoRing.rotation.x = Math.PI / 2;
-    this.holoRing.position.set(0, hallHeight - 0.3, 0);
+    this.holoRing.position.set(0, hallHeight - 0.5, 0);
     this.scifiGroup.add(this.holoRing);
 
-    const holoRingInnerGeo = new THREE.TorusGeometry(3.6, 0.06, 8, 32);
-    const holoRingInnerMat = new THREE.MeshBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0.7 });
-    this.holoRingInner = new THREE.Mesh(holoRingInnerGeo, holoRingInnerMat);
+    const holoRingInnerGeo = new THREE.TorusGeometry(4.0, 0.06, 8, 36);
+    this.holoRingInner = new THREE.Mesh(holoRingInnerGeo, neonMagMat);
     this.holoRingInner.rotation.x = Math.PI / 2;
-    this.holoRingInner.position.set(0, hallHeight - 0.3, 0);
+    this.holoRingInner.position.set(0, hallHeight - 0.5, 0);
     this.scifiGroup.add(this.holoRingInner);
+
+    // 3. Lưới ánh sáng Hologram trên sàn phía trước màn chiếu (Cyber Floor Grid)
+    const gridHelper = new THREE.GridHelper(18, 18, 0x00f5ff, 0x3b82f6);
+    gridHelper.position.set(0, 0.22, -6.8);
+    this.scifiGroup.add(gridHelper);
+
+    // 4. Cosmic Purple Nebula Stardust (Bụi tinh vân vũ trụ huyền bí)
+    const nebulaCount = 800;
+    const nebGeo = new THREE.BufferGeometry();
+    const nebPos = new Float32Array(nebulaCount * 3);
+    for (let i = 0; i < nebulaCount * 3; i += 3) {
+      nebPos[i] = (Math.random() - 0.5) * 60;
+      nebPos[i + 1] = 4 + Math.random() * 18;
+      nebPos[i + 2] = (Math.random() - 0.5) * 60;
+    }
+    nebGeo.setAttribute('position', new THREE.BufferAttribute(nebPos, 3));
+    const nebMat = new THREE.PointsMaterial({ color: 0xc084fc, size: 0.24, transparent: true, opacity: 0.75 });
+    const nebulaPoints = new THREE.Points(nebGeo, nebMat);
+    this.scifiGroup.add(nebulaPoints);
 
     this.scifiGroup.visible = false;
     this.scene.add(this.scifiGroup);
   }
 
-  // Chuyển đổi chủ đề không gian rạp 3D
+  // Chuyển đổi chủ đề không gian rạp 3D với sự lột xác hoàn toàn về kiến trúc, ánh sáng & ngoại cảnh
   setTheme(themeName = 'classic') {
     if (!this.hasWebGL) return;
     this.currentTheme = themeName;
 
     if (themeName === 'rooftop') {
+      // 1. Mở toang trần trời & gỡ bỏ tường cao để ngắm Skyline thành phố
       if (this.ceilingMesh) this.ceilingMesh.visible = false;
+      if (this.leftWall) this.leftWall.visible = false;
+      if (this.rightWall) this.rightWall.visible = false;
+
+      if (this.classicVipGroup) this.classicVipGroup.visible = false;
       if (this.rooftopGroup) this.rooftopGroup.visible = true;
       if (this.scifiGroup) this.scifiGroup.visible = false;
 
-      if (this.floorMat) this.floorMat.color.setHex(0x191817);
-      if (this.wallMat) this.wallMat.color.setHex(0x0f1118);
+      // 2. Chuyển sang sàn gỗ ngoài trời & ánh trăng xanh dịu
+      if (this.floorMat) this.floorMat.color.setHex(0x231a15);
+      if (this.wallMat) this.wallMat.color.setHex(0x0a0c14);
       if (this.ambientLight) {
-        this.ambientLight.color.setHex(0xbfdbfe);
+        this.ambientLight.color.setHex(0x93c5fd);
         this.ambientLight.intensity = 0.38;
+      }
+      if (this.warmKeyLight) {
+        this.warmKeyLight.color.setHex(0xfef08a);
+        this.warmKeyLight.intensity = 0.45;
       }
       if (this.goldTrimMat) {
         this.goldTrimMat.color.setHex(0x60a5fa);
         this.goldTrimMat.emissive.setHex(0x1d4ed8);
         this.goldTrimMat.emissiveIntensity = 0.15;
       }
+      if (this.wallLedMat) this.wallLedMat.color.setHex(0x38bdf8);
     } else if (themeName === 'scifi') {
+      // 1. Khoang điều khiển phi thuyền không gian viễn tưởng
       if (this.ceilingMesh) this.ceilingMesh.visible = true;
+      if (this.leftWall) this.leftWall.visible = true;
+      if (this.rightWall) this.rightWall.visible = true;
+
+      if (this.classicVipGroup) this.classicVipGroup.visible = false;
       if (this.rooftopGroup) this.rooftopGroup.visible = false;
       if (this.scifiGroup) this.scifiGroup.visible = true;
 
-      if (this.floorMat) this.floorMat.color.setHex(0x0a0f1d);
-      if (this.wallMat) this.wallMat.color.setHex(0x090d16);
+      // 2. Chuyển sang kim loại tối, ánh sáng Cyan & Magenta Neon
+      if (this.floorMat) this.floorMat.color.setHex(0x060913);
+      if (this.wallMat) this.wallMat.color.setHex(0x05070e);
       if (this.ambientLight) {
-        this.ambientLight.color.setHex(0x67e8f9);
+        this.ambientLight.color.setHex(0x06b6d4);
         this.ambientLight.intensity = 0.42;
       }
-      if (this.goldTrimMat) {
-        this.goldTrimMat.color.setHex(0x06b6d4);
-        this.goldTrimMat.emissive.setHex(0x0891b2);
-        this.goldTrimMat.emissiveIntensity = 0.35;
+      if (this.warmKeyLight) {
+        this.warmKeyLight.color.setHex(0xd946ef);
+        this.warmKeyLight.intensity = 0.55;
       }
+      if (this.goldTrimMat) {
+        this.goldTrimMat.color.setHex(0x00f5ff);
+        this.goldTrimMat.emissive.setHex(0x0891b2);
+        this.goldTrimMat.emissiveIntensity = 0.4;
+      }
+      if (this.wallLedMat) this.wallLedMat.color.setHex(0x00f5ff);
     } else { // 'classic'
+      // 1. Rạp chiếu phim VIP nhung đỏ phong cách hoàng gia ấm cúng
       if (this.ceilingMesh) this.ceilingMesh.visible = true;
+      if (this.leftWall) this.leftWall.visible = true;
+      if (this.rightWall) this.rightWall.visible = true;
+
+      if (this.classicVipGroup) this.classicVipGroup.visible = true;
       if (this.rooftopGroup) this.rooftopGroup.visible = false;
       if (this.scifiGroup) this.scifiGroup.visible = false;
 
-      if (this.floorMat) this.floorMat.color.setHex(0x161816);
-      if (this.wallMat) this.wallMat.color.setHex(0x111311);
+      // 2. Tông vàng hoàng gia ấm áp
+      if (this.floorMat) this.floorMat.color.setHex(0x141615);
+      if (this.wallMat) this.wallMat.color.setHex(0x101211);
       if (this.ambientLight) {
         this.ambientLight.color.setHex(0xffffff);
         this.ambientLight.intensity = 0.46;
+      }
+      if (this.warmKeyLight) {
+        this.warmKeyLight.color.setHex(0xfff1d6);
+        this.warmKeyLight.intensity = 0.65;
       }
       if (this.goldTrimMat) {
         this.goldTrimMat.color.setHex(0xf2cf78);
         this.goldTrimMat.emissive.setHex(0x705218);
         this.goldTrimMat.emissiveIntensity = 0.22;
       }
+      if (this.wallLedMat) this.wallLedMat.color.setHex(0xf59e0b);
     }
   }
 
@@ -951,10 +1207,24 @@ class CinemaScene {
   }
 
   buildSeats() {
-    const leatherRed = new THREE.MeshStandardMaterial({
-      color: 0x7a1e28, // Luxurious dark red velvet / leather (VIP)
+    // 1. Materials for Seat Upholstery
+    const leatherStandard = new THREE.MeshStandardMaterial({
+      color: 0x24272c, // Modern charcoal/dark slate fabric (Standard rows A & B)
+      roughness: 0.75,
+      metalness: 0.12
+    });
+
+    const leatherVip = new THREE.MeshStandardMaterial({
+      color: 0x821c29, // Luxurious deep crimson velvet (VIP rows C & D)
       roughness: 0.65,
-      metalness: 0.15
+      metalness: 0.12
+    });
+
+    // Bọc đệm tựa đầu vải trắng cao cấp cho hàng ghế VIP (Y hệt ảnh rạp thật CGV/Multiplex của người dùng!)
+    const headrestWhite = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.9,
+      metalness: 0.05
     });
 
     const leatherSweetbox = new THREE.MeshStandardMaterial({
@@ -966,63 +1236,63 @@ class CinemaScene {
     });
 
     const darkArmMat = new THREE.MeshStandardMaterial({
-      color: 0x222422,
-      roughness: 0.7,
-      metalness: 0.3
+      color: 0x1b1d1f,
+      roughness: 0.8,
+      metalness: 0.25
     });
 
     const baseMat = new THREE.MeshStandardMaterial({
-      color: 0x151615,
-      roughness: 0.8,
-      metalness: 0.5
+      color: 0x141517,
+      roughness: 0.9,
+      metalness: 0.4
     });
 
-    // 1. HÀNG A & HÀNG B (Ghế đơn tiêu chuẩn & VIP nhung đỏ: seatId 0..9)
-    for (let i = 0; i < 10; i++) {
+    // 2. HÀNG A, B, C, D (40 ghế đơn tiêu chuẩn & VIP nhung đỏ tựa đầu trắng: seatId 0..39)
+    for (let i = 0; i < 40; i++) {
       const coord = this.seatCoords[i];
       const seatGroup = new THREE.Group();
       seatGroup.position.set(coord.x, coord.y, coord.z);
 
-      const isVip = i >= 5;
-      const seatMat = isVip ? leatherRed : leatherRed;
-      const w = 1.2;
-      const baseW = 1.3;
+      const isVip = coord.isVip;
+      const seatMat = isVip ? leatherVip : leatherStandard;
+      const w = 0.92;
+      const baseW = 0.98;
 
       // Base
-      const baseGeo = new THREE.BoxGeometry(baseW, 0.2, 1.1);
+      const baseGeo = new THREE.BoxGeometry(baseW, 0.18, 0.85);
       const base = new THREE.Mesh(baseGeo, baseMat);
-      base.position.set(0, 0.1, 0);
+      base.position.set(0, 0.09, 0);
       seatGroup.add(base);
 
       // Cushion
-      const cushionGeo = new THREE.BoxGeometry(w, 0.35, 1.05);
+      const cushionGeo = new THREE.BoxGeometry(w, 0.26, 0.82);
       const cushion = new THREE.Mesh(cushionGeo, seatMat);
-      cushion.position.set(0, 0.35, -0.05);
+      cushion.position.set(0, 0.28, -0.04);
       seatGroup.add(cushion);
 
       // Backrest
-      const backGeo = new THREE.BoxGeometry(w, 1.25, 0.28);
+      const backGeo = new THREE.BoxGeometry(w, 0.98, 0.22);
       const backrest = new THREE.Mesh(backGeo, seatMat);
-      backrest.position.set(0, 1.05, 0.44);
+      backrest.position.set(0, 0.82, 0.35);
       backrest.rotation.x = -0.12;
       seatGroup.add(backrest);
 
-      // Headrest
-      const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
-      const headrest = new THREE.Mesh(headGeo, seatMat);
-      headrest.position.set(0, 1.62, 0.48);
+      // Headrest (Ghế VIP có khăn phủ tựa đầu trắng tinh tế y hệt rạp chiếu thật)
+      const headGeo = new THREE.BoxGeometry(0.68, 0.25, 0.15);
+      const headrest = new THREE.Mesh(headGeo, isVip ? headrestWhite : seatMat);
+      headrest.position.set(0, 1.32, 0.39);
       seatGroup.add(headrest);
 
       // Armrests & Cup holders
-      for (const side of [-0.68, 0.68]) {
-        const armGeo = new THREE.BoxGeometry(0.22, 0.6, 1.05);
+      for (const side of [-0.52, 0.52]) {
+        const armGeo = new THREE.BoxGeometry(0.16, 0.48, 0.82);
         const arm = new THREE.Mesh(armGeo, darkArmMat);
-        arm.position.set(side, 0.6, 0);
+        arm.position.set(side, 0.48, 0);
         seatGroup.add(arm);
 
-        const cupGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12);
+        const cupGeo = new THREE.CylinderGeometry(0.065, 0.065, 0.07, 12);
         const cup = new THREE.Mesh(cupGeo, baseMat);
-        cup.position.set(side, 0.91, -0.35);
+        cup.position.set(side, 0.73, -0.26);
         seatGroup.add(cup);
       }
 
@@ -1033,11 +1303,11 @@ class CinemaScene {
       const lCtx = labelCanvas.getContext('2d');
       lCtx.fillStyle = '#1c1f1c';
       lCtx.fillRect(0, 0, 320, 128);
-      lCtx.strokeStyle = isVip ? '#fbbf24' : '#f2cf78';
+      lCtx.strokeStyle = isVip ? '#fbbf24' : '#94a3b8';
       lCtx.lineWidth = 6;
       lCtx.strokeRect(4, 4, 312, 120);
       lCtx.font = 'bold 64px "JetBrains Mono", monospace';
-      lCtx.fillStyle = isVip ? '#fbbf24' : '#f2cf78';
+      lCtx.fillStyle = isVip ? '#fbbf24' : '#e2e8f0';
       lCtx.textAlign = 'center';
       lCtx.textBaseline = 'middle';
       lCtx.fillText(coord.label, 160, 68);
@@ -1045,10 +1315,10 @@ class CinemaScene {
       const labelTex = new THREE.CanvasTexture(labelCanvas);
       labelTex.generateMipmaps = true;
       labelTex.minFilter = THREE.LinearMipmapLinearFilter;
-      const labelGeo = new THREE.PlaneGeometry(0.38, 0.18);
+      const labelGeo = new THREE.PlaneGeometry(0.32, 0.15);
       const labelMat = new THREE.MeshBasicMaterial({ map: labelTex });
       const labelMesh = new THREE.Mesh(labelGeo, labelMat);
-      labelMesh.position.set(0, 1.48, 0.59);
+      labelMesh.position.set(0, 1.22, 0.48);
       seatGroup.add(labelMesh);
 
       seatGroup.userData = { seatId: coord.id, label: coord.label, coord, isCouple: false };
@@ -1063,96 +1333,97 @@ class CinemaScene {
       this.avatarMeshes[coord.id] = null;
     }
 
-    // 2. HÀNG C: 3 GHẾ ĐÔI SWEETBOX (Mỗi ghế ngồi được 2 người = 6 chỗ: C01..C06)
+    // 3. HÀNG E: 4 GHẾ ĐÔI SWEETBOX (Mỗi ghế ngồi được 2 người = 8 chỗ: E01..E08)
     const coupleSofas = [
-      { group: 1, leftId: 10, rightId: 11, sofaX: -4.5 },
-      { group: 2, leftId: 12, rightId: 13, sofaX: 0.0 },
-      { group: 3, leftId: 14, rightId: 15, sofaX: 4.5 }
+      { group: 1, leftId: 40, rightId: 41, sofaX: -5.4 },
+      { group: 2, leftId: 42, rightId: 43, sofaX: -1.8 },
+      { group: 3, leftId: 44, rightId: 45, sofaX: 1.8 },
+      { group: 4, leftId: 46, rightId: 47, sofaX: 5.4 }
     ];
 
     coupleSofas.forEach((sofa) => {
       const sofaGroup = new THREE.Group();
-      sofaGroup.position.set(sofa.sofaX, 1.65, 3.6);
+      sofaGroup.position.set(sofa.sofaX, 3.05, 5.7);
 
       const leftCoord = this.seatCoords[sofa.leftId];
       const rightCoord = this.seatCoords[sofa.rightId];
 
       // Base
-      const baseGeo = new THREE.BoxGeometry(2.45, 0.2, 1.1);
+      const baseGeo = new THREE.BoxGeometry(2.35, 0.2, 1.05);
       const base = new THREE.Mesh(baseGeo, baseMat);
       base.position.set(0, 0.1, 0);
       sofaGroup.add(base);
 
       // Left & Right Cushions (2 chỗ ngồi riêng biệt trên cùng chiếc sofa đôi)
-      const cushGeo = new THREE.BoxGeometry(1.12, 0.35, 1.05);
+      const cushGeo = new THREE.BoxGeometry(1.06, 0.35, 1.0);
       const cushLeft = new THREE.Mesh(cushGeo, leatherSweetbox);
-      cushLeft.position.set(-0.58, 0.35, -0.05);
+      cushLeft.position.set(-0.55, 0.35, -0.05);
       cushLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true, coupleSide: 'Trái' };
       sofaGroup.add(cushLeft);
 
       const cushRight = new THREE.Mesh(cushGeo, leatherSweetbox);
-      cushRight.position.set(0.58, 0.35, -0.05);
+      cushRight.position.set(0.55, 0.35, -0.05);
       cushRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true, coupleSide: 'Phải' };
       sofaGroup.add(cushRight);
 
       // Left & Right Backrests
-      const backGeo = new THREE.BoxGeometry(1.12, 1.25, 0.28);
+      const backGeo = new THREE.BoxGeometry(1.06, 1.25, 0.26);
       const backLeft = new THREE.Mesh(backGeo, leatherSweetbox);
-      backLeft.position.set(-0.58, 1.05, 0.44);
+      backLeft.position.set(-0.55, 1.05, 0.42);
       backLeft.rotation.x = -0.12;
       backLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true };
       sofaGroup.add(backLeft);
 
       const backRight = new THREE.Mesh(backGeo, leatherSweetbox);
-      backRight.position.set(0.58, 1.05, 0.44);
+      backRight.position.set(0.55, 1.05, 0.42);
       backRight.rotation.x = -0.12;
       backRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true };
       sofaGroup.add(backRight);
 
       // Dual Headrests (Left & Right)
-      const headGeo = new THREE.BoxGeometry(0.85, 0.32, 0.18);
+      const headGeo = new THREE.BoxGeometry(0.8, 0.3, 0.18);
       const headLeft = new THREE.Mesh(headGeo, leatherSweetbox);
-      headLeft.position.set(-0.55, 1.62, 0.48);
+      headLeft.position.set(-0.52, 1.6, 0.46);
       headLeft.userData = { seatId: sofa.leftId, label: leftCoord.label };
       sofaGroup.add(headLeft);
 
       const headRight = new THREE.Mesh(headGeo, leatherSweetbox);
-      headRight.position.set(0.55, 1.62, 0.48);
+      headRight.position.set(0.52, 1.6, 0.46);
       headRight.userData = { seatId: sofa.rightId, label: rightCoord.label };
       sofaGroup.add(headRight);
 
       // Sweetbox Curved Privacy Wings on left & right
-      const wingGeo = new THREE.BoxGeometry(0.14, 1.42, 1.22);
+      const wingGeo = new THREE.BoxGeometry(0.14, 1.4, 1.18);
       const wingLeft = new THREE.Mesh(wingGeo, leatherSweetbox);
-      wingLeft.position.set(-1.22, 1.05, 0.1);
+      wingLeft.position.set(-1.16, 1.05, 0.1);
       wingLeft.userData = { seatId: sofa.leftId };
       sofaGroup.add(wingLeft);
 
       const wingRight = new THREE.Mesh(wingGeo, leatherSweetbox);
-      wingRight.position.set(1.22, 1.05, 0.1);
+      wingRight.position.set(1.16, 1.05, 0.1);
       wingRight.userData = { seatId: sofa.rightId };
       sofaGroup.add(wingRight);
 
       // Armrests & Cup holders
-      for (const side of [-1.15, 1.15]) {
-        const armGeo = new THREE.BoxGeometry(0.22, 0.6, 1.05);
+      for (const side of [-1.1, 1.1]) {
+        const armGeo = new THREE.BoxGeometry(0.2, 0.58, 1.0);
         const arm = new THREE.Mesh(armGeo, darkArmMat);
-        arm.position.set(side, 0.6, 0);
+        arm.position.set(side, 0.58, 0);
         sofaGroup.add(arm);
 
-        const cupGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.08, 12);
+        const cupGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.08, 12);
         const cup = new THREE.Mesh(cupGeo, baseMat);
-        cup.position.set(side, 0.91, -0.35);
+        cup.position.set(side, 0.88, -0.32);
         sofaGroup.add(cup);
       }
 
       // Center Divider Arm & Double Cup Holder (Vách tay vịn giữa 2 bạn)
-      const centerArmGeo = new THREE.BoxGeometry(0.18, 0.45, 0.85);
+      const centerArmGeo = new THREE.BoxGeometry(0.18, 0.44, 0.82);
       const centerArm = new THREE.Mesh(centerArmGeo, darkArmMat);
-      centerArm.position.set(0, 0.52, -0.05);
+      centerArm.position.set(0, 0.5, -0.05);
       sofaGroup.add(centerArm);
 
-      // Two Separate Seat Label Plates ("C01 💖" and "C02 💖")
+      // Two Separate Seat Label Plates ("E01 💖" and "E02 💖")
       const makePlate = (lbl, sideX, sId) => {
         const pCanvas = document.createElement('canvas');
         pCanvas.width = 160;
@@ -1171,18 +1442,17 @@ class CinemaScene {
 
         const pTex = new THREE.CanvasTexture(pCanvas);
         const pMesh = new THREE.Mesh(
-          new THREE.PlaneGeometry(0.46, 0.18),
+          new THREE.PlaneGeometry(0.44, 0.17),
           new THREE.MeshBasicMaterial({ map: pTex })
         );
-        pMesh.position.set(sideX, 1.48, 0.59);
+        pMesh.position.set(sideX, 1.46, 0.56);
         pMesh.userData = { seatId: sId, label: lbl, isCouple: true };
         sofaGroup.add(pMesh);
       };
-
       makePlate(leftCoord.label, -0.55, sofa.leftId);
       makePlate(rightCoord.label, 0.55, sofa.rightId);
 
-      // Top Header Ribbon: "💖 GHẾ ĐÔI X (SWEETBOX) 💖" (Siêu sắc nét chuẩn HD Canvas)
+      // Shared Sweetbox Couple Name Plaque
       const topCanvas = document.createElement('canvas');
       topCanvas.width = 768;
       topCanvas.height = 128;
@@ -1192,7 +1462,7 @@ class CinemaScene {
       tCtx.strokeStyle = '#f43f5e';
       tCtx.lineWidth = 5;
       tCtx.strokeRect(5, 5, 758, 118);
-      tCtx.font = 'bold 46px "Plus Jakarta Sans", sans-serif';
+      tCtx.font = 'bold 44px "Plus Jakarta Sans", sans-serif';
       tCtx.fillStyle = '#fda4af';
       tCtx.textAlign = 'center';
       tCtx.textBaseline = 'middle';
@@ -1202,25 +1472,25 @@ class CinemaScene {
       topTex.generateMipmaps = true;
       topTex.minFilter = THREE.LinearMipmapLinearFilter;
       const topMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.4, 0.22),
+        new THREE.PlaneGeometry(1.35, 0.22),
         new THREE.MeshBasicMaterial({ map: topTex })
       );
-      topMesh.position.set(0, 1.84, 0.58);
+      topMesh.position.set(0, 1.82, 0.56);
       sofaGroup.add(topMesh);
 
       this.couplePlaques[sofa.group] = { canvas: topCanvas, ctx: tCtx, tex: topTex, group: sofa.group };
 
       // Two Interactive Click Hitboxes (Left & Right halves)
-      const hitGeo = new THREE.BoxGeometry(1.18, 1.8, 1.25);
+      const hitGeo = new THREE.BoxGeometry(1.15, 1.8, 1.25);
       const hitMat = new THREE.MeshBasicMaterial({ visible: false });
 
       const hitLeft = new THREE.Mesh(hitGeo, hitMat);
-      hitLeft.position.set(-0.58, 0.9, 0.0);
+      hitLeft.position.set(-0.55, 0.9, 0.0);
       hitLeft.userData = { seatId: sofa.leftId, label: leftCoord.label, isCouple: true, coupleSide: 'Trái' };
       sofaGroup.add(hitLeft);
 
       const hitRight = new THREE.Mesh(hitGeo, hitMat);
-      hitRight.position.set(0.58, 0.9, 0.0);
+      hitRight.position.set(0.55, 0.9, 0.0);
       hitRight.userData = { seatId: sofa.rightId, label: rightCoord.label, isCouple: true, coupleSide: 'Phải' };
       sofaGroup.add(hitRight);
 
@@ -1698,8 +1968,8 @@ class CinemaScene {
     let targetPos, targetLook;
     switch (mode) {
       case 'overview':
-        targetPos = new THREE.Vector3(0, 9.4, 12.2);
-        targetLook = new THREE.Vector3(0, 4.8, -2.2);
+        targetPos = new THREE.Vector3(0, 10.8, 14.5);
+        targetLook = new THREE.Vector3(0, 4.6, -3.2);
         break;
 
       case 'screen':
@@ -1710,13 +1980,13 @@ class CinemaScene {
         break;
 
       case 'audience':
-        targetPos = new THREE.Vector3(0, 2.2, -6.8);
-        targetLook = new THREE.Vector3(0, 2.1, 1.5);
+        targetPos = new THREE.Vector3(0, 2.6, -7.5);
+        targetLook = new THREE.Vector3(0, 2.5, 1.8);
         break;
 
       default:
-        targetPos = new THREE.Vector3(0, 9.4, 12.2);
-        targetLook = new THREE.Vector3(0, 4.8, -2.2);
+        targetPos = new THREE.Vector3(0, 10.8, 14.5);
+        targetLook = new THREE.Vector3(0, 4.6, -3.2);
     }
 
     this.camTargetPos.copy(targetPos);

@@ -1084,11 +1084,13 @@ async function resolveExternalMedia(input, customTitle = '') {
   return base;
 }
 
-// 16 Seats (Row A: A01..A05 tiêu chuẩn, Row B: B01..B05 VIP nhung đỏ, Row C: 3 Ghế Đôi Sweetbox = 6 chỗ C01..C06)
+// 48 Seats (Row A & B: Tiêu chuẩn A01..A10 & B01..B10, Row C & D: VIP C01..C10 & D01..D10, Row E: 4 Ghế Đôi Sweetbox = 8 chỗ E01..E08)
 const SEAT_LABELS = [
-  'A01', 'A02', 'A03', 'A04', 'A05',
-  'B01', 'B02', 'B03', 'B04', 'B05',
-  'C01', 'C02', 'C03', 'C04', 'C05', 'C06'
+  'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10',
+  'B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B09', 'B10',
+  'C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09', 'C10',
+  'D01', 'D02', 'D03', 'D04', 'D05', 'D06', 'D07', 'D08', 'D09', 'D10',
+  'E01', 'E02', 'E03', 'E04', 'E05', 'E06', 'E07', 'E08'
 ];
 
 // Virtual Gifts Catalog for Cinema Live
@@ -1627,7 +1629,7 @@ function handleCineBotReply(room, user, text) {
   } else if (query.includes('coins') || query.includes('tiền') || query.includes('xu')) {
     botReply = `💰 Bạn có thể nhận Coins miễn phí bằng cách bấm nút "Nhận Coins" mỗi 5 phút, hoặc thắng các trận Mini-game Trivia của rạp! Coins dùng để mua Bắp, Trà sữa và Kính 3D tại Căn tin đó!`;
   } else if (query.includes('ghế đôi') || query.includes('sweetbox') || query.includes('người yêu')) {
-    botReply = `💖 Hàng ghế C là ghế đôi Sweetbox lãng mạn dành cho 2 người! Cặp đôi ngồi đây có thể kích hoạt các hành động Độc Quyền (Ôm, Nắm tay, Tựa vai) và bật chế độ Thì thầm bí mật đấy!`;
+    botReply = `💖 Hàng ghế E là ghế đôi Sweetbox lãng mạn dành cho 2 người! Cặp đôi ngồi đây có thể kích hoạt các hành động Độc Quyền (Đút bắp, Tựa vai, Khắc tên) và bật chế độ Thì thầm bí mật đấy!`;
   } else {
     botReply = `🍿 CineBot đã nghe bạn nói: "${query}". Cùng xem phim thật vui với mọi người trong phòng nhé! Gõ "gợi ý phim" nếu bạn cần ý tưởng chọn video tiếp theo.`;
   }
@@ -1956,10 +1958,10 @@ wss.on('connection', (ws, req) => {
         const seatId = parseInt(payload.seatId, 10);
         if (isNaN(seatId) || seatId < 0 || seatId >= SEAT_LABELS.length) return;
 
-        // Đặc quyền VIP: Hàng ghế B (B01 -> B05, seatId 5..9) bọc nhung đỏ sang trọng dành riêng cho VIP/Admin
-        if (seatId >= 5 && seatId < 10 && !user.isVip && user.role !== 'admin') {
+        // Đặc quyền VIP: Hàng ghế C & D (C01 -> D10, seatId 20..39) bọc nhung đỏ sang trọng có gối tựa đầu trắng dành riêng cho VIP/Admin
+        if (seatId >= 20 && seatId < 40 && !user.isVip && user.role !== 'admin') {
           send(ws, 'notification', {
-            message: `👑 Ghế ${SEAT_LABELS[seatId]} là Ghế VIP Nhung Đỏ (Hàng B). Hãy kích hoạt VIP để ngồi vị trí đẹp nhất rạp!`,
+            message: `👑 Ghế ${SEAT_LABELS[seatId]} là Ghế VIP Nhung Đỏ (Hàng C & D). Hãy kích hoạt VIP để ngồi vị trí đẹp nhất rạp!`,
             type: 'error'
           });
           return;
@@ -2054,7 +2056,7 @@ wss.on('connection', (ws, req) => {
         if (!room || !user.micOn || !payload?.data) return;
 
         // Whisper Audio Mode: Nếu bật Kênh thì thầm ghế đôi, chỉ bạn cùng ghế mới nghe thấy!
-        if (user.whisperMode && user.seatId !== null && user.seatId >= 10) {
+        if (user.whisperMode && user.seatId !== null && user.seatId >= 40) {
           const partnerSeatId = (user.seatId % 2 === 0) ? (user.seatId + 1) : (user.seatId - 1);
           const partner = room.seats[partnerSeatId];
           if (partner) {
@@ -2928,12 +2930,12 @@ wss.on('connection', (ws, req) => {
       case 'couple-action': {
         if (!room) return;
         const seatId = user.seatId;
-        if (seatId === null || seatId < 10) {
-          send(ws, 'notification', { message: '💖 Bạn phải ngồi ở Ghế Đôi Sweetbox (Hàng C) để dùng tính năng này!', type: 'warning' });
+        if (seatId === null || seatId < 40) {
+          send(ws, 'notification', { message: '💖 Bạn phải ngồi ở Ghế Đôi Sweetbox (Hàng E) để dùng tính năng này!', type: 'warning' });
           return;
         }
 
-        const coupleGroup = Math.floor((seatId - 10) / 2) + 1; // 1, 2, 3
+        const coupleGroup = Math.floor((seatId - 40) / 2) + 1; // 1, 2, 3, 4
         const partnerSeatId = (seatId % 2 === 0) ? (seatId + 1) : (seatId - 1);
         const partner = room.seats[partnerSeatId];
         const action = payload?.action; // 'feed_popcorn' | 'lean_shoulder' | 'set_name' | 'set_whisper'
