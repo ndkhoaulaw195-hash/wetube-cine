@@ -2413,6 +2413,11 @@ class CinemaApp {
       usersListEl.querySelectorAll('[data-adm-del-user]').forEach(b => {
         b.addEventListener('click', () => this.send('admin-delete-user', { accountId: b.getAttribute('data-adm-del-user') }));
       });
+
+      document.getElementById('btn-admin-cloud-sync')?.addEventListener('click', () => {
+        this.send('admin-force-cloud-sync');
+        this.showToast('☁️ Đang đồng bộ dữ liệu lên Cloud...', 'info');
+      });
     }
 
     const commentsListEl = document.getElementById('adm-comments-list');

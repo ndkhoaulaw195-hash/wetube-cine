@@ -14,50 +14,6 @@
       "isBanned": false,
       "createdAt": 1793614276332,
       "coins": 6000
-    },
-    {
-      "id": "acc_1793633789200_vrez",
-      "username": "khoa195",
-      "passwordHash": "38a2941a7081c05efad67a8aa410fb7407f4a7700aad1e99e8ee03539b567e8c",
-      "name": "Anh iu của bé Huế",
-      "avatarId": "pixel_detective",
-      "color": "#f2cf78",
-      "tier": "Khán Giả",
-      "role": "user",
-      "isVip": false,
-      "isBanned": false,
-      "createdAt": 1793633789200,
-      "plainPassword": "190502"
-    },
-    {
-      "id": "acc_1793637395177_5v18",
-      "username": "phamphuonghue",
-      "passwordHash": "0b041dc1b8db44e645ef77bbddc2fd405f789eb42fae20b1153d77287f4f01d2",
-      "plainPassword": "8924",
-      "name": "khongyeu",
-      "avatarId": "pixel_gamer",
-      "color": "#f2cf78",
-      "tier": "Khán Giả",
-      "role": "user",
-      "isVip": false,
-      "isBanned": false,
-      "coins": 1500,
-      "createdAt": 1793637395177
-    },
-    {
-      "id": "acc_1793675967225_6xcd",
-      "username": "user_test_1793675967223",
-      "passwordHash": "0acf8c1d2105bebaafe59d125ad2a48415c38972a5198c385a885d46f4f11724",
-      "plainPassword": "password123",
-      "name": "Bạn Gái VIP",
-      "avatarId": "pixel_nerd",
-      "color": "#3b82f6",
-      "tier": "Khán Giả",
-      "role": "user",
-      "isVip": false,
-      "isBanned": false,
-      "coins": 1000,
-      "createdAt": 1793675967225
     }
   ],
   "categories": {

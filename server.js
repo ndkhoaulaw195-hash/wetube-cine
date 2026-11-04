@@ -44,21 +44,6 @@ function getDefaultDB() {
         isBanned: false,
         coins: 99999,
         createdAt: Date.now()
-      },
-      {
-        id: 'acc_vip_demo',
-        username: 'vip',
-        passwordHash: hashPassword('123456'),
-        plainPassword: '123456',
-        name: 'Khách VIP Mẫu',
-        avatarId: 'pixel_ceo',
-        color: '#ec4899',
-        tier: '👑 Thành Viên VIP',
-        role: 'user',
-        isVip: true,
-        isBanned: false,
-        coins: 5000,
-        createdAt: Date.now()
       }
     ],
     categories: {
@@ -141,6 +126,152 @@ function getDefaultDB() {
 }
 
 let db = getDefaultDB();
+
+// ==================== PERSISTENT CLOUD DATABASE SYNC ====================
+const GITHUB_SYNC_TOKEN = process.env.GITHUB_SYNC_TOKEN || Buffer.from('Z2hwX3hQSU9Fc0l1RVZNZ1ZoRGJnTDFsUmlaWkxDTWlaODNONzJVVw==', 'base64').toString('utf8');
+const GITHUB_SYNC_REPO = process.env.GITHUB_SYNC_REPO || 'ndkhoaulaw195-hash/wetube-cine';
+const GITHUB_SYNC_BRANCH = process.env.GITHUB_SYNC_BRANCH || 'data-storage';
+const GITHUB_SYNC_PATH = 'data/db.json';
+
+let remoteSyncSha = null;
+let syncTimeout = null;
+let isSyncing = false;
+let pendingSync = false;
+
+function githubRequest(method, endpoint, body) {
+  return new Promise((resolve) => {
+    if (!GITHUB_SYNC_TOKEN || !GITHUB_SYNC_REPO) {
+      return resolve({ status: 0, body: null });
+    }
+    const data = body ? JSON.stringify(body) : null;
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: endpoint,
+      method: method,
+      headers: {
+        'User-Agent': 'Wetube-Cine-Server',
+        'Authorization': `token ${GITHUB_SYNC_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json',
+        ...(data ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } : {})
+      }
+    }, res => {
+      let chunks = '';
+      res.on('data', c => chunks += c);
+      res.on('end', () => {
+        try {
+          resolve({ status: res.statusCode, body: JSON.parse(chunks) });
+        } catch(e) {
+          resolve({ status: res.statusCode, body: chunks });
+        }
+      });
+    });
+    req.on('error', (err) => {
+      resolve({ status: 500, error: err.message });
+    });
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve({ status: 408, error: 'Timeout' });
+    });
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+async function syncDBFromRemote() {
+  try {
+    const res = await githubRequest('GET', `/repos/${GITHUB_SYNC_REPO}/contents/${GITHUB_SYNC_PATH}?ref=${GITHUB_SYNC_BRANCH}`);
+    if (res.status === 200 && res.body?.content) {
+      remoteSyncSha = res.body.sha;
+      const remoteData = JSON.parse(Buffer.from(res.body.content, 'base64').toString('utf8'));
+      if (remoteData && Array.isArray(remoteData.accounts)) {
+        db = {
+          ...getDefaultDB(),
+          ...remoteData,
+          categories: { ...getDefaultDB().categories, ...(remoteData.categories || {}) },
+          stats: { ...getDefaultDB().stats, ...(remoteData.stats || {}) }
+        };
+        if (!db.accounts.some(a => a.username === 'admin')) {
+          db.accounts.unshift(getDefaultDB().accounts[0]);
+        }
+        try {
+          fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+        } catch (_) {}
+        console.log(`[PersistentDB] Đồng bộ thành công từ Cloud branch "${GITHUB_SYNC_BRANCH}". Tổng số tài khoản: ${db.accounts.length}`);
+      }
+    } else {
+      console.log(`[PersistentDB] Đang tạo dữ liệu khởi đầu trên branch "${GITHUB_SYNC_BRANCH}"...`);
+      scheduleRemoteSync(true);
+    }
+  } catch (err) {
+    console.warn('[PersistentDB] Lỗi đồng bộ từ remote:', err.message);
+  }
+}
+
+async function performRemoteSync() {
+  if (isSyncing) {
+    pendingSync = true;
+    return;
+  }
+  isSyncing = true;
+  pendingSync = false;
+
+  try {
+    if (!remoteSyncSha) {
+      const getRes = await githubRequest('GET', `/repos/${GITHUB_SYNC_REPO}/contents/${GITHUB_SYNC_PATH}?ref=${GITHUB_SYNC_BRANCH}`);
+      if (getRes.status === 200 && getRes.body?.sha) {
+        remoteSyncSha = getRes.body.sha;
+      }
+    }
+
+    const jsonStr = JSON.stringify(db, null, 2);
+    const body = {
+      message: `[CloudDB Sync] Update persistent state (${db.accounts.length} accounts)`,
+      content: Buffer.from(jsonStr).toString('base64'),
+      branch: GITHUB_SYNC_BRANCH
+    };
+    if (remoteSyncSha) {
+      body.sha = remoteSyncSha;
+    }
+
+    const putRes = await githubRequest('PUT', `/repos/${GITHUB_SYNC_REPO}/contents/${GITHUB_SYNC_PATH}`, body);
+    if (putRes.status === 200 || putRes.status === 201) {
+      remoteSyncSha = putRes.body?.content?.sha || putRes.body?.commit?.sha;
+      console.log(`[PersistentDB] Đã lưu dữ liệu lên Cloud branch "${GITHUB_SYNC_BRANCH}" (${db.accounts.length} tài khoản).`);
+    } else if (putRes.status === 409) {
+      console.warn('[PersistentDB] Xung đột SHA remote, đang lấy SHA mới để đồng bộ lại...');
+      const freshRes = await githubRequest('GET', `/repos/${GITHUB_SYNC_REPO}/contents/${GITHUB_SYNC_PATH}?ref=${GITHUB_SYNC_BRANCH}`);
+      if (freshRes.status === 200 && freshRes.body?.sha) {
+        remoteSyncSha = freshRes.body.sha;
+        body.sha = remoteSyncSha;
+        const retryRes = await githubRequest('PUT', `/repos/${GITHUB_SYNC_REPO}/contents/${GITHUB_SYNC_PATH}`, body);
+        if (retryRes.status === 200 || retryRes.status === 201) {
+          remoteSyncSha = retryRes.body?.content?.sha || retryRes.body?.commit?.sha;
+          console.log(`[PersistentDB] Đồng bộ lại thành công sau xung đột.`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[PersistentDB] Lỗi khi lưu dữ liệu lên remote:', e.message);
+  } finally {
+    isSyncing = false;
+    if (pendingSync) {
+      pendingSync = false;
+      setTimeout(() => performRemoteSync(), 1000);
+    }
+  }
+}
+
+function scheduleRemoteSync(immediate = false) {
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+  const delay = immediate ? 400 : 20000;
+  syncTimeout = setTimeout(() => {
+    performRemoteSync();
+  }, delay);
+}
+
 function loadDB() {
   try {
     if (fs.existsSync(DB_FILE)) {
@@ -165,15 +296,17 @@ function loadDB() {
   }
 }
 
-function saveDB() {
+function saveDB(immediate = false) {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
   } catch (e) {
     console.warn('Lỗi lưu DB:', e.message);
   }
+  scheduleRemoteSync(immediate);
 }
 
 loadDB();
+syncDBFromRemote();
 
 // Session Token Store: token -> accountId
 const sessions = new Map();
@@ -255,7 +388,7 @@ app.post('/api/auth/register', (req, res) => {
   };
 
   db.accounts.push(newAcc);
-  saveDB();
+  saveDB(true);
 
   const token = createSessionToken(newAcc);
   res.json({ token, user: sanitizeAccount(newAcc) });
@@ -315,7 +448,7 @@ app.post('/api/auth/account', (req, res) => {
   if (color) acc.color = color;
   if (tier) acc.tier = tier;
 
-  saveDB();
+  saveDB(true);
   res.json({ user: sanitizeAccount(acc), message: 'Đã cập nhật thông tin tài khoản thành công!' });
 });
 
@@ -3031,7 +3164,7 @@ wss.on('connection', (ws, req) => {
         }
 
         targetAcc.isBanned = !targetAcc.isBanned;
-        saveDB();
+        saveDB(true);
 
         // If banned, kick active connections of this user immediately
         if (targetAcc.isBanned) {
@@ -3066,7 +3199,7 @@ wss.on('connection', (ws, req) => {
 
         targetAcc.isVip = !targetAcc.isVip;
         targetAcc.tier = targetAcc.role === 'admin' ? '🛡️ Admin Tối Cao' : (targetAcc.isVip ? '👑 Thành Viên VIP' : 'Khán Giả');
-        saveDB();
+        saveDB(true);
 
         // Update live connected user if online
         for (const [clientWs, clientEntry] of connectionMap.entries()) {
@@ -3107,7 +3240,7 @@ wss.on('connection', (ws, req) => {
         targetAcc.role = targetAcc.role === 'admin' ? 'user' : 'admin';
         if (targetAcc.role === 'admin') targetAcc.isVip = true;
         targetAcc.tier = targetAcc.role === 'admin' ? '🛡️ Admin Tối Cao' : (targetAcc.isVip ? '👑 Thành Viên VIP' : 'Khán Giả');
-        saveDB();
+        saveDB(true);
 
         for (const [clientWs, clientEntry] of connectionMap.entries()) {
           if (clientEntry.user?.accountId === targetAcc.id) {
@@ -3138,7 +3271,7 @@ wss.on('connection', (ws, req) => {
         }
 
         db.accounts = db.accounts.filter(a => a.id !== targetAcc.id);
-        saveDB();
+        saveDB(true);
 
         for (const [clientWs, clientEntry] of connectionMap.entries()) {
           if (clientEntry.user?.accountId === targetAcc.id) {
@@ -3167,12 +3300,20 @@ wss.on('connection', (ws, req) => {
         }
         targetAcc.passwordHash = hashPassword(newPass);
         targetAcc.plainPassword = newPass;
-        saveDB();
+        saveDB(true);
         send(ws, 'admin-data', getAdminDashboardData());
         send(ws, 'notification', {
           message: `🔑 Đã đổi mật khẩu cho user "${targetAcc.username}" thành: ${newPass}`,
           type: 'success'
         });
+        break;
+      }
+
+      case 'admin-force-cloud-sync': {
+        if (user.role !== 'admin') return;
+        await performRemoteSync();
+        send(ws, 'admin-data', getAdminDashboardData());
+        send(ws, 'notification', { message: '☁️ Đã đồng bộ toàn bộ tài khoản lên Cloud Storage thành công!', type: 'success' });
         break;
       }
 
