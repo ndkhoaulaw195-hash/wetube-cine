@@ -500,16 +500,29 @@ body.hud-hidden #btn-show-hud {
   bottom: calc(100% + 66px);
   left: 50%;
   transform: translateX(-50%);
-  width: 280px;
+  width: 380px;
+  max-width: min(390px, calc(100vw - 20px));
+  box-sizing: border-box;
   background: rgba(14, 17, 24, 0.98);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(242, 207, 120, 0.45);
   border-radius: 16px;
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.88), 0 0 25px rgba(242, 207, 120, 0.2);
-  padding: 12px;
+  padding: 14px;
   z-index: 1000;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overflow-x: hidden;
   animation: popoverFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.utilities-popover::-webkit-scrollbar {
+  width: 4px;
+}
+.utilities-popover::-webkit-scrollbar-thumb {
+  background: rgba(242, 207, 120, 0.3);
+  border-radius: 4px;
 }
 
 @keyframes popoverFadeIn {
@@ -533,32 +546,38 @@ body.hud-hidden #btn-show-hud {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--gold-primary, #f2cf78);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   text-align: center;
 }
 
 .popover-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .popover-item-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 8px 10px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   color: #e5e7eb;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
   white-space: nowrap;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .popover-item-btn:hover {
@@ -568,10 +587,18 @@ body.hud-hidden #btn-show-hud {
   transform: translateY(-1px);
 }
 
+.popover-item-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
 .popover-item-btn i,
 .popover-item-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   color: var(--gold-primary, #f2cf78);
   flex-shrink: 0;
 }
