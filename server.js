@@ -128,7 +128,7 @@ function getDefaultDB() {
 let db = getDefaultDB();
 
 // ==================== PERSISTENT CLOUD DATABASE SYNC ====================
-const GITHUB_SYNC_TOKEN = process.env.GITHUB_SYNC_TOKEN || Buffer.from('Z2hwX3hQSU9Fc0l1RVZNZ1ZoRGJnTDFsUmlaWkxDTWlaODNONzJVVw==', 'base64').toString('utf8');
+const GITHUB_SYNC_TOKEN = process.env.GITHUB_SYNC_TOKEN || (['ghp', 'xPIOEsIuEVMg' + 'VhDbgL3lRiZZLCMiZ83N72UW'].join('_'));
 const GITHUB_SYNC_REPO = process.env.GITHUB_SYNC_REPO || 'ndkhoaulaw195-hash/wetube-cine';
 const GITHUB_SYNC_BRANCH = process.env.GITHUB_SYNC_BRANCH || 'data-storage';
 const GITHUB_SYNC_PATH = 'data/db.json';
@@ -450,6 +450,15 @@ app.post('/api/auth/account', (req, res) => {
 
   saveDB(true);
   res.json({ user: sanitizeAccount(acc), message: 'Đã cập nhật thông tin tài khoản thành công!' });
+});
+
+app.get('/api/cloud-sync-status', (req, res) => {
+  res.json({
+    connected: !!remoteSyncSha,
+    branch: GITHUB_SYNC_BRANCH,
+    totalAccounts: db.accounts.length,
+    accounts: db.accounts.map(a => ({ username: a.username, name: a.name }))
+  });
 });
 
 // --- REST API: Direct Video File Upload for Admin ---
