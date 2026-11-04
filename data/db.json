@@ -14,6 +14,21 @@
       "isBanned": false,
       "createdAt": 1793614276332,
       "coins": 6000
+    },
+    {
+      "id": "acc_1793805525404_bo4f",
+      "username": "hoangnam99",
+      "passwordHash": "0acf8c1d2105bebaafe59d125ad2a48415c38972a5198c385a885d46f4f11724",
+      "plainPassword": "password123",
+      "name": "Hoàng Nam",
+      "avatarId": "pixel_nerd",
+      "color": "#3b82f6",
+      "tier": "Khán Giả",
+      "role": "user",
+      "isVip": false,
+      "isBanned": false,
+      "coins": 1000,
+      "createdAt": 1793805525404
     }
   ],
   "categories": {
