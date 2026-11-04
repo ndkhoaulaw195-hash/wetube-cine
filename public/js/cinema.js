@@ -83,6 +83,22 @@ class CinemaScene {
     this.laserBeams = [];
     this.floatingParticles = [];
 
+    // Dynamic Ambilight State
+    this.screenAmbilight = null;
+    this.targetAmbilightColor = new THREE.Color(0xf2cf78);
+    this.currentAmbilightColor = new THREE.Color(0xf2cf78);
+    this.ambilightIntensity = 1.4;
+
+    // Thematic Cinema Environments ('classic' | 'rooftop' | 'scifi')
+    this.currentTheme = 'classic';
+    this.rooftopGroup = null;
+    this.scifiGroup = null;
+    this.ceilingMesh = null;
+    this.starfieldPoints = null;
+
+    // 3D Props Throwing System (Popcorn, Hearts, Confetti, Tomatoes, Stars)
+    this.propsParticles = [];
+
     // Raycasting for interactive seat clicking
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
@@ -312,12 +328,16 @@ class CinemaScene {
     const ceiling = new THREE.Mesh(ceilingGeo, this.wallMat);
     ceiling.position.set(0, hallHeight, 0);
     this.scene.add(ceiling);
+    this.ceilingMesh = ceiling;
 
     // 4. Cinema Professional Sound System (Dolby Atmos Wall Surround Speakers & Stage Subwoofer Arrays)
     this.buildCinemaSoundSystem(hallWidth, hallLength, hallHeight);
 
     // 5. Cinema Emergency Exit Doors with Glowing Neon Sign (Cửa Thoát Hiểm / Out Phòng)
     this.buildExitDoors(hallWidth, hallLength, hallHeight);
+
+    // 6. Thematic Environments (Rooftop Starfield & Sci-Fi Cyberpod)
+    this.buildThematicElements(hallWidth, hallLength, hallHeight);
 
     // Lighting
     this.ambientLight = new THREE.AmbientLight(0xffffff, 0.46);
@@ -326,6 +346,114 @@ class CinemaScene {
     this.warmKeyLight = new THREE.DirectionalLight(0xfff1d6, 0.65);
     this.warmKeyLight.position.set(0, 10, 5);
     this.scene.add(this.warmKeyLight);
+  }
+
+  // Khởi tạo các chi tiết trang trí đặc trưng cho các Theme phòng chiếu khác nhau
+  buildThematicElements(hallWidth = 21, hallLength = 26, hallHeight = 12.2) {
+    // A. Theme: Rooftop Cinema (Trần trời sao đêm & Vầng trăng)
+    this.rooftopGroup = new THREE.Group();
+    const starCount = 1200;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount * 3; i += 3) {
+      starPos[i] = (Math.random() - 0.5) * 80;
+      starPos[i + 1] = 12.5 + Math.random() * 30; // Trên cao
+      starPos[i + 2] = (Math.random() - 0.5) * 80;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    const starMat = new THREE.PointsMaterial({
+      color: 0xdbeafe,
+      size: 0.28,
+      transparent: true,
+      opacity: 0.88
+    });
+    this.starfieldPoints = new THREE.Points(starGeo, starMat);
+    this.rooftopGroup.add(this.starfieldPoints);
+
+    // Vầng trăng lưỡi liềm trên cao
+    const moonGeo = new THREE.SphereGeometry(2.0, 16, 16);
+    const moonMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+    const moonMesh = new THREE.Mesh(moonGeo, moonMat);
+    moonMesh.position.set(16, 26, -18);
+    this.rooftopGroup.add(moonMesh);
+
+    this.rooftopGroup.visible = false;
+    this.scene.add(this.rooftopGroup);
+
+    // B. Theme: Sci-Fi Cyberpod (Dải đèn Neon Cyberpunk & Holo Rings)
+    this.scifiGroup = new THREE.Group();
+    const holoRingGeo = new THREE.TorusGeometry(5.2, 0.08, 8, 32);
+    const holoRingMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.75 });
+    this.holoRing = new THREE.Mesh(holoRingGeo, holoRingMat);
+    this.holoRing.rotation.x = Math.PI / 2;
+    this.holoRing.position.set(0, hallHeight - 0.3, 0);
+    this.scifiGroup.add(this.holoRing);
+
+    const holoRingInnerGeo = new THREE.TorusGeometry(3.6, 0.06, 8, 32);
+    const holoRingInnerMat = new THREE.MeshBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0.7 });
+    this.holoRingInner = new THREE.Mesh(holoRingInnerGeo, holoRingInnerMat);
+    this.holoRingInner.rotation.x = Math.PI / 2;
+    this.holoRingInner.position.set(0, hallHeight - 0.3, 0);
+    this.scifiGroup.add(this.holoRingInner);
+
+    this.scifiGroup.visible = false;
+    this.scene.add(this.scifiGroup);
+  }
+
+  // Chuyển đổi chủ đề không gian rạp 3D
+  setTheme(themeName = 'classic') {
+    if (!this.hasWebGL) return;
+    this.currentTheme = themeName;
+
+    if (themeName === 'rooftop') {
+      if (this.ceilingMesh) this.ceilingMesh.visible = false;
+      if (this.rooftopGroup) this.rooftopGroup.visible = true;
+      if (this.scifiGroup) this.scifiGroup.visible = false;
+
+      if (this.floorMat) this.floorMat.color.setHex(0x191817);
+      if (this.wallMat) this.wallMat.color.setHex(0x0f1118);
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0xbfdbfe);
+        this.ambientLight.intensity = 0.38;
+      }
+      if (this.goldTrimMat) {
+        this.goldTrimMat.color.setHex(0x60a5fa);
+        this.goldTrimMat.emissive.setHex(0x1d4ed8);
+        this.goldTrimMat.emissiveIntensity = 0.15;
+      }
+    } else if (themeName === 'scifi') {
+      if (this.ceilingMesh) this.ceilingMesh.visible = true;
+      if (this.rooftopGroup) this.rooftopGroup.visible = false;
+      if (this.scifiGroup) this.scifiGroup.visible = true;
+
+      if (this.floorMat) this.floorMat.color.setHex(0x0a0f1d);
+      if (this.wallMat) this.wallMat.color.setHex(0x090d16);
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0x67e8f9);
+        this.ambientLight.intensity = 0.42;
+      }
+      if (this.goldTrimMat) {
+        this.goldTrimMat.color.setHex(0x06b6d4);
+        this.goldTrimMat.emissive.setHex(0x0891b2);
+        this.goldTrimMat.emissiveIntensity = 0.35;
+      }
+    } else { // 'classic'
+      if (this.ceilingMesh) this.ceilingMesh.visible = true;
+      if (this.rooftopGroup) this.rooftopGroup.visible = false;
+      if (this.scifiGroup) this.scifiGroup.visible = false;
+
+      if (this.floorMat) this.floorMat.color.setHex(0x161816);
+      if (this.wallMat) this.wallMat.color.setHex(0x111311);
+      if (this.ambientLight) {
+        this.ambientLight.color.setHex(0xffffff);
+        this.ambientLight.intensity = 0.46;
+      }
+      if (this.goldTrimMat) {
+        this.goldTrimMat.color.setHex(0xf2cf78);
+        this.goldTrimMat.emissive.setHex(0x705218);
+        this.goldTrimMat.emissiveIntensity = 0.22;
+      }
+    }
   }
 
   // Dàn Loa Rạp Chiếu Phim Chuyên Nghiệp (Dolby Atmos Wall Surround Speakers & Stage Subwoofer Arrays)
@@ -732,6 +860,11 @@ class CinemaScene {
       this.screenBackLight = new THREE.PointLight(0xf2cf78, 1.4, 15);
       this.screenBackLight.position.set(0, 5.65, -9.2);
       this.scene.add(this.screenBackLight);
+
+      // Dynamic Ambilight: Ánh sáng màn hình hắt rực rỡ vào cả khán phòng
+      this.screenAmbilight = new THREE.PointLight(0xf2cf78, 1.6, 28, 1.25);
+      this.screenAmbilight.position.set(0, 5.65, -7.0);
+      this.scene.add(this.screenAmbilight);
     }
 
     // Attach CSS3DObject (YouTube Player DOM element)
@@ -744,6 +877,77 @@ class CinemaScene {
       this.cssScreenObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
       this.cssScene.add(this.cssScreenObject);
     }
+  }
+
+  // Cập nhật màu Dynamic Ambilight từ Video (Canvas Sampling)
+  updateAmbilightColor(hexOrRgb, intensity = 1.6) {
+    if (!this.hasWebGL) return;
+    try {
+      if (typeof hexOrRgb === 'string' || typeof hexOrRgb === 'number') {
+        this.targetAmbilightColor.set(hexOrRgb);
+      } else if (hexOrRgb && typeof hexOrRgb.r === 'number') {
+        this.targetAmbilightColor.setRGB(hexOrRgb.r / 255, hexOrRgb.g / 255, hexOrRgb.b / 255);
+      }
+      this.ambilightIntensity = Math.min(2.8, Math.max(0.4, intensity));
+    } catch (e) {
+      // Bỏ qua lỗi định dạng màu
+    }
+  }
+
+  // Ném vật phẩm 3D tương tác giữa các ghế hoặc lên sân khấu
+  throwProp3D(fromSeatId, targetSeatIdOrStage, propType = 'popcorn') {
+    if (!this.hasWebGL || !this.scene) return;
+
+    let startPos = new THREE.Vector3(0, 1.2, 5.0);
+    if (fromSeatId !== null && this.seatCoords[fromSeatId]) {
+      const sc = this.seatCoords[fromSeatId];
+      startPos.set(sc.x, sc.y + 0.6, sc.z);
+    }
+
+    let targetPos = new THREE.Vector3(0, 0.45, -6.0); // Sân khấu
+    if (targetSeatIdOrStage !== 'stage' && targetSeatIdOrStage !== null && this.seatCoords[targetSeatIdOrStage]) {
+      const tc = this.seatCoords[targetSeatIdOrStage];
+      targetPos.set(tc.x, tc.y + 0.6, tc.z);
+    }
+
+    const emojiMap = {
+      popcorn: '🍿',
+      heart: '💖',
+      tomato: '🍅',
+      confetti: '🎉',
+      star: '⭐'
+    };
+    const emoji = emojiMap[propType] || '🍿';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    ctx.font = '84px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 64, 68);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const mat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(0.65, 0.65, 0.65);
+    sprite.position.copy(startPos);
+    this.scene.add(sprite);
+
+    this.propsParticles.push({
+      sprite,
+      start: startPos.clone(),
+      target: targetPos.clone(),
+      arcHeight: 2.2 + Math.random() * 0.8,
+      progress: 0,
+      duration: 0.85, // 850ms bay
+      propType,
+      targetSeatId: targetSeatIdOrStage
+    });
+
+    this.markActive();
   }
 
   buildSeats() {
@@ -1227,6 +1431,9 @@ class CinemaScene {
           || prevData.avatarId !== occupant.avatarId
           || prevData.name !== occupant.name
           || prevData.tier !== occupant.tier
+          || prevData.snackProp !== occupant.snackProp
+          || prevData.snackHat !== occupant.snackHat
+          || prevData.snackGlasses !== occupant.snackGlasses
           || !!prevData.micOn !== !!occupant.micOn;
         if (hasChanged) {
           this.removeAvatarFromSeat(i);
@@ -1238,9 +1445,9 @@ class CinemaScene {
     }
   }
 
-  createPixelCharacterSprite(avatarId = 'pixel_nerd', scaleY = 1.45) {
+  createPixelCharacterSprite(avatarId = 'pixel_nerd', scaleY = 1.45, overrides = {}) {
     if (window.PixelAvatars) {
-      const canvas = window.PixelAvatars.createSpriteCanvas(avatarId);
+      const canvas = window.PixelAvatars.createSpriteCanvas(avatarId, overrides);
       const texture = new THREE.CanvasTexture(canvas);
       texture.magFilter = THREE.NearestFilter;
       texture.minFilter = THREE.NearestFilter;
@@ -1264,11 +1471,18 @@ class CinemaScene {
       avatarId: user.avatarId || 'pixel_nerd',
       name: user.name,
       tier: user.tier,
+      snackProp: user.snackProp || null,
+      snackHat: user.snackHat || null,
+      snackGlasses: user.snackGlasses || null,
       micOn: !!user.micOn
     };
 
-    // Chibi 16-bit Pixel Art Character Sprite (seated naturally in chair)
-    const charSprite = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42);
+    // Chibi 16-bit Pixel Art Character Sprite (seated naturally in chair + snack items)
+    const overrides = {};
+    if (user.snackProp) overrides.prop = user.snackProp;
+    if (user.snackHat) overrides.hat = user.snackHat;
+    if (user.snackGlasses) overrides.glasses = user.snackGlasses;
+    const charSprite = this.createPixelCharacterSprite(user.avatarId || 'pixel_nerd', 1.42, overrides);
     charSprite.position.set(0, 0.72, 0);
     avatarGroup.add(charSprite);
 
@@ -1763,7 +1977,7 @@ class CinemaScene {
                            Math.abs(this.mouseOffsetX - this.targetMouseX) > 0.002;
 
     // Check if scene has active dynamic animations (Party mode or floating emoji particles)
-    const isDynamic = this.partyMode || this.floatingParticles.length > 0 || (now - this.lastActiveTime < 1800);
+    const isDynamic = this.partyMode || this.floatingParticles.length > 0 || (this.propsParticles && this.propsParticles.length > 0) || (now - this.lastActiveTime < 1800);
 
     // Adaptive target FPS: 60 FPS when active/moving, throttled to 24 FPS when idle watching movie
     const targetFps = (isCameraMoving || isDynamic) ? 60 : 24;
@@ -1857,6 +2071,24 @@ class CinemaScene {
       }
     }
 
+    // Dynamic Ambilight Color Interpolation (Màu màn hình phản chiếu nhẹ nhàng, êm dịu lên toàn bộ rạp)
+    if (this.screenAmbilight) {
+      this.screenAmbilight.color.lerp(this.targetAmbilightColor, 0.08);
+      this.screenAmbilight.intensity = this.lightsOff ? (this.ambilightIntensity * 0.75) : this.ambilightIntensity;
+    }
+    if (this.screenBackLight) {
+      this.screenBackLight.color.lerp(this.targetAmbilightColor, 0.08);
+    }
+
+    // Dynamic Thematic Elements Animation
+    if (this.currentTheme === 'rooftop' && this.starfieldPoints) {
+      this.starfieldPoints.rotation.y = time * 0.005;
+    }
+    if (this.currentTheme === 'scifi') {
+      if (this.holoRing) this.holoRing.rotation.z = time * 0.25;
+      if (this.holoRingInner) this.holoRingInner.rotation.z = -time * 0.4;
+    }
+
     // Floating Emojis
     for (let i = this.floatingParticles.length - 1; i >= 0; i--) {
       const p = this.floatingParticles[i];
@@ -1870,6 +2102,32 @@ class CinemaScene {
         p.sprite.material.map.dispose();
         p.sprite.material.dispose();
         this.floatingParticles.splice(i, 1);
+      }
+    }
+
+    // 3D Props Throwing Animations (Quỹ đạo vòng cung parabol ném bắp, tim, pháo hoa)
+    if (this.propsParticles && this.propsParticles.length > 0) {
+      for (let i = this.propsParticles.length - 1; i >= 0; i--) {
+        const p = this.propsParticles[i];
+        p.progress += delta / p.duration;
+
+        if (p.progress >= 1) {
+          this.scene.remove(p.sprite);
+          if (p.sprite.material.map) p.sprite.material.map.dispose();
+          p.sprite.material.dispose();
+          this.propsParticles.splice(i, 1);
+
+          if (typeof p.targetSeatId === 'number') {
+            this.spawnEmojiReaction('✨', p.targetSeatId, false, false);
+          } else {
+            this.spawnDomFloatingEmoji('🎉', true);
+          }
+        } else {
+          p.sprite.position.x = THREE.MathUtils.lerp(p.start.x, p.target.x, p.progress);
+          p.sprite.position.z = THREE.MathUtils.lerp(p.start.z, p.target.z, p.progress);
+          p.sprite.position.y = THREE.MathUtils.lerp(p.start.y, p.target.y, p.progress) + Math.sin(p.progress * Math.PI) * p.arcHeight;
+          p.sprite.material.rotation += delta * 7;
+        }
       }
     }
 

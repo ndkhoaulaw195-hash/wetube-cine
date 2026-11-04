@@ -1196,6 +1196,9 @@ function getRoomSnapshot(room, requestingUser = null) {
       isHost: isRoomHostOrAdmin(u, room),
       seatId: u.seatId,
       micOn: !!u.micOn,
+      snackProp: u.snackProp || null,
+      snackHat: u.snackHat || null,
+      snackGlasses: u.snackGlasses || null,
       isOnStage: false
     });
   }
@@ -1208,6 +1211,7 @@ function getRoomSnapshot(room, requestingUser = null) {
     hostId: room.hostId,
     hostUsername: room.hostUsername,
     hostName: room.createdBy || 'Chủ phòng',
+    theme: room.theme || 'classic',
     canControl,
     roomPassword: canControl ? room.password : undefined,
     currentVideo: room.currentVideo,
@@ -1219,6 +1223,12 @@ function getRoomSnapshot(room, requestingUser = null) {
     lightsOff: !!room.lightsOff,
     screenPost: room.screenPost,
     currentPoll: room.currentPoll,
+    currentTrivia: room.currentTrivia ? {
+      id: room.currentTrivia.id,
+      question: room.currentTrivia.question,
+      options: room.currentTrivia.options,
+      durationSeconds: 20
+    } : null,
     coupleNames: room.coupleNames || {},
     giftRevenue: room.giftRevenue || 0,
     onlineCount: room.users.size,
@@ -1532,6 +1542,107 @@ function getAdminDashboardData() {
       totalMovies: db.movies.length
     }
   };
+}
+
+// Ngân hàng câu hỏi Mini-Game Cinema Trivia Quiz (Điện ảnh & Âm nhạc)
+const CINEMA_TRIVIA_QUESTIONS = [
+  {
+    id: 'triv_1',
+    question: 'Bộ phim nào đạt doanh thu phòng vé cao nhất mọi thời đại trong lịch sử điện ảnh thế giới?',
+    options: ['Avengers: Endgame', 'Avatar (2009)', 'Titanic', 'Star Wars: The Force Awakens'],
+    answerIndex: 1,
+    fact: 'Avatar của đạo diễn James Cameron đạt gần 2.92 tỷ USD trên toàn cầu!'
+  },
+  {
+    id: 'triv_2',
+    question: 'Bộ phim điện ảnh Việt Nam nào đạt mốc doanh thu hơn 500 tỷ VNĐ đầu tiên trong lịch sử?',
+    options: ['Bố Già', 'Nhà Bà Nữ', 'Mai', 'Lật Mặt 7'],
+    answerIndex: 2,
+    fact: 'Phim Mai của đạo diễn Trấn Thành ra mắt Tết 2024 đã thu về hơn 520 tỷ VNĐ!'
+  },
+  {
+    id: 'triv_3',
+    question: 'Trong vũ trụ điện ảnh Marvel (MCU), ai là người đã búng tay tiêu diệt đội quân Thanos trong Endgame?',
+    options: ['Captain America', 'Thor', 'Iron Man (Tony Stark)', 'Hulk'],
+    answerIndex: 2,
+    fact: 'Tony Stark đã hy sinh với câu nói bất hủ: "And I... am Iron Man!"'
+  },
+  {
+    id: 'triv_4',
+    question: 'Bộ phim hoạt hình nào của Studio Ghibli đã giành giải Oscar cho Phim hoạt hình xuất sắc nhất năm 2003?',
+    options: ['Vùng Đất Linh Hồn (Spirited Away)', 'Hàng Xóm Của Tôi Là Totoro', 'Lâu Đài Bay Của Howl', 'Công Chúa Mononoke'],
+    answerIndex: 0,
+    fact: 'Spirited Away là phim hoạt hình vẽ tay không nói tiếng Anh duy nhất từng đoạt Oscar!'
+  },
+  {
+    id: 'triv_5',
+    question: 'Trong loạt phim Harry Potter, câu thần chú nào dùng để mở khóa các cánh cửa đóng kín?',
+    options: ['Expelliarmus', 'Alohomora', 'Lumos', 'Avada Kedavra'],
+    answerIndex: 1,
+    fact: 'Alohomora là thần chú mở khóa cửa rất quen thuộc của hội phù thủy Hogwarts!'
+  },
+  {
+    id: 'triv_6',
+    question: 'Bài hát huyền thoại "My Heart Will Go On" của Celine Dion là nhạc nền chính của siêu phẩm điện ảnh nào?',
+    options: ['Titanic', 'The Bodyguard', 'Ghost', 'La La Land'],
+    answerIndex: 0,
+    fact: 'Bài hát trong Titanic đã giành cả giải Oscar và 4 giải Grammy danh giá!'
+  },
+  {
+    id: 'triv_7',
+    question: 'Thể loại phim nào thường sử dụng kỹ thuật "Jumpscare" để tạo cảm giác giật mình đột ngột?',
+    options: ['Hài lãng mạn', 'Kinh dị / Thriller', 'Tài liệu', 'Hoạt hình cổ tích'],
+    answerIndex: 1,
+    fact: 'Jumpscare là vũ khí kinh điển của các đạo diễn phim kinh dị để khiến khán giả thót tim!'
+  },
+  {
+    id: 'triv_8',
+    question: 'Vị đạo diễn nào được mệnh danh là "Phù thủy thời gian" với các phim Inception, Interstellar, Oppenheimer?',
+    options: ['Steven Spielberg', 'Christopher Nolan', 'Quentin Tarantino', 'Martin Scorsese'],
+    answerIndex: 1,
+    fact: 'Christopher Nolan nổi tiếng với cách xử lý dòng thời gian phi tuyến tính và hiệu ứng thực cảnh (practical effects)!'
+  }
+];
+
+// Trợ Lý Ảo Điện Ảnh CineBot (Tự động giải đáp & tương tác trong phòng chiếu)
+function handleCineBotReply(room, user, text) {
+  const query = text.replace(/^@bot/i, '').replace(/cinebot/i, '').trim().toLowerCase();
+  let botReply = '';
+
+  if (query.includes('xin chào') || query.includes('hello') || query.includes('hi') || !query) {
+    botReply = `Xin chào ${user.name}! 🍿 Mình là CineBot, trợ lý rạp phim ảo. Bạn có thể hỏi mình: "phim đang chiếu", "gợi ý phim", "cách kiếm coins", hoặc gõ "đố vui" nhé!`;
+  } else if (query.includes('phim đang chiếu') || query.includes('phim gì') || query.includes('video gì')) {
+    if (room.currentVideo) {
+      botReply = `🎬 Rạp đang chiếu: "${room.currentVideo.title}". Chúc cả phòng có những giây phút thưởng thức thật chill nhé!`;
+    } else {
+      botReply = `📺 Màn chiếu hiện đang nghỉ ngơi! Chủ phòng hãy chọn video từ Hàng chờ hoặc Kho phim để cả rạp cùng xem nhé.`;
+    }
+  } else if (query.includes('gợi ý') || query.includes('recommend') || query.includes('xem gì')) {
+    const suggestions = [
+      '🎵 "Lofi Hip Hop Radio" - Thư giãn cùng bạn bè ngắm mưa rơi.',
+      '🎬 "Big Buck Bunny 3D" - Hoạt hình vui nhộn chất lượng 4K cực nét.',
+      '🚀 "Interstellar Soundtrack" - Âm nhạc không gian vũ trụ trầm trồ chuẩn Dolby Atmos!'
+    ];
+    botReply = `💡 CineBot gợi ý cho bạn: \n` + suggestions.join('\n');
+  } else if (query.includes('coins') || query.includes('tiền') || query.includes('xu')) {
+    botReply = `💰 Bạn có thể nhận Coins miễn phí bằng cách bấm nút "Nhận Coins" mỗi 5 phút, hoặc thắng các trận Mini-game Trivia của rạp! Coins dùng để mua Bắp, Trà sữa và Kính 3D tại Căn tin đó!`;
+  } else if (query.includes('ghế đôi') || query.includes('sweetbox') || query.includes('người yêu')) {
+    botReply = `💖 Hàng ghế C là ghế đôi Sweetbox lãng mạn dành cho 2 người! Cặp đôi ngồi đây có thể kích hoạt các hành động Độc Quyền (Ôm, Nắm tay, Tựa vai) và bật chế độ Thì thầm bí mật đấy!`;
+  } else {
+    botReply = `🍿 CineBot đã nghe bạn nói: "${query}". Cùng xem phim thật vui với mọi người trong phòng nhé! Gõ "gợi ý phim" nếu bạn cần ý tưởng chọn video tiếp theo.`;
+  }
+
+  setTimeout(() => {
+    broadcastToRoom(room, 'chat-message', {
+      id: 'msg_bot_' + Date.now(),
+      userId: 'cine_bot',
+      name: '🤖 CineBot Điện Ảnh',
+      color: '#06b6d4',
+      role: 'bot',
+      text: botReply,
+      time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+    });
+  }, 400);
 }
 
 // WebSocket Connection Handling
@@ -1876,7 +1987,10 @@ wss.on('connection', (ws, req) => {
           tier: user.tier,
           isVip: user.isVip,
           role: user.role,
-          micOn: !!user.micOn
+          micOn: !!user.micOn,
+          snackProp: user.snackProp || null,
+          snackHat: user.snackHat || null,
+          snackGlasses: user.snackGlasses || null
         };
 
         broadcastToRoom(room, 'seat-state', {
@@ -2354,6 +2468,169 @@ wss.on('connection', (ws, req) => {
         if (room.messages.length > 5000) room.messages.shift();
 
         broadcastToRoom(room, 'chat-message', chatObj);
+
+        // Kích hoạt CineBot khi người dùng gọi @bot hoặc nhắc đến CineBot
+        if (text && (text.startsWith('@bot') || text.toLowerCase().includes('cinebot') || text.startsWith('/bot'))) {
+          handleCineBotReply(room, user, text);
+        }
+        break;
+      }
+
+      // --- Danmaku Bullet Chat (Bình luận bay trên màn hình rạp chiếu) ---
+      case 'danmaku-chat': {
+        if (!room) return;
+        const text = (payload.text || '').trim().substring(0, 80);
+        if (!text) return;
+        const color = payload.color || '#ffffff';
+        broadcastToRoom(room, 'danmaku-message', {
+          id: 'dan_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          userId: user.id,
+          name: user.name,
+          text,
+          color,
+          isVip: !!user.isVip
+        });
+        break;
+      }
+
+      // --- 3D Props Throwing (Ném bắp, tim, pháo hoa 3D giữa các ghế hoặc lên sân khấu) ---
+      case 'throw-prop': {
+        if (!room) return;
+        const fromSeatId = typeof payload.fromSeatId === 'number' ? payload.fromSeatId : user.seatId;
+        const targetSeatIdOrStage = payload.targetSeatIdOrStage;
+        const propType = payload.propType || 'popcorn';
+
+        broadcastToRoom(room, 'prop-thrown-event', {
+          fromSeatId,
+          targetSeatIdOrStage,
+          propType,
+          senderName: user.name
+        });
+        break;
+      }
+
+      // --- Thematic Environments (Đổi chủ đề phòng chiếu 3D) ---
+      case 'theme-change': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng hoặc Admin mới được đổi Theme rạp!', type: 'error' });
+          return;
+        }
+        const theme = payload.theme || 'classic';
+        room.theme = theme;
+        broadcastToRoom(room, 'theme-changed', { theme });
+        send(ws, 'notification', { message: `✅ Đã chuyển Theme rạp sang: ${theme.toUpperCase()}`, type: 'success' });
+        break;
+      }
+
+      // --- Cinema Trivia Mini-Game (Trắc nghiệm điện ảnh & âm nhạc giải lao) ---
+      case 'trivia-start': {
+        if (!room) return;
+        if (!isRoomHostOrAdmin(user, room)) {
+          send(ws, 'notification', { message: '🔒 Chỉ Chủ phòng hoặc Admin mới được bắt đầu Mini-Game!', type: 'error' });
+          return;
+        }
+        const q = CINEMA_TRIVIA_QUESTIONS[Math.floor(Math.random() * CINEMA_TRIVIA_QUESTIONS.length)];
+        room.currentTrivia = {
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          answerIndex: q.answerIndex,
+          fact: q.fact,
+          answers: {},
+          endsAt: Date.now() + 20000
+        };
+        broadcastToRoom(room, 'trivia-started', {
+          id: q.id,
+          question: q.question,
+          options: q.options,
+          durationSeconds: 20
+        });
+        break;
+      }
+
+      case 'trivia-answer': {
+        if (!room || !room.currentTrivia) return;
+        const chosenIndex = parseInt(payload.chosenIndex, 10);
+        if (isNaN(chosenIndex) || chosenIndex < 0 || chosenIndex > 3) return;
+        if (typeof room.currentTrivia.answers[user.id] !== 'undefined') return;
+
+        room.currentTrivia.answers[user.id] = {
+          name: user.name,
+          chosenIndex,
+          time: Date.now()
+        };
+        send(ws, 'notification', { message: '✅ Đã ghi nhận câu trả lời của bạn!', type: 'info' });
+        break;
+      }
+
+      case 'trivia-end': {
+        if (!room || !room.currentTrivia) return;
+        const triv = room.currentTrivia;
+        room.currentTrivia = null;
+
+        const winners = [];
+        for (const [uId, ans] of Object.entries(triv.answers)) {
+          if (ans.chosenIndex === triv.answerIndex) {
+            winners.push(ans.name);
+            for (const [, rUser] of room.users.entries()) {
+              if (rUser.id === uId) {
+                rUser.coins = (rUser.coins || 0) + 50;
+                break;
+              }
+            }
+          }
+        }
+
+        broadcastToRoom(room, 'trivia-finished', {
+          correctIndex: triv.answerIndex,
+          correctText: triv.options[triv.answerIndex],
+          fact: triv.fact,
+          winners
+        });
+        break;
+      }
+
+      // --- Căn Tin Rạp Chiếu & Phụ Kiện Nhân Vật (Snack Bar) ---
+      case 'buy-snack': {
+        if (!room) return;
+        const itemId = payload.itemId;
+        const SNACK_PRICES = {
+          popcorn: 20,
+          milktea: 25,
+          soda: 15,
+          glasses_3d: 40,
+          party_hat: 35
+        };
+        const price = SNACK_PRICES[itemId] || 20;
+        if ((user.coins || 0) < price) {
+          send(ws, 'notification', { message: `❌ Bạn không đủ Coins! Cần ${price} Coins (Bạn đang có ${user.coins || 0}).`, type: 'error' });
+          return;
+        }
+
+        user.coins -= price;
+        if (itemId === 'glasses_3d') {
+          user.snackGlasses = 'glasses_3d';
+        } else if (itemId === 'party_hat') {
+          user.snackHat = 'party_hat';
+        } else {
+          user.snackProp = itemId; // popcorn, milktea, soda
+        }
+
+        // Cập nhật lại ghế ngồi nếu đang ngồi
+        if (user.seatId !== null && room.seats && room.seats[user.seatId]) {
+          room.seats[user.seatId].snackProp = user.snackProp || null;
+          room.seats[user.seatId].snackHat = user.snackHat || null;
+          room.seats[user.seatId].snackGlasses = user.snackGlasses || null;
+          broadcastToRoom(room, 'seat-state', {
+            seats: room.seats,
+            movedUser: user,
+            stageUser: room.stageUser
+          });
+        }
+
+        send(ws, 'coins-balance-updated', { coins: user.coins });
+        send(ws, 'notification', { message: `🍿 Mua thành công! Bạn đã trang bị món đồ mới.`, type: 'success' });
         break;
       }
 

@@ -46,6 +46,20 @@ class CinemaPlayer {
     this.onStateToggled = null;
     this.onSeekRequested = null;
     this.onProgressUpdate = null;
+    this.onAmbilightColor = null;
+
+    // Subtitle Engine (.SRT / .VTT)
+    this.subtitles = [];
+    this.subtitleDelay = 0; // seconds offset (+- 0.5s, 1.0s)
+    this.isSubtitleEnabled = true;
+
+    // Screen Sharing WebRTC State
+    this.screenShareStream = null;
+    this.isScreenSharing = false;
+
+    // Ambilight Color Sampling
+    this.ambilightCanvas = null;
+    this.ambilightCtx = null;
 
     this.init();
   }
@@ -137,11 +151,167 @@ class CinemaPlayer {
 
     this.bindEmbedToolbarEvents();
 
+    // Canvas nhỏ ẩn dùng để trích xuất màu sắc màn hình cho Three.js Ambilight
+    this.ambilightCanvas = document.createElement('canvas');
+    this.ambilightCanvas.width = 32;
+    this.ambilightCanvas.height = 18;
+    this.ambilightCtx = this.ambilightCanvas.getContext('2d', { willReadFrequently: true });
+    setInterval(() => this.sampleAmbilightColor(), 350);
+
     // Periodic time drift correction
     setInterval(() => this.correctTimeDrift(), 2000);
 
     // High-frequency UI & two-way seek sync (every 200ms)
     setInterval(() => this.updateProgress(), 200);
+  }
+
+  // Trích xuất màu Ambilight động từ video hoặc tạo hiệu ứng ánh sáng điện ảnh mượt mà
+  sampleAmbilightColor() {
+    if (!this.isPlaying && this.sourceType !== 'direct') return;
+
+    if (this.sourceType === 'direct' && this.html5Player && !this.html5Player.paused && this.html5Player.readyState >= 2) {
+      try {
+        this.ambilightCtx.drawImage(this.html5Player, 0, 0, 32, 18);
+        const frame = this.ambilightCtx.getImageData(0, 0, 32, 18);
+        const data = frame.data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 16) { // Lấy mẫu cách quãng nhanh gọn
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          count++;
+        }
+        if (count > 0) {
+          const avgR = Math.min(255, Math.round((r / count) * 1.3));
+          const avgG = Math.min(255, Math.round((g / count) * 1.3));
+          const avgB = Math.min(255, Math.round((b / count) * 1.3));
+          if (typeof this.onAmbilightColor === 'function') {
+            this.onAmbilightColor({ r: avgR, g: avgG, b: avgB });
+          }
+          return;
+        }
+      } catch (err) {
+        // Dính CORS nếu video từ CDN bên ngoài, tự động fallback sang Mood Cinema Glow
+      }
+    }
+
+    // Mood Cinema Glow: Chuyển động quang phổ ấm áp điện ảnh (ấm vàng hoàng gia, cam đỏ, xanh ngọc dịu)
+    const t = Date.now() * 0.00035;
+    const r = Math.round(180 + Math.sin(t) * 55);
+    const g = Math.round(140 + Math.sin(t + 2) * 50);
+    const b = Math.round(120 + Math.cos(t + 4) * 60);
+    if (typeof this.onAmbilightColor === 'function') {
+      this.onAmbilightColor({ r, g, b });
+    }
+  }
+
+  // Parser phụ đề .SRT và .VTT chuẩn quốc tế
+  parseSRT(text) {
+    if (!text || typeof text !== 'string') return [];
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const pattern = /(?:(\d+)\n)?(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})\n([\s\S]*?)(?=\n{2,}|\n*$)/g;
+    const items = [];
+    let match;
+    const toSeconds = (str) => {
+      const parts = str.replace(',', '.').split(':');
+      return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+    };
+    while ((match = pattern.exec(normalized)) !== null) {
+      const start = toSeconds(match[2]);
+      const end = toSeconds(match[3]);
+      const subText = match[4].replace(/<[^>]+>/g, '').trim();
+      if (subText) {
+        items.push({ start, end, text: subText });
+      }
+    }
+    return items;
+  }
+
+  loadSubtitles(text) {
+    this.subtitles = this.parseSRT(text);
+    return this.subtitles.length;
+  }
+
+  clearSubtitles() {
+    this.subtitles = [];
+    const el = document.getElementById('subtitle-text');
+    if (el) el.textContent = '';
+    const container = document.getElementById('subtitle-container');
+    if (container) container.classList.add('hidden');
+  }
+
+  updateSubtitleDisplay(curTime) {
+    if (!this.isSubtitleEnabled || !this.subtitles || this.subtitles.length === 0) {
+      const el = document.getElementById('subtitle-text');
+      if (el && el.textContent) el.textContent = '';
+      return;
+    }
+    const t = curTime + this.subtitleDelay;
+    const currentSub = this.subtitles.find(s => t >= s.start && t <= s.end);
+    const el = document.getElementById('subtitle-text');
+    const container = document.getElementById('subtitle-container');
+    if (el && container) {
+      const newText = currentSub ? currentSub.text : '';
+      if (el.textContent !== newText) {
+        el.textContent = newText;
+        if (newText) container.classList.remove('hidden');
+        else container.classList.add('hidden');
+      }
+    }
+  }
+
+  // Khởi động chia sẻ màn hình máy tính (kèm âm thanh hệ thống) lên rạp 3D
+  async startScreenShare() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: true
+      });
+      this.screenShareStream = stream;
+      this.isScreenSharing = true;
+
+      const screenShareEl = document.getElementById('screen-share-player');
+      if (screenShareEl) {
+        screenShareEl.srcObject = stream;
+        screenShareEl.classList.remove('hidden');
+        screenShareEl.play().catch(() => {});
+      }
+
+      document.getElementById('yt-player-wrapper')?.classList.add('hidden');
+      document.getElementById('html5-video-player')?.classList.add('hidden');
+      document.getElementById('embed-iframe-player')?.classList.add('hidden');
+      document.getElementById('screen-idle')?.classList.add('hidden');
+
+      stream.getVideoTracks()[0].addEventListener('ended', () => {
+        this.stopScreenShare();
+      });
+
+      return { success: true, stream };
+    } catch (err) {
+      console.warn('Hủy chia sẻ màn hình:', err);
+      return { success: false, error: err };
+    }
+  }
+
+  stopScreenShare() {
+    if (this.screenShareStream) {
+      this.screenShareStream.getTracks().forEach(track => track.stop());
+      this.screenShareStream = null;
+    }
+    this.isScreenSharing = false;
+    const screenShareEl = document.getElementById('screen-share-player');
+    if (screenShareEl) {
+      screenShareEl.srcObject = null;
+      screenShareEl.classList.add('hidden');
+    }
+
+    if (this.sourceType === 'youtube') {
+      document.getElementById('yt-player-wrapper')?.classList.remove('hidden');
+    } else if (this.sourceType === 'direct') {
+      document.getElementById('html5-video-player')?.classList.remove('hidden');
+    } else if (this.sourceType === 'embed') {
+      document.getElementById('embed-iframe-player')?.classList.remove('hidden');
+    }
   }
 
   bindEmbedToolbarEvents() {
@@ -897,6 +1067,7 @@ class CinemaPlayer {
         }
       }
       this.currentTime = cur;
+      this.updateSubtitleDisplay(cur);
       const percent = dur > 0 ? (cur / dur) * 100 : 0;
       if (typeof this.onProgressUpdate === 'function') {
         this.onProgressUpdate(cur, dur, percent);
@@ -923,6 +1094,7 @@ class CinemaPlayer {
       }
 
       this.currentTime = cur;
+      this.updateSubtitleDisplay(cur);
       const percent = dur > 0 ? (cur / dur) * 100 : 0;
 
       if (typeof this.onProgressUpdate === 'function') {

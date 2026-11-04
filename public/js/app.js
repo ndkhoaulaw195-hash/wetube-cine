@@ -139,6 +139,19 @@ class CinemaApp {
       this.updatePlaybackBarUI(cur, dur, percent);
     };
 
+    // Dynamic Ambilight: Tự động ánh xạ màu sắc video thời gian thực lên ánh sáng rạp 3D
+    this.player.onAmbilightColor = (color) => {
+      if (this.cinema && !this.inLobby) {
+        this.cinema.updateAmbilightColor(color);
+      }
+    };
+
+    // Danmaku, Trivia & Props Throwing State
+    this.isDanmakuEnabled = true;
+    this.currentTrivia = null;
+    this.triviaInterval = null;
+    this.selectedPropType = 'popcorn';
+
     this.showLobbyUI();
     this.renderAvatarPickerGrids();
     this.initWebSocket();
@@ -561,6 +574,47 @@ class CinemaApp {
             payload.seatId,
             this.room.stageUser === payload.userId
           );
+        }
+        if (this.isDanmakuEnabled && payload.text && !payload.text.startsWith('[')) {
+          this.spawnDanmaku(payload.text, payload.color || '#ffffff');
+        }
+        break;
+      }
+
+      case 'danmaku-message': {
+        this.spawnDanmaku(payload.text, payload.color || '#ffffff');
+        break;
+      }
+
+      case 'theme-changed': {
+        if (this.room) this.room.theme = payload.theme;
+        if (this.cinema) this.cinema.setTheme(payload.theme);
+        this.updateThemeCardsUI(payload.theme);
+        this.showToast(`🎨 Không gian rạp 3D đã đổi sang: ${payload.theme?.toUpperCase()}`, 'info');
+        break;
+      }
+
+      case 'prop-thrown-event': {
+        if (this.cinema) {
+          this.cinema.throwProp3D(payload.fromSeatId, payload.targetSeatIdOrStage, payload.propType);
+        }
+        break;
+      }
+
+      case 'trivia-started': {
+        this.handleIncomingTriviaStarted(payload);
+        break;
+      }
+
+      case 'trivia-finished': {
+        this.handleIncomingTriviaFinished(payload);
+        break;
+      }
+
+      case 'coins-balance-updated': {
+        if (this.you) {
+          this.you.coins = payload.coins;
+          this.updateCoinsUI();
         }
         break;
       }
@@ -1435,6 +1489,177 @@ class CinemaApp {
     document.getElementById('btn-util-help')?.addEventListener('click', () => {
       utilPopover?.classList.add('hidden');
       this.openModal('modal-help');
+    });
+
+    // --- CÁC TIỆN ÍCH NÂNG CẤP MỚI ---
+    // A. Toggle Danmaku Bullet Chat
+    document.getElementById('btn-toggle-danmaku')?.addEventListener('click', () => {
+      this.isDanmakuEnabled = !this.isDanmakuEnabled;
+      const btn = document.getElementById('btn-toggle-danmaku');
+      if (btn) btn.classList.toggle('active', this.isDanmakuEnabled);
+      const container = document.getElementById('danmaku-container');
+      if (container) container.style.display = this.isDanmakuEnabled ? 'block' : 'none';
+      this.showToast(this.isDanmakuEnabled ? '💬 Đã bật bình luận bay Danmaku!' : '🔇 Đã tắt bình luận bay Danmaku.', 'info');
+    });
+
+    // B. Đổi Theme Rạp 3D
+    document.getElementById('btn-util-theme')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openModal('modal-theme-picker');
+    });
+    document.querySelectorAll('.theme-choice-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const theme = card.getAttribute('data-theme');
+        if (this.canControlRoom()) {
+          this.send('theme-change', { theme });
+        } else {
+          if (this.cinema) this.cinema.setTheme(theme);
+          this.updateThemeCardsUI(theme);
+          this.showToast(`🎨 Bạn đang xem thử không gian: ${theme.toUpperCase()}`, 'info');
+        }
+      });
+    });
+
+    // C. Căn Tin Bắp Nước & Phụ Kiện
+    document.getElementById('btn-util-snacks')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      const val = document.getElementById('snack-modal-coins-val');
+      if (val && this.you) val.textContent = `🪙 ${Number(this.you.coins || 0).toLocaleString()} Coins`;
+      this.openModal('modal-snack-bar');
+    });
+    document.querySelectorAll('.btn-buy-snack').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const itemId = btn.getAttribute('data-snack');
+        this.send('buy-snack', { itemId });
+      });
+    });
+
+    // D. Mini-Game Trivia
+    document.getElementById('btn-util-trivia')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openModal('modal-trivia-quiz');
+      const btnStart = document.getElementById('btn-trivia-start-new');
+      if (btnStart) {
+        if (this.canControlRoom()) btnStart.classList.remove('hidden');
+        else btnStart.classList.add('hidden');
+      }
+    });
+    document.getElementById('btn-trivia-start-new')?.addEventListener('click', () => {
+      this.send('trivia-start', {});
+    });
+    document.querySelectorAll('.btn-trivia-opt').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-trivia-opt').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        const chosenIndex = parseInt(btn.getAttribute('data-opt'), 10);
+        this.send('trivia-answer', { chosenIndex });
+      });
+    });
+
+    // E. Vé Phim Kỷ Niệm Canvas
+    document.getElementById('btn-util-ticket')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.renderMovieTicketCanvas();
+      this.openModal('modal-movie-ticket');
+    });
+    document.getElementById('btn-download-ticket')?.addEventListener('click', () => {
+      const canvas = document.getElementById('ticket-canvas');
+      if (!canvas) return;
+      const link = document.createElement('a');
+      link.download = `Wetube-Cine-Pass-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      this.showToast('📥 Đã tải vé kỷ niệm thành công!', 'success');
+    });
+
+    // F. Phụ Đề Rời (.SRT)
+    document.getElementById('btn-util-subtitles')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openModal('modal-subtitles');
+    });
+    document.getElementById('input-sub-file')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const count = this.player.loadSubtitles(ev.target.result);
+          this.showToast(`✅ Đã nạp thành công ${count} dòng phụ đề!`, 'success');
+          this.closeModal('modal-subtitles');
+        };
+        reader.readAsText(file);
+      }
+    });
+    document.getElementById('btn-apply-sub')?.addEventListener('click', () => {
+      const raw = document.getElementById('textarea-sub-raw')?.value;
+      if (raw && raw.trim()) {
+        const count = this.player.loadSubtitles(raw);
+        this.showToast(`✅ Đã áp dụng ${count} câu phụ đề!`, 'success');
+        this.closeModal('modal-subtitles');
+      }
+    });
+    document.getElementById('btn-clear-sub')?.addEventListener('click', () => {
+      this.player.clearSubtitles();
+      this.showToast('🗑️ Đã xóa phụ đề.', 'info');
+      this.closeModal('modal-subtitles');
+    });
+    document.querySelectorAll('.btn-sub-delay').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sec = parseFloat(btn.getAttribute('data-sec')) || 0;
+        this.player.subtitleDelay = sec;
+        this.showToast(`⏱️ Đã chỉnh độ lệch phụ đề: ${sec >= 0 ? '+' : ''}${sec}s`, 'info');
+      });
+    });
+
+    // G. Chia Sẻ Màn Hình WebRTC
+    document.getElementById('btn-util-screenshare')?.addEventListener('click', async () => {
+      utilPopover?.classList.add('hidden');
+      if (this.player.isScreenSharing) {
+        this.player.stopScreenShare();
+        this.showToast('🛑 Đã dừng chia sẻ màn hình.', 'info');
+      } else {
+        const res = await this.player.startScreenShare();
+        if (res.success) {
+          this.showToast('🖥️ Đang phát màn hình máy tính lên rạp chiếu!', 'success');
+        } else {
+          this.showToast('❌ Không thể chia sẻ màn hình.', 'error');
+        }
+      }
+    });
+
+    // H. Ném Đồ 3D
+    document.getElementById('btn-util-throw')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.updateThrowTargetsSelect();
+      this.openModal('modal-throw-props');
+    });
+    document.querySelectorAll('.btn-prop-select').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.btn-prop-select').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.selectedPropType = btn.getAttribute('data-prop');
+      });
+    });
+    document.getElementById('btn-fire-prop')?.addEventListener('click', () => {
+      const targetVal = document.getElementById('select-throw-target')?.value;
+      const targetSeatIdOrStage = (targetVal === 'stage') ? 'stage' : parseInt(targetVal, 10);
+      this.send('throw-prop', {
+        propType: this.selectedPropType || 'popcorn',
+        targetSeatIdOrStage
+      });
+      this.closeModal('modal-throw-props');
+      this.showToast('🚀 Đã phóng vật phẩm!', 'info');
+    });
+
+    // I. Karaoke Stage
+    document.getElementById('btn-util-karaoke')?.addEventListener('click', () => {
+      utilPopover?.classList.add('hidden');
+      this.openModal('modal-karaoke');
+    });
+    document.getElementById('btn-stage-take-mic')?.addEventListener('click', () => {
+      this.send('take-stage', {});
+      this.toggleVoiceMic(true);
+      this.closeModal('modal-karaoke');
+      this.showToast('🎤 Bạn đã lên sân khấu cầm mic! Hãy tự tin thể hiện nào!', 'success');
     });
 
     document.getElementById('btn-claim-vip-status')?.addEventListener('click', () => {
@@ -3388,7 +3613,29 @@ class CinemaApp {
 
       const gainNode = ctx.createGain();
       gainNode.gain.value = 1.45;
-      source.connect(gainNode);
+
+      // Spatial Audio 3D Panning: Định vị âm thanh người nói theo tọa độ ghế trong rạp 3D
+      let pannerNode = null;
+      if (typeof ctx.createStereoPanner === 'function' && this.cinema && this.room) {
+        const speaker = this.room.realUsers?.find(u => u.id === payload.userId);
+        const speakerSeatId = (speaker && typeof speaker.seatId === 'number') ? speaker.seatId : null;
+        const mySeatId = (this.you && typeof this.you.seatId === 'number') ? this.you.seatId : null;
+
+        if (speakerSeatId !== null && this.cinema.seatCoords[speakerSeatId]) {
+          const speakerX = this.cinema.seatCoords[speakerSeatId].x;
+          const myX = (mySeatId !== null && this.cinema.seatCoords[mySeatId]) ? this.cinema.seatCoords[mySeatId].x : 0;
+          const pan = Math.max(-0.85, Math.min(0.85, (speakerX - myX) / 6.0));
+          pannerNode = ctx.createStereoPanner();
+          pannerNode.pan.value = pan;
+        }
+      }
+
+      if (pannerNode) {
+        source.connect(pannerNode);
+        pannerNode.connect(gainNode);
+      } else {
+        source.connect(gainNode);
+      }
       gainNode.connect(ctx.destination);
 
       const now = ctx.currentTime;
@@ -3818,6 +4065,201 @@ class CinemaApp {
     setTimeout(() => {
       banner.remove();
     }, 4600);
+  }
+
+  // --- Danmaku Bullet Chat Engine ---
+  spawnDanmaku(text, color = '#ffffff') {
+    if (!this.isDanmakuEnabled || !text) return;
+    const container = document.getElementById('danmaku-container');
+    if (!container) return;
+
+    const item = document.createElement('div');
+    item.className = 'danmaku-item';
+    item.textContent = text;
+    item.style.color = color || '#ffffff';
+
+    const randomTop = Math.floor(Math.random() * 60) + 8;
+    item.style.top = `${randomTop}%`;
+
+    const duration = (6.5 + Math.random() * 2.5).toFixed(1);
+    item.style.animationDuration = `${duration}s`;
+
+    container.appendChild(item);
+    setTimeout(() => {
+      item.remove();
+    }, parseFloat(duration) * 1000 + 400);
+  }
+
+  // --- Cập nhật giao diện Theme Cards ---
+  updateThemeCardsUI(theme) {
+    document.querySelectorAll('.theme-choice-card').forEach(card => {
+      const isCur = card.getAttribute('data-theme') === theme;
+      card.classList.toggle('active', isCur);
+      let badge = card.querySelector('.theme-badge');
+      if (isCur) {
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'theme-badge';
+          badge.style.cssText = 'font-size: 10px; background: #f2cf78; color: #111; padding: 3px 8px; border-radius: 10px; font-weight: 700;';
+          badge.textContent = 'Hiện tại';
+          card.appendChild(badge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  // --- Mini-game Trivia Quiz Handlers ---
+  handleIncomingTriviaStarted(payload) {
+    this.currentTrivia = payload;
+    const qText = document.getElementById('trivia-question-text');
+    const optBtns = document.querySelectorAll('.btn-trivia-opt');
+    const resultBox = document.getElementById('trivia-result-box');
+    const countdownFill = document.getElementById('trivia-countdown-fill');
+
+    if (qText) qText.textContent = payload.question || '';
+    if (resultBox) resultBox.classList.add('hidden');
+
+    optBtns.forEach((btn, idx) => {
+      btn.classList.remove('selected');
+      const prefix = ['A', 'B', 'C', 'D'][idx] || '';
+      btn.textContent = `${prefix}. ${payload.options?.[idx] || ''}`;
+    });
+
+    if (countdownFill) {
+      countdownFill.style.transition = 'none';
+      countdownFill.style.width = '100%';
+      setTimeout(() => {
+        countdownFill.style.transition = `width ${payload.durationSeconds || 20}s linear`;
+        countdownFill.style.width = '0%';
+      }, 50);
+    }
+
+    this.openModal('modal-trivia-quiz');
+    this.playPopSound();
+  }
+
+  handleIncomingTriviaFinished(payload) {
+    const resultBox = document.getElementById('trivia-result-box');
+    const titleEl = document.getElementById('trivia-result-title');
+    const factEl = document.getElementById('trivia-result-fact');
+    if (resultBox) {
+      resultBox.classList.remove('hidden');
+      const winnerStr = payload.winners?.length
+        ? `Chúc mừng: ${payload.winners.join(', ')} (+50 Coins)!`
+        : 'Rất tiếc chưa có ai trả lời chính xác!';
+      if (titleEl) titleEl.textContent = `🎉 Đáp án: ${payload.correctText} • ${winnerStr}`;
+      if (factEl) factEl.textContent = payload.fact || '';
+    }
+  }
+
+  // --- Cập nhật danh sách mục tiêu ném đồ 3D ---
+  updateThrowTargetsSelect() {
+    const select = document.getElementById('select-throw-target');
+    if (!select) return;
+    select.innerHTML = '<option value="stage">🎭 Sân Khấu Trung Tâm Rạp</option>';
+
+    if (this.room && this.room.seats) {
+      this.room.seats.forEach((seat, idx) => {
+        if (seat && seat.userId !== this.you?.id) {
+          const sc = this.cinema?.seatCoords[idx];
+          const label = sc ? sc.label : `Ghế ${idx + 1}`;
+          const opt = document.createElement('option');
+          opt.value = idx;
+          opt.textContent = `🪑 ${label} - ${seat.name}`;
+          select.appendChild(opt);
+        }
+      });
+    }
+  }
+
+  // --- Vé Xem Phim Kỷ Niệm (Canvas Generator) ---
+  renderMovieTicketCanvas() {
+    const canvas = document.getElementById('ticket-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+    bgGrad.addColorStop(0, '#1c1815');
+    bgGrad.addColorStop(1, '#0e0c0b');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = '#d4af37';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(16, 16, W - 32, H - 32);
+
+    ctx.strokeStyle = 'rgba(212, 175, 55, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(22, 22, W - 44, H - 44);
+
+    const cutX = W - 240;
+    ctx.setLineDash([8, 8]);
+    ctx.strokeStyle = '#d4af37';
+    ctx.beginPath();
+    ctx.moveTo(cutX, 16);
+    ctx.lineTo(cutX, H - 16);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = 'bold 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#f2cf78';
+    ctx.fillText('✦ W E T U B E   C I N É   V I P   P A S S ✦', 45, 60);
+
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('RẠP CHIẾU PHIM ẢO 3D THỜI GIAN THỰC • ĐỒNG BỘ MILI-GIÂY', 45, 84);
+
+    const movieTitle = (this.room?.currentVideo?.title || 'Phim Tuyển Chọn Wetube Ciné').substring(0, 38);
+    ctx.font = 'bold 26px "Plus Jakarta Sans", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(movieTitle, 45, 145);
+
+    ctx.font = '14px sans-serif';
+    ctx.fillStyle = '#cbd5e1';
+    const seatLabel = (this.you?.seatId !== null && typeof this.you?.seatId === 'number')
+      ? (this.cinema?.seatCoords[this.you.seatId]?.label || 'VIP')
+      : 'Khán Giả VIP';
+    ctx.fillText(`Khán Giả: ${this.you?.name || 'Bạn'}  |  Vị Trí Ghế: ${seatLabel}`, 45, 195);
+
+    const nowStr = new Date().toLocaleString('vi-VN');
+    ctx.fillText(`Thời Gian: ${nowStr}  |  Phòng: ${this.room?.roomName || 'Wetube VIP'}`, 45, 230);
+
+    const friendCount = this.room?.realUsers?.length || 1;
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillText(`👥 Cùng xem với ${friendCount} người bạn trong phòng chiếu 3D`, 45, 275);
+
+    ctx.font = 'italic 12px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('Cảm ơn bạn đã đồng hành cùng Wetube Ciné. Chúc bạn luôn có những phút giây thăng hoa cùng điện ảnh!', 45, 335);
+
+    ctx.fillStyle = '#f2cf78';
+    ctx.font = 'bold 16px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('CINEMA STUB', cutX + 120, 60);
+
+    ctx.font = 'bold 28px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(seatLabel, cutX + 120, 110);
+
+    ctx.font = '12px sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText('ADMIT ONE', cutX + 120, 140);
+
+    const barcodeY = 190;
+    ctx.fillStyle = '#f8fafc';
+    for (let x = cutX + 35; x < W - 35; x += 5) {
+      const barW = (x % 3 === 0) ? 3 : 1.5;
+      ctx.fillRect(x, barcodeY, barW, 65);
+    }
+
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText('PASS ' + Math.random().toString(36).substr(2, 8).toUpperCase(), cutX + 120, 275);
+    ctx.textAlign = 'left';
   }
 
   escapeHTML(str) {

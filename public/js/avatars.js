@@ -243,8 +243,9 @@ class PixelAvatarRenderer {
     this.templates = PIXEL_AVATAR_TEMPLATES;
   }
 
-  getTemplate(avatarId) {
-    return this.templates.find(t => t.id === avatarId) || this.templates[0];
+  getTemplate(avatarId, overrides = {}) {
+    const base = this.templates.find(t => t.id === avatarId) || this.templates[0];
+    return { ...base, ...overrides };
   }
 
   /**
@@ -441,6 +442,14 @@ class PixelAvatarRenderer {
       px(13, 9, '#111111', 5, 3);
       px(8, 10, W, 2, 1);
       px(14, 10, W, 2, 1);
+    } else if (tpl.glasses === 'glasses_3d') {
+      // Kính 3D rạp chiếu thời trang: tròng trái đỏ, tròng phải xanh Cyan
+      px(6, 9, '#ffffff', 12, 1);
+      px(7, 9, '#ef4444', 5, 3); // Lense Đỏ
+      px(13, 9, '#06b6d4', 5, 3); // Lense Xanh Cyan
+      px(12, 10, '#ffffff', 1, 1); // Cầu nối kính
+      px(8, 10, '#fca5a5', 2, 1);
+      px(14, 10, '#a5f3fc', 2, 1);
     } else {
       // Standard expressive eyes
       if (tpl.expression === 'serious') {
@@ -533,6 +542,12 @@ class PixelAvatarRenderer {
       px(14, 1, '#f2cf78', 2, 1);
       px(9, 3, '#ef4444', 2, 1);
       px(13, 3, '#10b981', 2, 1);
+    } else if (tpl.hat === 'party_hat') {
+      // Mũ tiệc sinh nhật chóp nón sọc đỏ vàng
+      px(9, 0, '#ef4444', 6, 2);
+      px(10, 2, '#facc15', 4, 2);
+      px(8, 4, '#38bdf8', 8, 2);
+      px(11, 0, '#ffffff', 2, 1); // Quả bông trên đỉnh
     }
 
     // --- 7. HAND PROPS (Right side of character, like Reference #2 holding drink) ---
@@ -546,6 +561,17 @@ class PixelAvatarRenderer {
       px(18, 18, '#ef4444', 1, 3);
       px(19, 18, W, 1, 3);
       px(20, 18, '#ef4444', 1, 3);
+    } else if (tpl.prop === 'milktea') {
+      // Ly trà sữa trân châu hoàng kim
+      px(18, 16, O, 4, 6);
+      px(19, 17, '#fcd34d', 2, 4); // Màu trà sữa
+      px(19, 20, '#1f2937', 2, 1); // Trân châu đáy ly
+      px(20, 15, '#ec4899', 1, 3); // Ống hút hồng
+    } else if (tpl.prop === 'soda') {
+      // Ly nước ngọt có ga rạp phim
+      px(18, 16, O, 4, 6);
+      px(19, 17, '#dc2626', 2, 4); // Ly đỏ
+      px(19, 15, '#ffffff', 1, 3); // Ống hút trắng
     } else if (tpl.prop === 'clapper') {
       px(18, 17, O, 5, 4);
       px(19, 17, W, 3, 1);
@@ -571,9 +597,9 @@ class PixelAvatarRenderer {
   /**
    * Returns a cached DataURL of the pixel character for <img> tags
    */
-  getDataUrl(avatarId = 'pixel_nerd', scale = 5) {
-    const tpl = this.getTemplate(avatarId);
-    const cacheKey = `${tpl.id}_${scale}`;
+  getDataUrl(avatarId = 'pixel_nerd', scale = 5, overrides = {}) {
+    const tpl = this.getTemplate(avatarId, overrides);
+    const cacheKey = `${tpl.id}_${scale}_${JSON.stringify(overrides)}`;
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
@@ -594,8 +620,8 @@ class PixelAvatarRenderer {
   /**
    * Creates a high-res pixelated Canvas for Three.js Sprite Texture
    */
-  createSpriteCanvas(avatarId = 'pixel_nerd') {
-    const tpl = this.getTemplate(avatarId);
+  createSpriteCanvas(avatarId = 'pixel_nerd', overrides = {}) {
+    const tpl = this.getTemplate(avatarId, overrides);
     const scale = 8;
     const canvas = document.createElement('canvas');
     canvas.width = 24 * scale;
