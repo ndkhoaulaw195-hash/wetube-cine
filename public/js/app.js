@@ -1572,45 +1572,7 @@ class CinemaApp {
       this.showToast('📥 Đã tải vé kỷ niệm thành công!', 'success');
     });
 
-    // F. Phụ Đề Rời (.SRT)
-    document.getElementById('btn-util-subtitles')?.addEventListener('click', () => {
-      utilPopover?.classList.add('hidden');
-      this.openModal('modal-subtitles');
-    });
-    document.getElementById('input-sub-file')?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const count = this.player.loadSubtitles(ev.target.result);
-          this.showToast(`✅ Đã nạp thành công ${count} dòng phụ đề!`, 'success');
-          this.closeModal('modal-subtitles');
-        };
-        reader.readAsText(file);
-      }
-    });
-    document.getElementById('btn-apply-sub')?.addEventListener('click', () => {
-      const raw = document.getElementById('textarea-sub-raw')?.value;
-      if (raw && raw.trim()) {
-        const count = this.player.loadSubtitles(raw);
-        this.showToast(`✅ Đã áp dụng ${count} câu phụ đề!`, 'success');
-        this.closeModal('modal-subtitles');
-      }
-    });
-    document.getElementById('btn-clear-sub')?.addEventListener('click', () => {
-      this.player.clearSubtitles();
-      this.showToast('🗑️ Đã xóa phụ đề.', 'info');
-      this.closeModal('modal-subtitles');
-    });
-    document.querySelectorAll('.btn-sub-delay').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const sec = parseFloat(btn.getAttribute('data-sec')) || 0;
-        this.player.subtitleDelay = sec;
-        this.showToast(`⏱️ Đã chỉnh độ lệch phụ đề: ${sec >= 0 ? '+' : ''}${sec}s`, 'info');
-      });
-    });
-
-    // G. Chia Sẻ Màn Hình WebRTC
+    // F. Chia Sẻ Màn Hình WebRTC
     document.getElementById('btn-util-screenshare')?.addEventListener('click', async () => {
       utilPopover?.classList.add('hidden');
       if (this.player.isScreenSharing) {
@@ -1648,18 +1610,6 @@ class CinemaApp {
       });
       this.closeModal('modal-throw-props');
       this.showToast('🚀 Đã phóng vật phẩm!', 'info');
-    });
-
-    // I. Karaoke Stage
-    document.getElementById('btn-util-karaoke')?.addEventListener('click', () => {
-      utilPopover?.classList.add('hidden');
-      this.openModal('modal-karaoke');
-    });
-    document.getElementById('btn-stage-take-mic')?.addEventListener('click', () => {
-      this.send('take-stage', {});
-      this.toggleVoiceMic(true);
-      this.closeModal('modal-karaoke');
-      this.showToast('🎤 Bạn đã lên sân khấu cầm mic! Hãy tự tin thể hiện nào!', 'success');
     });
 
     document.getElementById('btn-claim-vip-status')?.addEventListener('click', () => {

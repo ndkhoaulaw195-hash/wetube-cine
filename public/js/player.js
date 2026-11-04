@@ -48,11 +48,6 @@ class CinemaPlayer {
     this.onProgressUpdate = null;
     this.onAmbilightColor = null;
 
-    // Subtitle Engine (.SRT / .VTT)
-    this.subtitles = [];
-    this.subtitleDelay = 0; // seconds offset (+- 0.5s, 1.0s)
-    this.isSubtitleEnabled = true;
-
     // Screen Sharing WebRTC State
     this.screenShareStream = null;
     this.isScreenSharing = false;
@@ -202,61 +197,6 @@ class CinemaPlayer {
     const b = Math.round(120 + Math.cos(t + 4) * 60);
     if (typeof this.onAmbilightColor === 'function') {
       this.onAmbilightColor({ r, g, b });
-    }
-  }
-
-  // Parser phụ đề .SRT và .VTT chuẩn quốc tế
-  parseSRT(text) {
-    if (!text || typeof text !== 'string') return [];
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const pattern = /(?:(\d+)\n)?(\d{2}:\d{2}:\d{2}[,\.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,\.]\d{3})\n([\s\S]*?)(?=\n{2,}|\n*$)/g;
-    const items = [];
-    let match;
-    const toSeconds = (str) => {
-      const parts = str.replace(',', '.').split(':');
-      return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-    };
-    while ((match = pattern.exec(normalized)) !== null) {
-      const start = toSeconds(match[2]);
-      const end = toSeconds(match[3]);
-      const subText = match[4].replace(/<[^>]+>/g, '').trim();
-      if (subText) {
-        items.push({ start, end, text: subText });
-      }
-    }
-    return items;
-  }
-
-  loadSubtitles(text) {
-    this.subtitles = this.parseSRT(text);
-    return this.subtitles.length;
-  }
-
-  clearSubtitles() {
-    this.subtitles = [];
-    const el = document.getElementById('subtitle-text');
-    if (el) el.textContent = '';
-    const container = document.getElementById('subtitle-container');
-    if (container) container.classList.add('hidden');
-  }
-
-  updateSubtitleDisplay(curTime) {
-    if (!this.isSubtitleEnabled || !this.subtitles || this.subtitles.length === 0) {
-      const el = document.getElementById('subtitle-text');
-      if (el && el.textContent) el.textContent = '';
-      return;
-    }
-    const t = curTime + this.subtitleDelay;
-    const currentSub = this.subtitles.find(s => t >= s.start && t <= s.end);
-    const el = document.getElementById('subtitle-text');
-    const container = document.getElementById('subtitle-container');
-    if (el && container) {
-      const newText = currentSub ? currentSub.text : '';
-      if (el.textContent !== newText) {
-        el.textContent = newText;
-        if (newText) container.classList.remove('hidden');
-        else container.classList.add('hidden');
-      }
     }
   }
 
@@ -1067,7 +1007,6 @@ class CinemaPlayer {
         }
       }
       this.currentTime = cur;
-      this.updateSubtitleDisplay(cur);
       const percent = dur > 0 ? (cur / dur) * 100 : 0;
       if (typeof this.onProgressUpdate === 'function') {
         this.onProgressUpdate(cur, dur, percent);
@@ -1094,7 +1033,6 @@ class CinemaPlayer {
       }
 
       this.currentTime = cur;
-      this.updateSubtitleDisplay(cur);
       const percent = dur > 0 ? (cur / dur) * 100 : 0;
 
       if (typeof this.onProgressUpdate === 'function') {

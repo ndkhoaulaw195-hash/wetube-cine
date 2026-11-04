@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261104_v34">
+  <link rel="stylesheet" href="/css/style.css?v=20261104_v35">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -182,11 +182,6 @@
 
           <!-- Danmaku Bullet Chat Overlay (Bình luận bay lướt ngang màn hình rạp chiếu) -->
           <div id="danmaku-container" class="danmaku-container"></div>
-
-          <!-- Subtitle Overlay Layer (.SRT / .VTT Phụ đề rời đồng bộ mili-giây) -->
-          <div id="subtitle-container" class="subtitle-container hidden">
-            <span id="subtitle-text" class="subtitle-text"></span>
-          </div>
 
           <!-- External Link Helper Toolbar (Switch between Proxy Bypass / Direct / Stream / Open Tab) -->
           <div id="embed-helper-bar" class="embed-helper-bar hidden">
@@ -540,10 +535,6 @@
               <i data-lucide="ticket" style="color: #f472b6;"></i>
               <span>Vé Kỷ Niệm</span>
             </button>
-            <button id="btn-util-subtitles" class="popover-item-btn" title="Tải file phụ đề rời (.SRT / .VTT) và chỉnh delay">
-              <i data-lucide="captions" style="color: #34d399;"></i>
-              <span>Phụ Đề Rời</span>
-            </button>
             <button id="btn-util-screenshare" class="popover-item-btn" title="Chủ phòng: Chia sẻ màn hình máy tính (kèm âm thanh)">
               <i data-lucide="screen-share" style="color: #38bdf8;"></i>
               <span>Chia Sẻ Màn Hình</span>
@@ -551,10 +542,6 @@
             <button id="btn-util-throw" class="popover-item-btn" title="Ném bắp rang, tim, pháo hoa 3D tương tác giữa các ghế">
               <i data-lucide="target" style="color: #f87171;"></i>
               <span>Ném Đồ 3D</span>
-            </button>
-            <button id="btn-util-karaoke" class="popover-item-btn" title="Sân khấu Karaoke rạp phim: Cầm mic lên hát">
-              <i data-lucide="mic-2" style="color: #c084fc;"></i>
-              <span>Hát Karaoke</span>
             </button>
             <button id="btn-util-photo" class="popover-item-btn" title="Chiếu ảnh kỷ niệm lên màn rạp">
               <i data-lucide="image-plus"></i>
@@ -1822,46 +1809,6 @@
     </div>
   </div>
 
-  <!-- MODAL: PHỤ ĐỀ RỜI .SRT / .VTT (Subtitles Modal) -->
-  <div class="modal-backdrop hidden" id="modal-subtitles">
-    <div class="modal-card" style="max-width: 480px;">
-      <div class="modal-header">
-        <div class="modal-title" style="color: #34d399;">
-          <i data-lucide="captions"></i>
-          <span>Cài Đặt Phụ Đề Rời (.SRT / .VTT)</span>
-        </div>
-        <button class="modal-close" data-close="modal-subtitles"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body">
-        <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Chọn file phụ đề từ máy tính:</label>
-          <input type="file" id="input-sub-file" accept=".srt,.vtt,.txt" style="width: 100%; padding: 8px; background: #121412; border: 1px dashed rgba(52, 211, 153, 0.4); border-radius: 8px; color: #cbd5e1; font-size: 12px;" />
-        </div>
-
-        <div style="margin-bottom: 14px;">
-          <label style="display: block; font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Hoặc dán nội dung SRT vào đây:</label>
-          <textarea id="textarea-sub-raw" placeholder="1&#10;00:00:01,000 --> 00:00:04,000&#10;Xin chào cả rạp chiếu!" rows="4" style="width: 100%; padding: 8px; background: #121412; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 12px; resize: none;"></textarea>
-        </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding: 10px; background: rgba(255,255,255,0.04); border-radius: 8px;">
-          <span style="font-size: 12px; color: #cbd5e1;">Chỉnh độ trễ phụ đề (Offset):</span>
-          <div style="display: flex; gap: 4px;">
-            <button class="btn-sub-delay btn-sm" data-sec="-1">-1s</button>
-            <button class="btn-sub-delay btn-sm" data-sec="-0.5">-0.5s</button>
-            <button class="btn-sub-delay btn-sm" data-sec="0">0s</button>
-            <button class="btn-sub-delay btn-sm" data-sec="0.5">+0.5s</button>
-            <button class="btn-sub-delay btn-sm" data-sec="1">+1s</button>
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; gap: 8px;">
-          <button id="btn-clear-sub" class="btn-sm" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;">Xóa Phụ Đề</button>
-          <button id="btn-apply-sub" class="btn-sm primary" style="background: #10b981; color: #fff; font-weight: 700;">Áp Dụng Phụ Đề</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- MODAL: NÉM VẬT PHẨM 3D (Throw Props Modal) -->
   <div class="modal-backdrop hidden" id="modal-throw-props">
     <div class="modal-card" style="max-width: 440px;">
@@ -1894,39 +1841,13 @@
     </div>
   </div>
 
-  <!-- MODAL: SÂN KHẤU KARAOKE (Karaoke Stage Modal) -->
-  <div class="modal-backdrop hidden" id="modal-karaoke">
-    <div class="modal-card" style="max-width: 480px;">
-      <div class="modal-header">
-        <div class="modal-title" style="color: #c084fc;">
-          <i data-lucide="mic-2"></i>
-          <span>Sân Khấu Karaoke Rạp Phim</span>
-        </div>
-        <button class="modal-close" data-close="modal-karaoke"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body">
-        <p style="font-size: 12px; color: #cbd5e1; line-height: 1.5; margin-bottom: 14px;">
-          🎤 Biến phòng chiếu thành phòng trà âm nhạc! Khi lên sân khấu, vị trí của bạn sẽ chuyển lên trước màn hình lớn cùng micro vàng danh dự.
-        </p>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <button id="btn-stage-take-mic" class="btn-sm primary" style="padding: 12px; font-size: 14px; font-weight: 700; background: linear-gradient(135deg, #a855f7, #7e22ce); color: #fff; border: none; border-radius: 8px;">
-            🎙️ Bước Lên Sân Khấu Cầm Mic
-          </button>
-          <button id="btn-stage-step-down" class="btn-sm hidden" style="padding: 10px; font-size: 12px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px;">
-            🚪 Nhường Mic & Về Lại Ghế Ngồi
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Notification Toast Container -->
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261104_v34"></script>
-  <script src="/js/cinema.js?v=20261104_v34"></script>
-  <script src="/js/player.js?v=20261104_v34"></script>
-  <script src="/js/app.js?v=20261104_v34"></script>
+  <script src="/js/avatars.js?v=20261104_v35"></script>
+  <script src="/js/cinema.js?v=20261104_v35"></script>
+  <script src="/js/player.js?v=20261104_v35"></script>
+  <script src="/js/app.js?v=20261104_v35"></script>
 </body>
 </html>

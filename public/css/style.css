@@ -5329,35 +5329,6 @@ input:-webkit-autofill:active {
   }
 }
 
-/* ==================== SUBTITLE OVERLAY LAYER ==================== */
-.subtitle-container {
-  position: absolute;
-  bottom: 40px;
-  left: 5%;
-  width: 90%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  pointer-events: none;
-  z-index: 18;
-}
-
-.subtitle-text {
-  background: rgba(0, 0, 0, 0.78);
-  color: #fffbdf;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.35;
-  padding: 8px 24px;
-  border-radius: 8px;
-  text-shadow: 2px 2px 3px rgba(0,0,0,0.9);
-  max-width: 85%;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(4px);
-}
-
 /* ==================== SCREEN SHARE VIDEO HOST ==================== */
 .screen-share-host {
   position: absolute;
