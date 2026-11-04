@@ -1859,7 +1859,10 @@ class CinemaApp {
       e.preventDefault();
       const input = document.getElementById('input-couple-carve-name');
       const customName = input ? input.value.trim() : '';
-      if (!customName) return;
+      if (!customName) {
+        this.showToast('Vui lòng nhập tên muốn khắc lên biển ghế!', 'warning');
+        return;
+      }
       this.send('couple-action', { action: 'set_name', customName });
     });
 
@@ -3821,4 +3824,21 @@ class CinemaApp {
 
 window.addEventListener('DOMContentLoaded', () => {
   window.app = new CinemaApp();
+
+  // Globally disable browser autocomplete & form autofill history
+  const disableAutofill = () => {
+    document.querySelectorAll('form').forEach(f => {
+      f.setAttribute('autocomplete', 'off');
+    });
+    document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"])').forEach(input => {
+      input.setAttribute('autocomplete', 'off');
+      input.setAttribute('autocorrect', 'off');
+      input.setAttribute('autocapitalize', 'off');
+      input.setAttribute('spellcheck', 'false');
+      input.setAttribute('data-lpignore', 'true');
+      input.setAttribute('data-form-type', 'other');
+    });
+  };
+  disableAutofill();
+  setTimeout(disableAutofill, 500);
 });

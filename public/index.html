@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261103_v30">
+  <link rel="stylesheet" href="/css/style.css?v=20261104_v31">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -76,14 +76,14 @@
             <span class="rooms-badge" id="lobby-create-badge">0/5 phòng</span>
           </div>
           
-          <form id="form-lobby-create-room" class="lobby-create-form">
+          <form id="form-lobby-create-room" class="lobby-create-form" autocomplete="off">
             <div class="lobby-input-wrapper">
               <i data-lucide="tv" style="width: 18px; height: 18px; color: #9ca3af;"></i>
-              <input type="text" id="lobby-create-room-input" placeholder="Tên phòng chiếu..." maxlength="30" required autocomplete="off" />
+              <input type="text" id="lobby-create-room-input" placeholder="Tên phòng chiếu..." maxlength="30" required autocomplete="off" spellcheck="false" />
             </div>
             <div class="lobby-input-wrapper pass-input-wrapper">
               <i data-lucide="key-round" style="width: 18px; height: 18px; color: #f2cf78;"></i>
-              <input type="text" id="lobby-create-room-pass" placeholder="Mật khẩu phòng..." maxlength="20" required autocomplete="off" />
+              <input type="text" id="lobby-create-room-pass" placeholder="Mật khẩu phòng..." maxlength="20" required autocomplete="off" spellcheck="false" />
             </div>
             <button type="submit" id="btn-lobby-submit-create" class="btn-create-glowing">
               <i data-lucide="plus-circle" style="width: 18px; height: 18px;"></i>
@@ -100,7 +100,7 @@
               <h3>Vào Phòng Nhanh</h3>
             </div>
           </div>
-          <form id="form-lobby-quick-join" class="lobby-create-form">
+          <form id="form-lobby-quick-join" class="lobby-create-form" autocomplete="off">
             <div class="lobby-input-wrapper">
               <i data-lucide="clapperboard" style="width: 18px; height: 18px; color: #38bdf8;"></i>
               <select id="lobby-quick-room-select" style="width:100%; background:transparent; border:none; color:#f9fafb; font-size:14px; font-weight:600; outline:none; cursor:pointer;">
@@ -592,11 +592,11 @@
       <button type="button" class="chat-reaction-btn emoji-btn" data-emoji="🎵" title="Quẩy nhạc">🎵</button>
     </div>
 
-    <form id="chat-form" class="chat-input-area">
+    <form id="chat-form" class="chat-input-area" autocomplete="off">
       <button type="button" id="btn-chat-sticker" class="chat-tool-btn" title="Gửi nhãn dán / ảnh chế Meme">
         <i data-lucide="smile"></i>
       </button>
-      <input type="text" id="chat-input" placeholder="Nói gì với cả rạp đi…" autocomplete="off" />
+      <input type="text" id="chat-input" placeholder="Nói gì với cả rạp đi…" autocomplete="off" spellcheck="false" />
       <button type="submit" class="chat-send-btn" title="Gửi tin nhắn">
         <i data-lucide="send"></i>
       </button>
@@ -651,7 +651,7 @@
             </div>
             <div class="form-group">
               <label>Tên hiển thị</label>
-              <input type="text" id="reg-displayname" placeholder="Tên hiển thị trong phòng..." maxlength="24" required />
+              <input type="text" id="reg-displayname" placeholder="Tên hiển thị trong phòng..." maxlength="24" required autocomplete="off" spellcheck="false" />
             </div>
             <div class="form-group">
               <label>Chọn nhân vật</label>
@@ -727,7 +727,7 @@
             </div>
           </div>
 
-          <form id="form-profile">
+          <form id="form-profile" autocomplete="off">
             <div class="form-group">
               <label>Chọn nhân vật</label>
               <div class="pixel-avatar-grid" id="profile-avatar-grid"></div>
@@ -736,7 +736,7 @@
             <div class="form-row-2">
               <div class="form-group">
                 <label>Tên hiển thị</label>
-                <input type="text" id="profile-name-input" maxlength="24" required />
+                <input type="text" id="profile-name-input" maxlength="24" required autocomplete="off" spellcheck="false" />
               </div>
               <div class="form-group">
                 <label>Danh hiệu</label>
@@ -833,9 +833,9 @@
             <h4>👑 Tạo Phòng Mới</h4>
             <span id="rooms-count-badge" class="rooms-badge">0 / 5 phòng</span>
           </div>
-          <form id="form-create-room" class="create-room-form">
-            <input type="text" id="create-room-input" placeholder="Tên phòng..." maxlength="30" required>
-            <input type="text" id="create-room-pass-input" placeholder="Mật khẩu..." maxlength="20" required style="max-width: 190px;">
+          <form id="form-create-room" class="create-room-form" autocomplete="off">
+            <input type="text" id="create-room-input" placeholder="Tên phòng..." maxlength="30" required autocomplete="off" spellcheck="false">
+            <input type="text" id="create-room-pass-input" placeholder="Mật khẩu..." maxlength="20" required autocomplete="off" spellcheck="false" style="max-width: 190px;">
             <button type="submit" id="btn-submit-create-room" class="btn-primary">
               <i data-lucide="plus"></i>
               <span>Tạo phòng</span>
@@ -939,9 +939,9 @@
         <button class="modal-close" data-close="modal-queue"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <form id="form-add-video" class="add-video-form">
+        <form id="form-add-video" class="add-video-form" autocomplete="off">
           <div class="input-with-btn">
-            <input type="text" id="video-url-input" placeholder="Dán link video (YouTube, Web Phim, Facebook, TikTok, Drive, MP4...)" required />
+            <input type="text" id="video-url-input" placeholder="Dán link video (YouTube, Web Phim, Facebook, TikTok, Drive, MP4...)" required autocomplete="off" spellcheck="false" />
             <button type="submit" id="btn-submit-queue-video" class="btn-primary">
               <i data-lucide="plus"></i>
               <span>Thêm video</span>
@@ -1012,20 +1012,20 @@
           <div class="admin-split-layout">
             <div class="admin-form-panel">
               <h4 id="admin-movie-form-title">➕ Thêm / Cập Nhật Phim</h4>
-              <form id="form-admin-movie">
+              <form id="form-admin-movie" autocomplete="off">
                 <input type="hidden" id="adm-movie-id" />
                 <div class="form-group">
                   <label>Tên phim</label>
-                  <input type="text" id="adm-movie-title" placeholder="Tên phim..." required />
+                  <input type="text" id="adm-movie-title" placeholder="Tên phim..." required autocomplete="off" spellcheck="false" />
                 </div>
                 <div class="form-row-2">
                   <div class="form-group">
                     <label>Ảnh Poster (URL)</label>
-                    <input type="text" id="adm-movie-poster" placeholder="https://..." />
+                    <input type="text" id="adm-movie-poster" placeholder="https://..." autocomplete="off" spellcheck="false" />
                   </div>
                   <div class="form-group">
                     <label>Diễn viên / Tác giả</label>
-                    <input type="text" id="adm-movie-cast" placeholder="Diễn viên / Tác giả..." />
+                    <input type="text" id="adm-movie-cast" placeholder="Diễn viên / Tác giả..." autocomplete="off" spellcheck="false" />
                   </div>
                 </div>
                 <div class="form-row-3">
@@ -1066,7 +1066,7 @@
                 </div>
                 <div class="form-group">
                   <label>Link video</label>
-                  <input type="text" id="adm-movie-url" placeholder="https://..." required />
+                  <input type="text" id="adm-movie-url" placeholder="https://..." required autocomplete="off" spellcheck="false" />
                 </div>
                 <div class="form-group">
                   <label>Danh sách tập (Tên tập | Link)</label>
@@ -1091,14 +1091,14 @@
           <div class="admin-split-layout">
             <div class="admin-form-panel">
               <h4>📤 Tải Phim Lên Máy Chủ</h4>
-              <form id="form-admin-upload-video">
+              <form id="form-admin-upload-video" autocomplete="off">
                 <div class="form-group">
                   <label>Chọn tệp video</label>
                   <input type="file" id="adm-upload-file" accept="video/mp4,video/webm,video/quicktime,video/*" class="file-input" required />
                 </div>
                 <div class="form-group">
                   <label>Tên phim</label>
-                  <input type="text" id="adm-upload-title" placeholder="Tên phim..." required />
+                  <input type="text" id="adm-upload-title" placeholder="Tên phim..." required autocomplete="off" spellcheck="false" />
                 </div>
                 <button type="submit" id="btn-adm-upload-submit" class="btn-primary full-width">
                   <i data-lucide="upload-cloud"></i>
@@ -1117,7 +1117,7 @@
 
         <!-- TAB 3: QUẢN LÝ DANH MỤC (THỂ LOẠI, QUỐC GIA, NĂM, TAG) -->
         <div class="admin-tab-pane hidden" id="admin-pane-categories">
-          <form id="form-admin-categories">
+          <form id="form-admin-categories" autocomplete="off">
             <div class="form-row-2">
               <div class="form-group">
                 <label>🎭 Thể loại</label>
@@ -1201,7 +1201,7 @@
         <button class="modal-close" data-close="modal-photo"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
-        <form id="form-screen-photo">
+        <form id="form-screen-photo" autocomplete="off">
           <div class="form-group">
             <label>Chọn ảnh</label>
             <input type="file" id="photo-file-input" accept="image/*" class="file-input" />
@@ -1210,7 +1210,7 @@
           <div class="form-divider"><span>hoặc dán URL ảnh</span></div>
 
           <div class="form-group">
-            <input type="url" id="photo-url-input" placeholder="https://example.com/photo.jpg" />
+            <input type="url" id="photo-url-input" placeholder="https://example.com/photo.jpg" autocomplete="off" spellcheck="false" />
           </div>
 
           <div class="photo-preview-box hidden" id="photo-preview-box">
@@ -1219,7 +1219,7 @@
 
           <div class="form-group">
             <label>Lời nhắn</label>
-            <input type="text" id="photo-caption-input" placeholder="Nhập lời nhắn..." maxlength="80" />
+            <input type="text" id="photo-caption-input" placeholder="Nhập lời nhắn..." maxlength="80" autocomplete="off" spellcheck="false" />
           </div>
 
           <button type="submit" class="btn-primary full-width" id="btn-submit-photo">
@@ -1250,7 +1250,7 @@
             <button type="button" class="preset-tag-btn" data-preset="rating">⭐ Phim đỉnh mấy điểm?</button>
           </div>
         </div>
-        <form id="form-create-poll" class="poll-create-form">
+        <form id="form-create-poll" class="poll-create-form" autocomplete="off">
           <div class="form-group">
             <label>Câu hỏi bình chọn</label>
             <input type="text" id="poll-input-question" placeholder="Ví dụ: Ai là kẻ phản bội?..." maxlength="120" required autocomplete="off" />
@@ -1425,14 +1425,14 @@
 
         <!-- TAB 3: CÀI ĐẶT PHÒNG -->
         <div class="rm-tab-pane hidden" id="rm-pane-settings">
-          <form id="rm-form-room-info">
+          <form id="rm-form-room-info" autocomplete="off">
             <div class="form-group">
               <label>Tên phòng chiếu</label>
-              <input type="text" id="rm-input-room-name" required maxlength="50" placeholder="Tên phòng..." />
+              <input type="text" id="rm-input-room-name" required maxlength="50" placeholder="Tên phòng..." autocomplete="off" spellcheck="false" />
             </div>
             <div class="form-group">
               <label>Mật khẩu phòng (Để trống nếu muốn phòng công khai)</label>
-              <input type="text" id="rm-input-room-password" placeholder="Mật khẩu mới..." />
+              <input type="text" id="rm-input-room-password" placeholder="Mật khẩu mới..." autocomplete="off" spellcheck="false" />
               <small style="color: #9ca3af; font-size: 11px;">Mật khẩu hiện tại: <strong id="rm-current-pass-display" style="color:#fbbf24;">(Không có)</strong></small>
             </div>
             <button type="submit" class="btn-primary" style="margin-top: 10px;">💾 Lưu Thông Tin Phòng</button>
@@ -1445,7 +1445,7 @@
             <h4>📢 Loa Phát Thanh Rạp Phim</h4>
             <p style="font-size: 12px; color: #9ca3af; margin-bottom: 8px;">Ghim thông báo khẩn cấp màu vàng neon chạy trên đỉnh rạp cho toàn bộ người xem.</p>
             <div class="form-group" style="display: flex; gap: 8px;">
-              <input type="text" id="rm-input-announcement" placeholder="Nhập thông báo gửi toàn rạp..." maxlength="120" style="flex:1;" />
+              <input type="text" id="rm-input-announcement" placeholder="Nhập thông báo gửi toàn rạp..." maxlength="120" style="flex:1;" autocomplete="off" spellcheck="false" />
               <button id="rm-btn-send-announcement" class="btn-primary" style="white-space: nowrap;">
                 <i data-lucide="megaphone"></i>
                 <span>Phát Loa</span>
@@ -1589,8 +1589,8 @@
           <div style="font-size: 12px; font-weight: 700; color: #fda4af; margin-bottom: 6px;">
             <span>💌 Khắc Tên Kỷ Niệm Lên Biển Ghế 3D:</span>
           </div>
-          <form id="form-carve-couple-name" style="display: flex; gap: 8px;">
-            <input type="text" id="input-couple-carve-name" placeholder="VD: Nam & Lan 💖" maxlength="30" required style="flex: 1; padding: 8px 12px; background: #121412; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; color: #fff; font-size: 12px;" />
+          <form id="form-carve-couple-name" autocomplete="off" novalidate style="display: flex; gap: 8px;">
+            <input type="text" id="input-couple-carve-name" name="couple_carve_name_nohistory" placeholder="VD: Nam & Lan 💖" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" style="flex: 1; padding: 8px 12px; background: #121412; border: 1px solid rgba(244, 63, 94, 0.4); border-radius: 8px; color: #fff; font-size: 12px;" />
             <button type="submit" class="btn-sm primary" style="background: linear-gradient(135deg, #f43f5e, #e11d48); border: none; padding: 8px 14px; font-weight: 700; border-radius: 8px; color: #fff;">Khắc Tên</button>
           </form>
         </div>
@@ -1602,9 +1602,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261103_v30"></script>
-  <script src="/js/cinema.js?v=20261103_v30"></script>
-  <script src="/js/player.js?v=20261103_v30"></script>
-  <script src="/js/app.js?v=20261103_v30"></script>
+  <script src="/js/avatars.js?v=20261104_v31"></script>
+  <script src="/js/cinema.js?v=20261104_v31"></script>
+  <script src="/js/player.js?v=20261104_v31"></script>
+  <script src="/js/app.js?v=20261104_v31"></script>
 </body>
 </html>
