@@ -2009,6 +2009,13 @@ class CinemaScene {
     this.targetMouseY = 0;
     this.markActive();
 
+    // Cập nhật trạng thái class trên body để tối ưu hiển thị thanh điều khiển khi xem màn hình
+    document.body.classList.toggle('camera-mode-screen', mode === 'screen');
+    if (mode !== 'screen' && document.body.classList.contains('screen-focus-mode')) {
+      document.body.classList.remove('screen-focus-mode');
+      document.getElementById('screen-focus-banner')?.classList.add('hidden');
+    }
+
     // 1. Phục hồi avatar cũ nếu vừa rời khỏi góc nhìn thứ nhất (seat view)
     if (prevMode === 'seat' && this.activeSeatId !== null && this.avatarMeshes[this.activeSeatId]) {
       this.avatarMeshes[this.activeSeatId].visible = true;

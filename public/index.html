@@ -23,7 +23,7 @@
   <script src="/vendor/lucide.min.js"></script>
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="/css/style.css?v=20261105_v37">
+  <link rel="stylesheet" href="/css/style.css?v=20261105_v38">
 </head>
 <body>
   <!-- ==================== LOBBY SCREEN (SẢNH CHỜ TRUNG TÂM) ==================== -->
@@ -175,7 +175,7 @@
           <video id="html5-video-player" class="html5-video-host hidden" playsinline controls></video>
 
           <!-- Source 3: Embed IFrame Player (All Web Links, Google Drive, Facebook, TikTok, Vimeo, Movie Sites) -->
-          <iframe id="embed-iframe-player" class="embed-iframe-host hidden" allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write; web-share" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <iframe id="embed-iframe-player" class="embed-iframe-host hidden" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen referrerpolicy="no-referrer"></iframe>
 
           <!-- Source 4: Screen Sharing Player (WebRTC chia sẻ màn hình máy tính trực tiếp) -->
           <video id="screen-share-player" class="screen-share-host hidden" playsinline autoplay muted></video>
@@ -183,13 +183,16 @@
           <!-- Danmaku Bullet Chat Overlay (Bình luận bay lướt ngang màn hình rạp chiếu) -->
           <div id="danmaku-container" class="danmaku-container"></div>
 
-          <!-- External Link Helper Toolbar (Switch between Proxy Bypass / Direct / Stream / Open Tab) -->
+          <!-- External Link Helper Toolbar (Switch between Proxy Bypass / Direct / Stream / Open Tab / Settings Focus) -->
           <div id="embed-helper-bar" class="embed-helper-bar hidden">
             <div class="embed-helper-left">
               <span class="embed-badge-dot"></span>
               <span id="embed-source-domain">Nguồn Web Ngoài</span>
             </div>
             <div class="embed-helper-actions">
+              <button type="button" id="btn-toggle-screen-focus" class="embed-mode-btn" title="Mở chế độ thao tác trực tiếp: chọn tập, cài đặt chất lượng, phụ đề trên Web Player">
+                ⚙️ Thao Tác Cài Đặt
+              </button>
               <button type="button" id="btn-embed-mode-proxy" class="embed-mode-btn active" title="Vượt chặn X-Frame-Options cho các trang web phim">
                 🛡️ Proxy Vượt Chặn
               </button>
@@ -408,6 +411,17 @@
   <div id="voice-speakers-pill" class="voice-speakers-pill hidden">
     <span class="voice-wave-dot"></span>
     <span id="voice-speakers-text">🎙️ Đang bật Mic: ...</span>
+  </div>
+
+  <!-- Dedicated Focus Mode Bar for Web Player Settings Interaction -->
+  <div id="screen-focus-banner" class="screen-focus-banner hidden">
+    <div class="focus-banner-left">
+      <span class="focus-pulse-dot"></span>
+      <span class="focus-banner-text">⚙️ <strong>Chế độ thao tác Web Player:</strong> Bạn có thể tương tác chọn tập, bật phụ đề, chỉnh âm thanh và chất lượng trực tiếp</span>
+    </div>
+    <button type="button" id="btn-exit-screen-focus" class="btn-exit-focus" title="Thoát chế độ thao tác (Phím Esc)">
+      <span>✕ Thoát Thao Tác (Esc)</span>
+    </button>
   </div>
 
   <!-- Cinema Playback Control Bar (Strictly controlled by Host / Admin) -->
@@ -985,6 +999,10 @@
         <form id="form-add-video" class="add-video-form" autocomplete="off">
           <div class="input-with-btn">
             <input type="text" id="video-url-input" placeholder="Dán link video (YouTube, Web Phim, Facebook, TikTok, Drive, MP4...)" required autocomplete="off" spellcheck="false" />
+            <button type="button" id="btn-paste-clipboard" class="btn-paste-clip" title="Dán nhanh liên kết từ bộ nhớ tạm (Clipboard)">
+              <i data-lucide="clipboard-paste" style="width: 16px; height: 16px;"></i>
+              <span>Dán</span>
+            </button>
             <button type="submit" id="btn-submit-queue-video" class="btn-primary">
               <i data-lucide="plus"></i>
               <span>Thêm video</span>
@@ -1853,9 +1871,9 @@
   <div id="toast-container"></div>
 
   <!-- Application Scripts -->
-  <script src="/js/avatars.js?v=20261105_v37"></script>
-  <script src="/js/cinema.js?v=20261105_v37"></script>
-  <script src="/js/player.js?v=20261105_v37"></script>
-  <script src="/js/app.js?v=20261105_v37"></script>
+  <script src="/js/avatars.js?v=20261105_v38"></script>
+  <script src="/js/cinema.js?v=20261105_v38"></script>
+  <script src="/js/player.js?v=20261105_v38"></script>
+  <script src="/js/app.js?v=20261105_v38"></script>
 </body>
 </html>

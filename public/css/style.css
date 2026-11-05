@@ -5504,4 +5504,167 @@ input:-webkit-autofill:active {
   transform: scale(1.08);
 }
 
+/* ==========================================================================
+   CLIPBOARD PASTE BUTTON & SCREEN FOCUS / INTERACTIVE SETTINGS MODE
+   ========================================================================== */
+
+.btn-paste-clip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  height: 44px;
+  background: rgba(242, 207, 120, 0.12);
+  border: 1px solid rgba(242, 207, 120, 0.35);
+  color: #f2cf78;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.btn-paste-clip:hover {
+  background: rgba(242, 207, 120, 0.25);
+  border-color: #f2cf78;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(242, 207, 120, 0.25);
+}
+
+.btn-paste-clip:active {
+  transform: translateY(0);
+}
+
+/* Camera Screen Mode: Unobtrusive HUD so native Web Video Player controls are 100% clickable */
+body.camera-mode-screen .cinema-playback-bar {
+  bottom: 16px !important;
+  opacity: 0.25;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+body.camera-mode-screen .cinema-playback-bar:hover,
+body.camera-mode-screen .cinema-playback-bar:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.camera-mode-screen .cinema-playback-bar .playback-btn,
+body.camera-mode-screen .cinema-playback-bar .progress-bar-container,
+body.camera-mode-screen .cinema-playback-bar .volume-control {
+  pointer-events: auto;
+}
+
+body.camera-mode-screen .hud-bottom {
+  opacity: 0.25;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+body.camera-mode-screen .hud-bottom:hover {
+  opacity: 1;
+}
+
+body.camera-mode-screen .hud-bottom .hud-btn,
+body.camera-mode-screen .hud-bottom .cam-btn {
+  pointer-events: auto;
+}
+
+/* Dedicated Web Player Settings Focus Mode (Thao Tác Cài Đặt) */
+.screen-focus-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: rgba(15, 18, 16, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(242, 207, 120, 0.6);
+  border-radius: 999px;
+  padding: 8px 18px;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(242, 207, 120, 0.3);
+  max-width: 90vw;
+  animation: fadeInDown 0.3s ease;
+}
+
+.focus-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #f3f4f6;
+}
+
+.focus-banner-text strong {
+  color: #f2cf78;
+}
+
+.focus-pulse-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse 1.5s infinite;
+}
+
+.btn-exit-focus {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-exit-focus:hover {
+  background: rgba(239, 68, 68, 0.4);
+  color: #fff;
+  transform: scale(1.03);
+}
+
+body.screen-focus-mode .hud-top,
+body.screen-focus-mode .hud-bottom,
+body.screen-focus-mode .reaction-dock,
+body.screen-focus-mode #cinema-playback-bar,
+body.screen-focus-mode #voice-speakers-pill,
+body.screen-focus-mode #btn-show-hud {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(40px) !important;
+  transition: opacity 0.3s ease, transform 0.3s ease !important;
+}
+
+body.screen-focus-mode #canvas-container {
+  pointer-events: none !important;
+}
+
+body.screen-focus-mode #css3d-container {
+  pointer-events: auto !important;
+  z-index: 50 !important;
+}
+
+body.screen-focus-mode .screen-surface {
+  pointer-events: auto !important;
+  box-shadow: 0 0 120px rgba(0, 0, 0, 0.98), 0 0 50px rgba(242, 207, 120, 0.5) !important;
+}
+
+body.screen-focus-mode .embed-iframe-host {
+  pointer-events: auto !important;
+}
+
+
 

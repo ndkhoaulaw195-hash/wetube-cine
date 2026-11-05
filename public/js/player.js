@@ -255,6 +255,14 @@ class CinemaPlayer {
   }
 
   bindEmbedToolbarEvents() {
+    document.getElementById('btn-toggle-screen-focus')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleScreenFocusMode();
+    });
+    document.getElementById('btn-exit-screen-focus')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleScreenFocusMode(false);
+    });
     document.getElementById('btn-embed-mode-proxy')?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.switchEmbedMode('proxy');
@@ -274,6 +282,34 @@ class CinemaPlayer {
         this.embedFrame.src = currentSrc;
       }
     });
+  }
+
+  toggleScreenFocusMode(forceState) {
+    const isFocus = typeof forceState === 'boolean'
+      ? forceState
+      : !document.body.classList.contains('screen-focus-mode');
+
+    document.body.classList.toggle('screen-focus-mode', isFocus);
+    const banner = document.getElementById('screen-focus-banner');
+    if (banner) banner.classList.toggle('hidden', !isFocus);
+
+    const btnFocus = document.getElementById('btn-toggle-screen-focus');
+    if (btnFocus) btnFocus.classList.toggle('active', isFocus);
+
+    // Khi bật chế độ thao tác Web Player, tự động đưa camera về góc nhìn Màn hình để tương tác trực diện
+    if (isFocus && window.app && window.app.cinema && window.app.cinema.cameraMode !== 'screen') {
+      window.app.cinema.setCameraMode('screen');
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.cam-btn[data-camera="screen"]')?.classList.add('active');
+    }
+
+    if (window.app && typeof window.app.showToast === 'function') {
+      if (isFocus) {
+        window.app.showToast('⚙️ Đã bật Chế độ Thao tác Web Player! Bạn có thể click trực tiếp chỉnh phụ đề, âm thanh, chất lượng (Nhấn Esc để thoát).', 'info');
+      } else {
+        window.app.showToast('🎬 Đã quay lại rạp chiếu phim!', 'info');
+      }
+    }
   }
 
   switchEmbedMode(mode) {
@@ -318,11 +354,15 @@ class CinemaPlayer {
       hostLabelEl.textContent = v.author || 'Nguồn Web Ngoài';
     }
 
+    const btnFocus = document.getElementById('btn-toggle-screen-focus');
     const btnProxy = document.getElementById('btn-embed-mode-proxy');
     const btnDirect = document.getElementById('btn-embed-mode-direct');
     const btnStream = document.getElementById('btn-embed-mode-stream');
     const linkOrig = document.getElementById('btn-embed-open-origin');
 
+    if (btnFocus) {
+      btnFocus.classList.toggle('active', document.body.classList.contains('screen-focus-mode'));
+    }
     if (btnProxy) btnProxy.classList.toggle('active', this.sourceType === 'embed' && this.embedMode === 'proxy');
     if (btnDirect) btnDirect.classList.toggle('active', this.sourceType === 'embed' && this.embedMode === 'direct');
     if (btnStream) {

@@ -2218,6 +2218,30 @@ class CinemaApp {
 
     document.getElementById('btn-unmute-audio')?.addEventListener('click', () => this.player.unmuteWithGesture());
 
+    // Nút Dán nhanh liên kết từ Clipboard
+    document.getElementById('btn-paste-clipboard')?.addEventListener('click', async () => {
+      const input = document.getElementById('video-url-input');
+      if (!input) return;
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text && text.trim()) {
+            input.value = text.trim();
+            input.focus();
+            this.showToast('📋 Đã dán liên kết từ bộ nhớ tạm!', 'success');
+            return;
+          }
+        }
+        input.focus();
+        input.select();
+        this.showToast('ℹ️ Vui lòng bấm tổ hợp phím Ctrl+V (hoặc Cmd+V) để dán link!', 'info');
+      } catch (err) {
+        input.focus();
+        input.select();
+        this.showToast('ℹ️ Vui lòng bấm tổ hợp phím Ctrl+V (hoặc Cmd+V) để dán link!', 'info');
+      }
+    });
+
     document.getElementById('form-add-video')?.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!this.canControlRoom()) {
@@ -2283,8 +2307,19 @@ class CinemaApp {
     // 19. Virtual Gifts
     this.initGiftHandlers();
 
-    // 20. Global Keyboard Shortcuts (F: Toàn màn hình, H: Ẩn/Hiện điều khiển, M: Bật/Tắt Mic)
+    // 20. Global Keyboard Shortcuts (F: Toàn màn hình, H: Ẩn/Hiện điều khiển, M: Bật/Tắt Mic, Esc: Thoát Thao Tác)
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (document.body.classList.contains('screen-focus-mode')) {
+          if (this.player && typeof this.player.toggleScreenFocusMode === 'function') {
+            this.player.toggleScreenFocusMode(false);
+          } else {
+            document.body.classList.remove('screen-focus-mode');
+            document.getElementById('screen-focus-banner')?.classList.add('hidden');
+          }
+        }
+      }
+
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
       if (e.key === 'f' || e.key === 'F') {
         const btnFs = document.getElementById('btn-fullscreen');
@@ -3423,6 +3458,9 @@ class CinemaApp {
 
   openModal(id) {
     document.getElementById(id)?.classList.remove('hidden');
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
   }
 
   closeModal(id) {

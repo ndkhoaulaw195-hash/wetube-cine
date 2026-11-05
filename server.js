@@ -644,7 +644,37 @@ app.all('/api/web-proxy', async (req, res) => {
     history.pushState = function(s, t, u) { return safeHistoryCall(origPush, s, t, u); };
     history.replaceState = function(s, t, u) { return safeHistoryCall(origReplace, s, t, u); };
 
-    // 4. Intercept clicks on links so navigation stays inside proxy and never hits X-Frame-Options
+    // 4. Hook window.fetch & XMLHttpRequest so subtitles (.vtt/.srt), quality manifests, and episode lists work without CORS blocks
+    var origFetch = window.fetch;
+    if (typeof origFetch === 'function') {
+      window.fetch = function(input, init) {
+        if (typeof input === 'string' && !input.startsWith('/api/web-proxy') && !input.startsWith('data:') && !input.startsWith('blob:')) {
+          try {
+            var resolved = new URL(input, TARGET_ORIGIN + window.location.pathname).href;
+            input = PROXY_PREFIX + encodeURIComponent(resolved);
+          } catch(e) {}
+        } else if (input && typeof input.url === 'string' && !input.url.startsWith('/api/web-proxy') && !input.url.startsWith('data:') && !input.url.startsWith('blob:')) {
+          try {
+            var resolvedU = new URL(input.url, TARGET_ORIGIN + window.location.pathname).href;
+            input = new Request(PROXY_PREFIX + encodeURIComponent(resolvedU), input);
+          } catch(e) {}
+        }
+        return origFetch.call(this, input, init);
+      };
+    }
+
+    var origXhrOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, async, user, pass) {
+      if (typeof url === 'string' && !url.startsWith('/api/web-proxy') && !url.startsWith('data:') && !url.startsWith('blob:')) {
+        try {
+          var resolvedX = new URL(url, TARGET_ORIGIN + window.location.pathname).href;
+          url = PROXY_PREFIX + encodeURIComponent(resolvedX);
+        } catch(e) {}
+      }
+      return origXhrOpen.call(this, method, url, async !== false, user, pass);
+    };
+
+    // 5. Intercept clicks on links so navigation stays inside proxy and never hits X-Frame-Options
     document.addEventListener('click', function(e) {
       var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
       if (!a) return;
@@ -668,29 +698,33 @@ app.all('/api/web-proxy', async (req, res) => {
         html = helperScript + html;
       }
 
+      const bodyBuf = Buffer.from(html, 'utf-8');
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(upstream.status).send(html);
+      res.setHeader('Content-Length', bodyBuf.length);
+      return res.status(upstream.status).send(bodyBuf);
     }
 
     // For all other content types (JSON, JS, CSS, MP4, TS segments, images)
     if (contentType) {
       res.setHeader('Content-Type', contentType);
     }
-    const contentLength = upstream.headers.get('content-length');
-    if (contentLength) res.setHeader('Content-Length', contentLength);
     const contentRange = upstream.headers.get('content-range');
     if (contentRange) res.setHeader('Content-Range', contentRange);
     const acceptRanges = upstream.headers.get('accept-ranges');
     if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
 
-    res.status(upstream.status);
     const arrayBuf = await upstream.arrayBuffer();
-    return res.end(Buffer.from(arrayBuf));
+    const finalBuffer = Buffer.from(arrayBuf);
+    res.setHeader('Content-Length', finalBuffer.length);
+    res.status(upstream.status);
+    return res.end(finalBuffer);
   } catch (err) {
     return res.status(502).send(`<!doctype html><html><body style="background:#0f1210;color:#f3f4f6;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;padding:20px;">
-      <h2 style="color:#f2cf78;margin-bottom:10px;">⚠️ Không thể kết nối trực tiếp tới trang nguồn</h2>
-      <p style="color:#9ca3af;max-width:520px;line-height:1.5;">Trang web (${rawTarget}) đang chặn kết nối tự động hoặc cần mở trực tiếp.</p>
-      <a href="${rawTarget.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="margin-top:16px;padding:10px 22px;background:#f2cf78;color:#111;border-radius:10px;text-decoration:none;font-weight:700;">↗️ Mở trang gốc trong Tab mới</a>
+      <h2 style="color:#f2cf78;margin-bottom:10px;">⚠️ Trang web yêu cầu mở hoặc nhúng trực tiếp</h2>
+      <p style="color:#9ca3af;max-width:520px;line-height:1.5;">Trang web (${rawTarget}) đang bật tường lửa Cloudflare/chống proxy hoặc cần kết nối trực tiếp từ trình duyệt của bạn.</p>
+      <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center;">
+        <a href="${rawTarget.replace(/"/g, '&quot;')}" target="_blank" rel="noopener" style="padding:10px 22px;background:#f2cf78;color:#111;border-radius:10px;text-decoration:none;font-weight:700;">↗️ Mở trang gốc trong Tab mới</a>
+      </div>
     </body></html>`);
   }
 });
@@ -760,22 +794,46 @@ function parseVideoSource(input, customTitle = '') {
   let str = String(input).trim();
   if (!str) return null;
 
-  // 0. If user pasted an <iframe ... src="..."> snippet, extract src
-  const iframeSrcMatch = str.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  // 0. Extract from <iframe> or <video> or <embed> tag if present
+  const iframeSrcMatch = str.match(/<(?:iframe|video|embed)[^>]+src=["']?([^"'\s>]+)["']?/i);
   if (iframeSrcMatch && iframeSrcMatch[1]) {
     str = iframeSrcMatch[1].trim();
   } else if (!str.startsWith('/uploads/') && !/^[a-zA-Z0-9_-]{11}$/.test(str)) {
-    // Extract first http/https URL if user pasted extra text around the link
     const urlInText = str.match(/https?:\/\/[^\s"'<>]+/i);
     if (urlInText) {
       str = urlInText[0].trim();
-    } else if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+(\/.*)?$/.test(str)) {
-      // Prepend https:// if user pasted domain without protocol (e.g. rophim.me/xem-phim/...)
+    } else if (/^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+.*$/.test(str)) {
       str = 'https://' + str;
     }
   }
 
-  // 1. Check YouTube ID or URL (including watch, youtu.be, shorts, live, embed)
+  // 1. Check if URL contains an inner stream (.m3u8 or .mp4) in query parameter (e.g. player.phimapi.com, ophim, kkphim...)
+  try {
+    const parsedUrl = new URL(str);
+    for (const param of ['url', 'file', 'source', 'link', 'src', 'stream', 'm3u8', 'video']) {
+      const val = parsedUrl.searchParams.get(param);
+      if (val) {
+        const decoded = decodeURIComponent(val).trim();
+        if (/^https?:\/\/.+\.(m3u8|mp4|webm)(\?.*)?$/i.test(decoded) || /\.m3u8/i.test(decoded)) {
+          let host = parsedUrl.hostname.replace(/^www\./, '');
+          return {
+            sourceType: 'direct',
+            id: 'stream_' + crypto.createHash('md5').update(decoded).digest('hex').substring(0, 10),
+            url: decoded,
+            streamUrl: decoded,
+            directEmbedUrl: str,
+            proxyEmbedUrl: '/api/web-proxy?url=' + encodeURIComponent(str),
+            originalUrl: str,
+            title: customTitle || ('Luồng Phim HD (' + host + ')'),
+            author: host,
+            thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80'
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 2. Check YouTube
   if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
     return { sourceType: 'youtube', id: str, url: `https://www.youtube.com/watch?v=${str}`, originalUrl: `https://www.youtube.com/watch?v=${str}` };
   }
@@ -784,7 +842,7 @@ function parseVideoSource(input, customTitle = '') {
     return { sourceType: 'youtube', id: ytMatch[1], url: `https://www.youtube.com/watch?v=${ytMatch[1]}`, originalUrl: str };
   }
 
-  // 2. Check Google Drive link
+  // 3. Google Drive
   const driveMatch = str.match(/(?:drive|docs)\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=|uc\?export=[^&]+&id=)([a-zA-Z0-9_-]+)/i);
   if (driveMatch) {
     const driveId = driveMatch[1];
@@ -801,7 +859,142 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 3. Check Facebook Video / Watch / Reel
+  // 4. Streamtape
+  const stMatch = str.match(/streamtape\.com\/(?:v|e)\/([a-zA-Z0-9_-]+)/i);
+  if (stMatch) {
+    const stId = stMatch[1];
+    const embedUrl = `https://streamtape.com/e/${stId}`;
+    return {
+      sourceType: 'embed',
+      id: `st_${stId}`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || `Phim Streamtape (${stId})`,
+      author: 'Streamtape Player',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 5. DoodStream / Dood
+  const doodMatch = str.match(/dood(?:stream)?\.(?:to|so|ws|la|li|pm|watch|cx|sh|com)\/(?:d|e)\/([a-zA-Z0-9_-]+)/i);
+  if (doodMatch) {
+    const dId = doodMatch[1];
+    const embedUrl = `https://dood.to/e/${dId}`;
+    return {
+      sourceType: 'embed',
+      id: `dood_${dId}`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || `Phim DoodStream (${dId})`,
+      author: 'DoodStream CDN',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 6. VidSrc
+  const vidsrcMatch = str.match(/vidsrc\.(?:to|me|xyz|cc|net|pm|sh)\/(?:embed\/)?(.*)/i);
+  if (vidsrcMatch) {
+    const sub = vidsrcMatch[1].replace(/^\//, '');
+    const embedUrl = `https://vidsrc.to/embed/${sub}`;
+    return {
+      sourceType: 'embed',
+      id: 'vidsrc_' + crypto.createHash('md5').update(sub).digest('hex').substring(0, 10),
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || 'Phim VidSrc HD',
+      author: 'VidSrc Player',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 7. 2Embed / AutoEmbed
+  const twoEmbedMatch = str.match(/2embed\.(?:cc|to|skin)\/embed\/(.*)/i);
+  if (twoEmbedMatch) {
+    const sub = twoEmbedMatch[1].replace(/^\//, '');
+    const embedUrl = `https://www.2embed.cc/embed/${sub}`;
+    return {
+      sourceType: 'embed',
+      id: '2embed_' + crypto.createHash('md5').update(sub).digest('hex').substring(0, 10),
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || 'Phim 2Embed Cinema',
+      author: '2Embed CDN',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+  const autoEmbedMatch = str.match(/autoembed\.to\/(.*)/i);
+  if (autoEmbedMatch) {
+    const sub = autoEmbedMatch[1].replace(/^\//, '');
+    const embedUrl = `https://autoembed.to/${sub}`;
+    return {
+      sourceType: 'embed',
+      id: 'autoemb_' + crypto.createHash('md5').update(sub).digest('hex').substring(0, 10),
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || 'Phim AutoEmbed HD',
+      author: 'AutoEmbed Player',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 8. Filemoon
+  const filemoonMatch = str.match(/filemoon\.(?:sx|to|me|in)\/(?:d|e)\/([a-zA-Z0-9_-]+)/i);
+  if (filemoonMatch) {
+    const fId = filemoonMatch[1];
+    const embedUrl = `https://filemoon.sx/e/${fId}`;
+    return {
+      sourceType: 'embed',
+      id: `fmoon_${fId}`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || `Phim Filemoon (${fId})`,
+      author: 'Filemoon CDN',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 9. Mixdrop
+  const mixMatch = str.match(/mixdrop\.(?:co|to|sx|bz|ch)\/(?:f|e)\/([a-zA-Z0-9_-]+)/i);
+  if (mixMatch) {
+    const mId = mixMatch[1];
+    const embedUrl = `https://mixdrop.co/e/${mId}`;
+    return {
+      sourceType: 'embed',
+      id: `mix_${mId}`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || `Phim Mixdrop (${mId})`,
+      author: 'Mixdrop Player',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 10. Mega.nz
+  const megaMatch = str.match(/mega\.nz\/(?:file|embed)\/([a-zA-Z0-9_-]+)(?:#([a-zA-Z0-9_-]+))?/i);
+  if (megaMatch) {
+    const fileId = megaMatch[1];
+    const key = megaMatch[2] || '';
+    const embedUrl = `https://mega.nz/embed/${fileId}${key ? '#' + key : ''}`;
+    return {
+      sourceType: 'embed',
+      id: `mega_${fileId}`,
+      url: embedUrl,
+      directEmbedUrl: embedUrl,
+      originalUrl: str,
+      title: customTitle || 'Phim Mega Cloud',
+      author: 'Mega.nz',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&auto=format&fit=crop&q=80'
+    };
+  }
+
+  // 11. Facebook Video / Watch / Reel
   if (/(?:facebook\.com\/(?:watch|reel|share|[^/]+\/videos)|fb\.watch\/)/i.test(str)) {
     const fbEmbed = `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(str)}&show_text=false&autoplay=true`;
     return {
@@ -817,7 +1010,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 4. Check TikTok Video
+  // 12. TikTok Video
   const tiktokMatch = str.match(/tiktok\.com\/(?:@[^/]+\/video\/|embed\/v2\/|v\/)(\d+)/i);
   if (tiktokMatch) {
     const ttId = tiktokMatch[1];
@@ -834,7 +1027,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 5. Check Vimeo
+  // 13. Vimeo
   const vimeoMatch = str.match(/(?:player\.)?vimeo\.com\/(?:video\/|channels\/[^/]+\/)?(\d+)/i);
   if (vimeoMatch) {
     const vmId = vimeoMatch[1];
@@ -851,7 +1044,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 6. Check Dailymotion
+  // 14. Dailymotion
   const dmMatch = str.match(/(?:dailymotion\.com\/(?:embed\/)?video\/|dai\.ly\/)([a-zA-Z0-9]+)/i);
   if (dmMatch) {
     const dmId = dmMatch[1];
@@ -868,7 +1061,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 7. Check Bilibili
+  // 15. Bilibili
   const biliBvMatch = str.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/i);
   if (biliBvMatch) {
     const bvid = biliBvMatch[1];
@@ -885,7 +1078,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 8. Check OK.ru
+  // 16. OK.ru
   const okMatch = str.match(/ok\.ru\/(?:video|videoembed)\/(\d+)/i);
   if (okMatch) {
     const okId = okMatch[1];
@@ -902,7 +1095,7 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 9. Check Archive.org
+  // 17. Archive.org
   const archiveMatch = str.match(/archive\.org\/(?:details|embed)\/([^/?#&]+)/i);
   if (archiveMatch) {
     const archId = archiveMatch[1];
@@ -919,13 +1112,15 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 10. Check Dropbox direct media link
+  // 18. Dropbox direct media link
   if (/dropbox\.com\//i.test(str)) {
     const directDropbox = str.replace(/\?dl=0$/, '?raw=1').replace(/&dl=0$/, '&raw=1');
     return {
       sourceType: 'direct',
       id: 'dbx_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
       url: directDropbox,
+      streamUrl: directDropbox,
+      directEmbedUrl: directDropbox,
       originalUrl: str,
       title: customTitle || 'Video Dropbox Cloud',
       author: 'Dropbox CDN',
@@ -933,29 +1128,45 @@ function parseVideoSource(input, customTitle = '') {
     };
   }
 
-  // 11. Check local uploaded file (/uploads/...) or any HTTP/HTTPS URL
-  if (str.startsWith('/uploads/') || /^https?:\/\//i.test(str)) {
-    const isDirectVideo =
-      /\.(mp4|webm|ogg|mov|mkv|m4v|m3u8)(\?.*|#.*)?$/i.test(str) ||
-      str.startsWith('/uploads/') ||
-      str.includes('commondatastorage');
+  // 19. Direct video by pathname (.mp4, .m3u8, .webm, .mkv, .mov)
+  let isDirectVideo = false;
+  try {
+    const pUrl = new URL(str);
+    isDirectVideo = /\.(mp4|webm|ogg|mov|mkv|m4v|m3u8)$/i.test(pUrl.pathname);
+  } catch (e) {
+    isDirectVideo = /\.(mp4|webm|ogg|mov|mkv|m4v|m3u8)(\?.*)?$/i.test(str);
+  }
+  if (str.startsWith('/uploads/') || isDirectVideo) {
+    return {
+      sourceType: 'direct',
+      id: 'vid_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
+      url: str,
+      streamUrl: str,
+      directEmbedUrl: str,
+      proxyEmbedUrl: `/api/web-proxy?url=${encodeURIComponent(str)}`,
+      originalUrl: str,
+      title: customTitle || (str.startsWith('/uploads/') ? 'Phim Tải Lên Rạp (' + path.basename(str) + ')' : 'Video Trực Tiếp HD'),
+      author: 'Trực Tiếp CDN',
+      thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80'
+    };
+  }
 
-    let hostLabel = 'Hệ Thống Phát Sóng';
+  // 20. Any other HTTP/HTTPS website URL
+  if (/^https?:\/\//i.test(str)) {
+    let hostLabel = 'Web Phim';
     try {
-      if (/^https?:\/\//i.test(str)) {
-        hostLabel = new URL(str).hostname.replace(/^www\./, '');
-      }
+      hostLabel = new URL(str).hostname.replace(/^www\./, '');
     } catch {}
 
     return {
-      sourceType: isDirectVideo ? 'direct' : 'embed',
-      id: 'vid_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
+      sourceType: 'embed',
+      id: 'web_' + crypto.createHash('md5').update(str).digest('hex').substring(0, 10),
       url: str,
       directEmbedUrl: str,
-      proxyEmbedUrl: /^https?:\/\//i.test(str) ? `/api/web-proxy?url=${encodeURIComponent(str)}` : str,
+      proxyEmbedUrl: `/api/web-proxy?url=${encodeURIComponent(str)}`,
       originalUrl: str,
-      needsResolve: !isDirectVideo && /^https?:\/\//i.test(str),
-      title: customTitle || (str.startsWith('/uploads/') ? 'Phim Tải Lên Rạp (' + path.basename(str) + ')' : `Phim / Web (${hostLabel})`),
+      needsResolve: true,
+      title: customTitle || `Phim / Web (${hostLabel})`,
       author: hostLabel,
       thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&auto=format&fit=crop&q=80'
     };
@@ -972,7 +1183,7 @@ async function resolveExternalMedia(input, customTitle = '') {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5500);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
     const resp = await fetch(base.originalUrl, {
       method: 'GET',
       headers: {
@@ -986,7 +1197,6 @@ async function resolveExternalMedia(input, customTitle = '') {
     clearTimeout(timeoutId);
 
     const finalUrl = resp.url || base.originalUrl;
-    // If redirected to a known platform (e.g. vm.tiktok.com -> tiktok.com/@.../video/...), re-parse
     if (finalUrl !== base.originalUrl) {
       const reparsed = parseVideoSource(finalUrl, customTitle);
       if (reparsed && !reparsed.needsResolve) {
@@ -1000,17 +1210,11 @@ async function resolveExternalMedia(input, customTitle = '') {
         ...base,
         sourceType: 'direct',
         url: finalUrl,
+        streamUrl: finalUrl,
         originalUrl: finalUrl,
         needsResolve: false
       };
     }
-
-    const xfo = (resp.headers.get('x-frame-options') || '').toLowerCase();
-    const csp = (resp.headers.get('content-security-policy') || '').toLowerCase();
-    const blocksFraming =
-      xfo.includes('deny') ||
-      xfo.includes('sameorigin') ||
-      (csp.includes('frame-ancestors') && !csp.includes('frame-ancestors *'));
 
     if (contentType.includes('text/html')) {
       const html = await resp.text();
@@ -1060,24 +1264,36 @@ async function resolveExternalMedia(input, customTitle = '') {
       base.originalUrl = finalUrl;
       base.directEmbedUrl = innerPlayerUrl || finalUrl;
       base.proxyEmbedUrl = `/api/web-proxy?url=${encodeURIComponent(innerPlayerUrl || finalUrl)}`;
+
       if (directStreamUrl) {
         base.streamUrl = directStreamUrl;
         base.sourceType = 'direct';
         base.url = directStreamUrl;
-      } else if (innerPlayerUrl && !blocksFraming) {
-        base.sourceType = 'embed';
-        base.url = innerPlayerUrl;
+      } else if (innerPlayerUrl) {
+        const innerParsed = parseVideoSource(innerPlayerUrl, customTitle);
+        if (innerParsed && !innerParsed.needsResolve) {
+          base.sourceType = innerParsed.sourceType;
+          base.url = innerParsed.url;
+          base.directEmbedUrl = innerParsed.url;
+          if (innerParsed.streamUrl) base.streamUrl = innerParsed.streamUrl;
+        } else {
+          base.sourceType = 'embed';
+          base.url = innerPlayerUrl;
+        }
       } else {
-        // Default to proxyEmbedUrl when framing is blocked or for general movie webpages so X-Frame-Options never shows ☹️
         base.sourceType = 'embed';
-        base.url = base.proxyEmbedUrl;
+        base.url = finalUrl;
       }
     } else {
-      base.url = blocksFraming ? `/api/web-proxy?url=${encodeURIComponent(finalUrl)}` : finalUrl;
+      base.url = finalUrl;
     }
-  } catch {
-    // If server-side fetch times out or is blocked, still provide both proxy and direct URLs
-    base.url = base.proxyEmbedUrl || base.url;
+  } catch (err) {
+    // If server-side fetch times out or is blocked by Cloudflare, NEVER fail!
+    // Provide both direct URL and proxy URL so client browser can play directly without error!
+    base.url = base.originalUrl;
+    base.directEmbedUrl = base.originalUrl;
+    base.proxyEmbedUrl = `/api/web-proxy?url=${encodeURIComponent(base.originalUrl)}`;
+    base.sourceType = 'embed';
   }
 
   base.needsResolve = false;
